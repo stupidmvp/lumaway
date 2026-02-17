@@ -1,0 +1,133 @@
+import { httpClient } from '../http/client';
+
+// ── Project Settings Types ───────────────────────────────────────────────
+
+export interface ProjectSettings {
+    // General
+    description?: string;
+
+    // LumaWay Mode
+    mode?: 'guided' | 'self-serve' | 'hybrid';
+
+    // Assistant / Chatbot
+    assistantEnabled?: boolean;
+    assistantName?: string;
+    assistantWelcomeMessage?: string;
+    chatbotEnabled?: boolean;
+
+    // Security
+    requireApiKey?: boolean;
+    allowPublicAccess?: boolean;
+    allowedDomains?: string[];
+    ipWhitelist?: string[];
+
+    // Member Permissions
+    editorCanPublish?: boolean;
+    editorCanDelete?: boolean;
+    editorCanInvite?: boolean;
+    viewerCanComment?: boolean;
+    viewerCanExport?: boolean;
+
+    // Notifications — project lifecycle
+    notifyOnPublish?: boolean;
+    notifyOnNewMember?: boolean;
+    notifyOnWalkthroughUpdate?: boolean;
+
+    // Notifications — comment activity (project-level gates)
+    notifyOnMention?: boolean;
+    notifyOnReply?: boolean;
+    notifyOnReaction?: boolean;
+    notifyOnCorrection?: boolean;
+    notifyOnResolved?: boolean;
+    notifyOnAnnouncement?: boolean;
+}
+
+export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
+    description: '',
+    mode: 'guided',
+    assistantEnabled: false,
+    assistantName: 'LumaWay Assistant',
+    assistantWelcomeMessage: 'Hi! How can I help you today?',
+    chatbotEnabled: false,
+    requireApiKey: true,
+    allowPublicAccess: false,
+    allowedDomains: [],
+    ipWhitelist: [],
+    editorCanPublish: true,
+    editorCanDelete: false,
+    editorCanInvite: true,
+    viewerCanComment: true,
+    viewerCanExport: true,
+    notifyOnPublish: true,
+    notifyOnNewMember: true,
+    notifyOnWalkthroughUpdate: false,
+    notifyOnMention: true,
+    notifyOnReply: true,
+    notifyOnReaction: true,
+    notifyOnCorrection: true,
+    notifyOnResolved: true,
+    notifyOnAnnouncement: true,
+};
+
+// ── Project Interface ────────────────────────────────────────────────────
+
+export interface ProjectMemberPreview {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    avatar?: string;
+}
+
+export interface Project {
+    id: string;
+    name: string;
+    logo?: string | null;
+    organizationId: string;
+    ownerId?: string;
+    owner?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        avatar?: string;
+    };
+    walkthroughsCount?: number;
+    membersCount?: number;
+    members?: ProjectMemberPreview[];
+    isFavorite?: boolean;
+    status?: 'active' | 'archived';
+    settings?: ProjectSettings;
+    createdAt: string;
+}
+
+export const ProjectsService = {
+    async getAll(query?: Record<string, any>): Promise<{ data: Project[], total: number, limit: number, skip: number } | Project[]> {
+        const { data } = await httpClient.get<any>('/projects', { params: query });
+        return data;
+    },
+
+    async create(name: string): Promise<Project> {
+        const { data } = await httpClient.post<Project>('/projects', { name });
+        return data;
+    },
+
+    async getById(id: string): Promise<Project> {
+        const { data } = await httpClient.get<Project>(`/projects/${id}`);
+        return data;
+    },
+
+    async update(id: string, data: Partial<Project>): Promise<Project> {
+        const { data: result } = await httpClient.patch<Project>(`/projects/${id}`, data);
+        return result;
+    },
+
+    async updateSettings(id: string, settings: Partial<ProjectSettings>): Promise<Project> {
+        const { data } = await httpClient.patch<Project>(`/project-settings/${id}`, { settings });
+        return data;
+    },
+
+    async delete(id: string): Promise<void> {
+        await httpClient.delete(`/projects/${id}`);
+    }
+};

@@ -1,0 +1,17 @@
+{
+    "name": "@luma/types",
+    "version": "0.0.0",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "lint": "eslint .",
+        "type-check": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@luma/typescript-config": "workspace:*",
+        "@luma/eslint-config": "workspace:*",
+        "typescript": "latest",
+        "eslint": "^9.0.0"
+    }
+}
