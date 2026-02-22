@@ -13,6 +13,8 @@ type EditorContextValue = ReturnType<typeof useEditorState> & {
     handleTagsChange: (tags: string[]) => void;
     handleDuplicateCurrentStep: () => void;
     handleRemoveCurrentStep: () => void;
+    reviewerUserIds: string[];
+    approvals: any[];
 };
 
 const EditorContext = createContext<EditorContextValue | null>(null);

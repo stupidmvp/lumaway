@@ -3,9 +3,12 @@ import { httpClient } from '../http/client';
 export interface Step {
     id: string;
     title: string;
-    content: string;
+    description?: string;
+    purpose?: string;
     target?: string;
     placement?: 'auto' | 'top' | 'top-start' | 'top-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end' | 'right' | 'right-start' | 'right-end';
+    roles?: string[];
+    metadata?: Record<string, any>;
 }
 
 export interface WalkthroughActorEmbed {

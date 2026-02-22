@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Step, Walkthrough } from '@luma/infra';
+import { Step, Walkthrough, useProject, DEFAULT_PROJECT_SETTINGS } from '@luma/infra';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,8 +24,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { ChevronUp, ChevronDown, Copy, Trash2, Pencil } from 'lucide-react';
+import { ChevronUp, ChevronDown, Copy, Trash2, Pencil, Plus, Component, X, GripVertical, Sparkles, AlertCircle, Bot } from 'lucide-react';
+
 import { useTranslations } from 'next-intl';
+import { AiContextDrawer } from './AiContextDrawer';
 
 import { CommentsPanel } from '@/components/comments';
 
@@ -58,6 +60,15 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
 }: StepEditorPanelProps) {
     const t = useTranslations('Editor');
     const tc = useTranslations('Common');
+    const { data: project } = useProject(projectId);
+
+    // Merge with defaults to ensure we have values during loading or for new projects
+    const settings = React.useMemo(() => ({
+        ...DEFAULT_PROJECT_SETTINGS,
+        ...(project?.settings ?? {}),
+    }), [project?.settings]);
+
+    const [focusNewKey, setFocusNewKey] = React.useState<string | null>(null);
 
     return (
         <div className="flex-1 flex flex-col">
@@ -100,15 +111,37 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
                     {/* Step content */}
                     <textarea
                         className="w-full p-0 bg-transparent border-none outline-none focus:outline-none text-foreground resize-y min-h-[120px] focus:ring-0 text-sm leading-relaxed placeholder:text-foreground-muted/50 flex-1"
-                        value={step.content}
-                        onChange={e => onUpdateStep(stepIndex, 'content', e.target.value)}
+                        value={step.description}
+                        onChange={e => onUpdateStep(stepIndex, 'description', e.target.value)}
                         placeholder={t('stepContentPlaceholder')}
                     />
 
                 </div>
 
-                {/* Right column — Properties + Actions */}
                 <div className="border-t lg:border-t-0 lg:border-l border-border/30 pt-3 lg:pt-0 lg:pl-6 space-y-3">
+                    {/* AI Context Section */}
+                    {settings.assistantEnabled && (
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-foreground-muted uppercase tracking-wider">{t('aiContext')}</label>
+                            <AiContextDrawer
+                                purpose={step.purpose || ''}
+                                onUpdatePromise={(val) => onUpdateStep(stepIndex, 'purpose', val)}
+                                trigger={
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full h-8 px-2 text-xs text-foreground-muted hover:text-primary hover:bg-primary/5 hover:border-primary/30 gap-2 justify-start border-dashed border-border/60"
+                                    >
+                                        <Bot className="h-3.5 w-3.5 opacity-70" />
+                                        <span className="truncate flex-1 text-left font-normal">
+                                            {step.purpose ? step.purpose : t('aiContextPlaceholder')}
+                                        </span>
+                                    </Button>
+                                }
+                            />
+                        </div>
+                    )}
+
                     {/* Target Element */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-medium text-foreground-muted uppercase tracking-wider">{t('targetElement')}</label>
@@ -127,35 +160,31 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
                             value={step.placement || 'auto'}
                             onValueChange={(value) => onUpdateStep(stepIndex, 'placement', value)}
                         >
-                            <SelectTrigger className="w-full h-7 px-2 rounded-sm bg-background-secondary/50 border-transparent text-xs focus:ring-0 focus:bg-background focus:border-border/50">
+                            <SelectTrigger className="w-full h-7 px-2 rounded-sm bg-background-secondary/50 border-transparent text-xs transition-all hover:bg-background-secondary hover:border-border/50 focus:ring-2 focus:ring-ring focus:ring-offset-0 focus:bg-background focus:border-border/50 cursor-pointer">
                                 <SelectValue placeholder={t('selectPlacement')} />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="auto">{t('automatic')}</SelectItem>
 
                                 <SelectGroup>
-                                    <SelectLabel>{t('top')}</SelectLabel>
                                     <SelectItem value="top">{t('top')}</SelectItem>
                                     <SelectItem value="top-start">{t('topStart')}</SelectItem>
                                     <SelectItem value="top-end">{t('topEnd')}</SelectItem>
                                 </SelectGroup>
 
                                 <SelectGroup>
-                                    <SelectLabel>{t('bottom')}</SelectLabel>
                                     <SelectItem value="bottom">{t('bottom')}</SelectItem>
                                     <SelectItem value="bottom-start">{t('bottomStart')}</SelectItem>
                                     <SelectItem value="bottom-end">{t('bottomEnd')}</SelectItem>
                                 </SelectGroup>
 
                                 <SelectGroup>
-                                    <SelectLabel>{t('right')}</SelectLabel>
                                     <SelectItem value="right">{t('right')}</SelectItem>
                                     <SelectItem value="right-start">{t('rightStart')}</SelectItem>
                                     <SelectItem value="right-end">{t('rightEnd')}</SelectItem>
                                 </SelectGroup>
 
                                 <SelectGroup>
-                                    <SelectLabel>{t('left')}</SelectLabel>
                                     <SelectItem value="left">{t('left')}</SelectItem>
                                     <SelectItem value="left-start">{t('leftStart')}</SelectItem>
                                     <SelectItem value="left-end">{t('leftEnd')}</SelectItem>
@@ -164,15 +193,98 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
                         </Select>
                     </div>
 
+                    {/* Metadata Section */}
+                    <div className="space-y-1 pt-2 border-t border-border/30">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-medium text-foreground-muted uppercase tracking-wider flex items-center gap-1">
+                                <Component className="h-3 w-3" />
+                                {t('metadata')}
+                            </label>
+                            <Button
+                                onClick={() => {
+                                    const currentMeta = step.metadata || {};
+                                    const newKey = `property_${Object.keys(currentMeta).length + 1}`;
+                                    onUpdateStep(stepIndex, 'metadata', {
+                                        ...currentMeta,
+                                        [newKey]: ''
+                                    });
+                                    setFocusNewKey(newKey);
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 hover:bg-background-secondary/50"
+                            >
+                                <Plus className="h-3 w-3 text-foreground-muted" />
+                            </Button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            {Object.entries(step.metadata || {}).map(([key, value], i) => (
+                                <div key={i} className="flex items-center gap-1.5 group">
+                                    <Input
+                                        ref={el => {
+                                            if (el && focusNewKey === key) {
+                                                el.focus();
+                                                // Small timeout to ensure selection happens after focus
+                                                setTimeout(() => el.select(), 0);
+                                                setFocusNewKey(null);
+                                            }
+                                        }}
+                                        className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-[0.8]"
+                                        value={key}
+                                        onChange={(e) => {
+                                            const newMeta = { ...step.metadata };
+                                            const newKey = e.target.value;
+                                            if (newKey !== key) {
+                                                delete newMeta[key];
+                                                newMeta[newKey] = value;
+                                                onUpdateStep(stepIndex, 'metadata', newMeta);
+                                            }
+                                        }}
+                                        placeholder="Key"
+                                    />
+                                    <span className="text-foreground-muted/30 text-[10px]">:</span>
+                                    <Input
+                                        className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-1"
+                                        value={value as string}
+                                        onChange={(e) => {
+                                            const newMeta = { ...step.metadata };
+                                            newMeta[key] = e.target.value;
+                                            onUpdateStep(stepIndex, 'metadata', newMeta);
+                                        }}
+                                        placeholder="Value"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            const newMeta = { ...step.metadata };
+                                            delete newMeta[key];
+                                            onUpdateStep(stepIndex, 'metadata', newMeta);
+                                        }}
+                                        className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 rounded text-foreground-muted"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                            {Object.keys(step.metadata || {}).length === 0 && (
+                                <div className="text-[10px] text-foreground-muted/40 italic px-1">
+                                    {t('noMetadata')}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Actions */}
                     <div className="flex flex-col gap-1 border-t border-border/30 pt-2.5">
+
+
                         <Button
                             onClick={onDuplicateStep}
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-xs text-foreground-muted hover:text-foreground hover:bg-background-secondary/50 gap-1.5 justify-start"
+                            className="h-7 px-2 text-xs text-foreground-muted hover:text-foreground hover:bg-background-secondary/50 gap-2 justify-start w-full"
                         >
-                            <Copy className="h-3 w-3 opacity-70" />
+                            <Copy className="h-3.5 w-3.5 opacity-70" />
                             {t('duplicateStep')}
                         </Button>
 
@@ -181,9 +293,9 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2 text-xs text-foreground-muted hover:text-red-400 hover:bg-red-500/5 gap-1.5 justify-start"
+                                    className="h-7 px-2 text-xs text-foreground-muted hover:text-destructive hover:bg-destructive/10 gap-2 justify-start w-full"
                                 >
-                                    <Trash2 className="h-3 w-3 opacity-70" />
+                                    <Trash2 className="h-3.5 w-3.5 opacity-70" />
                                     {t('deleteStep')}
                                 </Button>
                             </AlertDialogTrigger>

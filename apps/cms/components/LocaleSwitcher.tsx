@@ -2,6 +2,7 @@
 
 import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
+import { useUpdatePreferences } from '@luma/infra';
 import { Languages } from 'lucide-react';
 import {
     Popover,
@@ -20,17 +21,23 @@ export function LocaleSwitcher() {
     const locale = useLocale();
     const router = useRouter();
     const pathname = usePathname();
+    const updatePreferences = useUpdatePreferences();
     const [open, setOpen] = useState(false);
     const t = useTranslations('LocaleSwitcher');
 
-    const handleLocaleChange = (newLocale: string) => {
-        // Replace the current locale segment in the pathname
+    const handleLocaleChange = async (newLocale: string) => {
         const segments = pathname.split('/');
-        // The locale is the first real segment (e.g. /en/dashboard → ['', 'en', 'dashboard'])
-        if (segments[1] && LOCALES.some((l) => l.code === segments[1])) {
+        const hasLocale = segments[1] && LOCALES.some((l) => l.code === segments[1]);
+
+        if (hasLocale) {
             segments[1] = newLocale;
+        } else {
+            segments.splice(1, 0, newLocale);
         }
-        router.push(segments.join('/'));
+
+        const newPath = segments.join('/') || '/';
+        await updatePreferences.mutateAsync({ language: newLocale as 'en' | 'es' });
+        router.push(newPath);
         setOpen(false);
     };
 
@@ -59,11 +66,10 @@ export function LocaleSwitcher() {
                     <button
                         key={loc.code}
                         onClick={() => handleLocaleChange(loc.code)}
-                        className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm transition-colors cursor-pointer ${
-                            loc.code === locale
-                                ? 'bg-accent text-accent-foreground font-medium'
-                                : 'hover:bg-accent hover:text-accent-foreground'
-                        }`}
+                        className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm transition-colors cursor-pointer ${loc.code === locale
+                            ? 'bg-accent text-accent-foreground font-medium'
+                            : 'hover:bg-accent hover:text-accent-foreground'
+                            }`}
                     >
                         <span className="uppercase text-xs font-semibold w-5 text-center opacity-60">
                             {loc.code}

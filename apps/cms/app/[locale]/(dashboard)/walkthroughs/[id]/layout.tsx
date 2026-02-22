@@ -16,6 +16,7 @@ import { EditorHeader } from '@/components/walkthrough-editor/EditorHeader';
 import { WalkthroughTitleBlock } from '@/components/walkthrough-editor/WalkthroughTitleBlock';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import VersionHistoryDrawer from '@/components/walkthrough-editor/VersionHistoryDrawer';
+import { useCurrentUser } from '@luma/infra';
 
 /* ─── Tab types ─── */
 
@@ -144,7 +145,23 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         togglePublish,
         openVersionHistory,
         closeVersionHistory,
+        // Approval Workflow
+        versionStatus,
+        approvalRequired,
+        approvalsCount,
+        minApprovals,
+        canRequestApproval,
+        canApprove,
+        canReject,
+        requestApproval,
+        approveVersion,
+        rejectVersion,
+        reviewerUserIds,
+        approvals,
     } = useEditorContext();
+
+    const { data: user } = useCurrentUser();
+    const currentUserId = user?.id;
 
     // ── Active tab from pathname ──
     const activeTab: TabKey = useMemo(() => {
@@ -214,6 +231,22 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                 parentId={localWalkthrough.parentId}
                 onTogglePublish={togglePublish}
                 onSave={handleSave}
+                // Approval Workflow
+                // Approval Workflow
+                approvalRequired={approvalRequired}
+                versionStatus={versionStatus}
+                approvalsCount={approvalsCount}
+                minApprovals={minApprovals}
+                canRequestApproval={canRequestApproval}
+                canApprove={canApprove}
+                canReject={canReject}
+                onRequestApproval={requestApproval}
+                onApprove={approveVersion}
+                onReject={rejectVersion}
+                reviewerUserIds={reviewerUserIds}
+                approvals={approvals}
+                projectId={localWalkthrough.projectId}
+                currentUserId={currentUserId}
             />
 
             {/* Title + metadata + tabs */}

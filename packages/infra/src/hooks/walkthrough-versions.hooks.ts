@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { WalkthroughVersionsService, PaginatedVersions } from '../services/walkthrough-versions.service';
+import { WalkthroughVersionsService, PaginatedVersions, WalkthroughVersion } from '../services/walkthrough-versions.service';
 
 const VERSIONS_PAGE_SIZE = 5;
 
@@ -29,6 +29,21 @@ export const useRestoreVersion = () => {
             await Promise.all([
                 queryClient.refetchQueries({ queryKey: ['walkthroughs', variables.walkthroughId] }),
                 queryClient.invalidateQueries({ queryKey: ['walkthrough-versions', variables.walkthroughId] }),
+            ]);
+        }
+    });
+};
+
+export const useUpdateVersion = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ versionId, data }: { versionId: string; data: Partial<WalkthroughVersion> }) =>
+            WalkthroughVersionsService.updateVersion(versionId, data),
+        onSuccess: async (updatedVersion) => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['walkthrough-versions', updatedVersion.walkthroughId] }),
+                queryClient.invalidateQueries({ queryKey: ['walkthroughs', updatedVersion.walkthroughId] }),
             ]);
         }
     });

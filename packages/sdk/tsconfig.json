@@ -3,6 +3,8 @@
     "compilerOptions": {
         "outDir": "dist",
         "rootDir": "src",
+        "jsx": "react-jsx",
+        "allowSyntheticDefaultImports": true,
         "lib": [
             "dom",
             "dom.iterable",

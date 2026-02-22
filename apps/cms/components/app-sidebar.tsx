@@ -379,6 +379,14 @@ export function AppSidebar() {
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/secrets')} tooltip={t('secretsManagement')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
+                                        <Link href="/admin/secrets" className="transition-smooth flex items-center gap-2.5">
+                                            <Key className="h-4 w-4 opacity-60 shrink-0" />
+                                            <span className="group-data-[collapsible=icon]:hidden">{t('secretsManagement')}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

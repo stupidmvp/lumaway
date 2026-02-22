@@ -124,6 +124,38 @@ export const AdminService = {
         const { data } = await httpClient.get<{ data: AdminModulePermissions[] }>('/admin-permissions');
         return data;
     },
+
+    // ─── System Secrets ────────────────────────────────────────
+    async getSecrets(): Promise<{ data: SystemSecret[]; total: number }> {
+        const { data } = await httpClient.get<{ data: SystemSecret[]; total: number }>('/system-secrets');
+        return data;
+    },
+
+    async createSecret(secretData: { keyName: string; keyValue: string; provider: string }): Promise<SystemSecret> {
+        const { data } = await httpClient.post<SystemSecret>('/system-secrets', secretData);
+        return data;
+    },
+
+    async updateSecret(id: string, secretData: { keyName?: string; keyValue?: string; provider?: string }): Promise<SystemSecret> {
+        const { data } = await httpClient.patch<SystemSecret>(`/system-secrets/${id}`, secretData);
+        return data;
+    },
+
+    async deleteSecret(id: string): Promise<void> {
+        await httpClient.delete(`/system-secrets/${id}`);
+    },
 };
 
+// ═══════════════════════════════════════════════════════════
+// System Secret Type
+// ═══════════════════════════════════════════════════════════
 
+export interface SystemSecret {
+    id: string;
+    keyName: string;
+    keyValue: string; // redacted from API (e.g. "•••••FyS2")
+    provider: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}

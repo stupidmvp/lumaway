@@ -6,10 +6,13 @@ import {
     useWalkthrough,
     useUpdateWalkthrough,
     useWalkthroughVersions,
+    useUpdateVersion,
     usePermissions,
     useProjectSettingsPermissions,
     Step,
     Walkthrough,
+    useCurrentUser,
+    DEFAULT_PREFERENCES,
 } from '@luma/infra';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -37,6 +40,7 @@ export function useEditorState(id: string) {
     const { data: versionsData } = useWalkthroughVersions(id);
     const versions = versionsData?.pages.flatMap((page) => page.data) ?? [];
     const updateMutation = useUpdateWalkthrough();
+    const updateVersionMutation = useUpdateVersion();
     const permissions = usePermissions();
 
     // Project settings permissions (publish, delete, comment, etc.)
@@ -47,27 +51,50 @@ export function useEditorState(id: string) {
         ? permissions.can('update', 'walkthroughs', { projectId: walkthroughData.projectId })
         : false;
 
-    // canPublish: user can edit AND project settings allow publishing
-    const canPublish = canEdit && projectSettingsPerms.canPublish;
-
     // canDeleteWalkthrough: project settings allow deletion for this user role
     const canDeleteWalkthrough = projectSettingsPerms.canDeleteWalkthrough;
 
     // canComment: project settings allow commenting for this user role
     const canComment = projectSettingsPerms.canComment;
 
-    // Resolve effective role
+    // Resolve effective role (needed for approval checks)
     const projectId = walkthroughData?.projectId;
     const directProjectRole = projectId ? permissions.getProjectRole(projectId) : null;
+    const isOwnerOrAdmin = permissions.isSuperAdmin() || (projectId ? permissions.isOrgAdminOrOwner() : false) || directProjectRole === 'owner';
     const effectiveRole = permissions.isSuperAdmin()
         ? 'owner'
         : (directProjectRole ?? (permissions.isOrgAdminOrOwner() ? 'admin' : null));
+
+    // Approval flags
+    const latestVersion = versions[0]; // Assuming versions are sorted by date desc
+    const approvalRequired = projectSettingsPerms.settings?.approvalRequired ?? false;
+    const versionStatus = latestVersion?.status ?? 'draft';
+
+    const canRequestApproval = canEdit && versionStatus === 'draft' && approvalRequired;
+    const canApprove = isOwnerOrAdmin && versionStatus === 'pending_approval';
+    const canReject = canApprove;
+
+    // canPublish updated: user can edit AND (no approval required OR version is approved)
+    const canPublish = canEdit && (!approvalRequired || versionStatus === 'approved' || versionStatus === 'published');
+
+    const reviewerUserIds = projectSettingsPerms.settings?.reviewerUserIds ?? [];
+    const approvals = (latestVersion as any)?.approvals || [];
+    const minApprovals = projectSettingsPerms.settings?.minApprovals ?? 1;
+    const approvalsCount = approvals.length;
+
+    // User Preferences
+    const { data: currentUser } = useCurrentUser();
+    const prefs = {
+        ...DEFAULT_PREFERENCES,
+        ...(currentUser?.preferences ?? {}),
+    };
 
     // Local state
     const [localWalkthrough, setLocalWalkthrough] = useState<Walkthrough | null>(null);
     const [selectedStepIndex, setSelectedStepIndex] = useState<number>(-1);
     const [showVersionHistory, setShowVersionHistory] = useState(false);
     const [stepsExpanded, setStepsExpanded] = useState(true);
+    const hasInitializedExpanded = useRef(false);
     const stepTitleRef = useRef<HTMLInputElement>(null);
     const shouldFocusTitleRef = useRef(false);
 
@@ -88,6 +115,14 @@ export function useEditorState(id: string) {
             }
         }
     }, [walkthroughData]);
+
+    // Initialize sidebar state based on preferences
+    useEffect(() => {
+        if (currentUser && !hasInitializedExpanded.current) {
+            setStepsExpanded(prefs.editorSidebarOpen);
+            hasInitializedExpanded.current = true;
+        }
+    }, [currentUser, prefs.editorSidebarOpen]);
 
     // Auto-select step from URL param (e.g. navigating from a comment step badge)
     useEffect(() => {
@@ -155,14 +190,14 @@ export function useEditorState(id: string) {
         const newStep: Step = {
             id: Math.random().toString(36).substr(2, 9),
             title: '',
-            content: '',
-            placement: 'bottom',
+            description: '',
+            placement: prefs.defaultStepPlacement as any,
             target: ''
         };
         const newSteps = [...localWalkthrough.steps, newStep];
         setLocalWalkthrough({ ...localWalkthrough, steps: newSteps });
         setSelectedStepIndex(newSteps.length - 1);
-    }, [localWalkthrough]);
+    }, [localWalkthrough, prefs.defaultStepPlacement]);
 
     const updateStep = useCallback((index: number, field: keyof Step, value: any) => {
         if (!localWalkthrough) return;
@@ -191,7 +226,7 @@ export function useEditorState(id: string) {
         const newStep: Step = {
             id: Math.random().toString(36).substr(2, 9),
             title: `${stepToClone.title} (${t('copy')})`,
-            content: stepToClone.content,
+            description: stepToClone.description,
             target: stepToClone.target,
             placement: stepToClone.placement
         };
@@ -232,6 +267,45 @@ export function useEditorState(id: string) {
             setSelectedStepIndex(newIndex);
         }
     }, [localWalkthrough]);
+
+    const requestApproval = useCallback(async () => {
+        if (!latestVersion) return;
+        try {
+            await updateVersionMutation.mutateAsync({
+                versionId: latestVersion.id,
+                data: { status: 'pending_approval' }
+            });
+            toast.success(t('submittingForReview'));
+        } catch (e) {
+            toast.error(t('walkthroughSaveFailed'));
+        }
+    }, [latestVersion, updateVersionMutation, t]);
+
+    const approveVersion = useCallback(async () => {
+        if (!latestVersion) return;
+        try {
+            await updateVersionMutation.mutateAsync({
+                versionId: latestVersion.id,
+                data: { status: 'approved' }
+            });
+            toast.success(t('statusApproved'));
+        } catch (e) {
+            toast.error(t('walkthroughSaveFailed'));
+        }
+    }, [latestVersion, updateVersionMutation, t]);
+
+    const rejectVersion = useCallback(async (reason?: string) => {
+        if (!latestVersion) return;
+        try {
+            await updateVersionMutation.mutateAsync({
+                versionId: latestVersion.id,
+                data: { status: 'rejected', rejectionReason: reason }
+            });
+            toast.success(t('statusRejected'));
+        } catch (e) {
+            toast.error(t('walkthroughSaveFailed'));
+        }
+    }, [latestVersion, updateVersionMutation, t]);
 
     const togglePublish = useCallback(async () => {
         if (!localWalkthrough) return;
@@ -281,6 +355,16 @@ export function useEditorState(id: string) {
         selectedStepIndex,
         showVersionHistory,
         stepsExpanded,
+        latestVersion,
+        approvalRequired,
+        versionStatus,
+        approvalsCount,
+        minApprovals,
+        reviewerUserIds,
+        approvals,
+        canRequestApproval,
+        canApprove,
+        canReject,
         isPending: updateMutation.isPending,
         stepTitleRef,
         sensors,
@@ -294,6 +378,9 @@ export function useEditorState(id: string) {
         moveStep,
         handleDragEnd,
         togglePublish,
+        requestApproval,
+        approveVersion,
+        rejectVersion,
         updateLocalWalkthrough,
         setSelectedStepIndex,
         toggleStepsPanel,

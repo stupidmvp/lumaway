@@ -1,41 +1,25 @@
-import { Walkthrough, UserAction, GuidancePlan, ExecutionState } from '@luma/types';
-import { WalkthroughInteractor } from './interactor/WalkthroughInteractor';
-import { GuidancePresenter } from './presenter/GuidancePresenter';
+import type { ExecutionState, LumaUserContext, Walkthrough } from "@luma/core";
+import { EngineResolver, createDefaultAgentTeam } from "./resolver.js";
+import type { EngineEvent, GuidancePlan, ResolverContext } from "./types.js";
+import type { AgentTeam } from "./resolver.js";
 
-export class Engine {
-    private interactor?: WalkthroughInteractor;
-    private presenter: GuidancePresenter;
-    private subscribers: ((plan: GuidancePlan) => void)[] = [];
+export class LumaEngine {
+    private resolver: EngineResolver;
 
-    constructor() {
-        this.presenter = new GuidancePresenter();
+    constructor(customAgents?: Partial<AgentTeam>) {
+        // Permitir inyectar agentes custom (ej. integraciones con LLM reales) 
+        // o usar los CoreAgents deterministas por defecto.
+        const team = { ...createDefaultAgentTeam(), ...customAgents };
+        this.resolver = new EngineResolver(team);
     }
 
-    public start(walkthrough: Walkthrough): void {
-        this.interactor = new WalkthroughInteractor(walkthrough);
-        this.interactor.subscribe((state) => {
-            this.notifySubscribers(state);
-        });
-        // Initial notification
-        this.notifySubscribers(this.interactor.getState());
-    }
-
-    public sendAction(action: UserAction): void {
-        if (this.interactor) {
-            this.interactor.handleAction(action);
-        }
-    }
-
-    public subscribe(callback: (plan: GuidancePlan) => void): () => void {
-        this.subscribers.push(callback);
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== callback);
-        };
-    }
-
-    private notifySubscribers(state: ExecutionState): void {
-        if (!this.interactor) return;
-        const plan = this.presenter.present(this.interactor.getWalkthrough(), state);
-        this.subscribers.forEach(sub => sub(plan));
+    async processEvent(
+        event: EngineEvent,
+        state: ExecutionState,
+        context: LumaUserContext,
+        walkthroughs: Walkthrough[]
+    ): Promise<GuidancePlan> {
+        const resolverContext: ResolverContext = { walkthroughs };
+        return await this.resolver.resolve(event, state, context, resolverContext);
     }
 }

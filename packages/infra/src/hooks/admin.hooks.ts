@@ -128,4 +128,46 @@ export const useAdminPermissions = () => {
     });
 };
 
+// ═══════════════════════════════════════════════════════════
+// System Secrets
+// ═══════════════════════════════════════════════════════════
 
+export const useSystemSecrets = () => {
+    return useQuery({
+        queryKey: ['admin', 'system-secrets'],
+        queryFn: () => AdminService.getSecrets(),
+        staleTime: 30 * 1000,
+    });
+};
+
+export const useCreateSystemSecret = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: { keyName: string; keyValue: string; provider: string }) =>
+            AdminService.createSecret(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'system-secrets'] });
+        },
+    });
+};
+
+export const useUpdateSystemSecret = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: { keyName?: string; keyValue?: string; provider?: string } }) =>
+            AdminService.updateSecret(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'system-secrets'] });
+        },
+    });
+};
+
+export const useDeleteSystemSecret = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => AdminService.deleteSecret(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'system-secrets'] });
+        },
+    });
+};

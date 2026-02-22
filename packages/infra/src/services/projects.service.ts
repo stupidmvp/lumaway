@@ -28,6 +28,11 @@ export interface ProjectSettings {
     viewerCanComment?: boolean;
     viewerCanExport?: boolean;
 
+    // Approval Workflow
+    approvalRequired?: boolean;
+    minApprovals?: number;
+    reviewerUserIds?: string[];
+
     // Notifications — project lifecycle
     notifyOnPublish?: boolean;
     notifyOnNewMember?: boolean;
@@ -58,6 +63,9 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
     editorCanInvite: true,
     viewerCanComment: true,
     viewerCanExport: true,
+    approvalRequired: false,
+    minApprovals: 1,
+    reviewerUserIds: [],
     notifyOnPublish: true,
     notifyOnNewMember: true,
     notifyOnWalkthroughUpdate: false,

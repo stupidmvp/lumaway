@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
     Loader2, Settings, Palette, Globe, Bell, Code2,
-    Monitor, Sun, Moon, Save, Mail,
+    Monitor, Sun, Moon, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -170,70 +170,43 @@ export default function SettingsPage() {
     type ResolvedPrefs = Required<UserPreferences>;
 
     // Merge user prefs with defaults — always produces a full object
-    const savedPrefs: ResolvedPrefs = useMemo(() => ({
+    const prefs: ResolvedPrefs = useMemo(() => ({
         ...DEFAULT_PREFERENCES,
         ...(user?.preferences ?? {}),
     }) as ResolvedPrefs, [user?.preferences]);
 
-    // Draft overrides (only keys that the user touched)
-    const [draftOverrides, setDraftOverrides] = useState<Partial<UserPreferences>>({});
-
-    // Current prefs being displayed (saved + draft overrides)
-    const prefs: ResolvedPrefs = useMemo(() => ({
-        ...savedPrefs,
-        ...draftOverrides,
-    }), [savedPrefs, draftOverrides]);
-
-    // Detect whether there are unsaved changes
-    const hasChanges = useMemo(() => {
-        return (Object.keys(draftOverrides) as (keyof UserPreferences)[]).some(
-            (key) => draftOverrides[key] !== savedPrefs[key]
-        );
-    }, [draftOverrides, savedPrefs]);
-
     const isPending = updatePreferences.isPending;
 
-    // Update a draft preference
-    const updateDraft = useCallback((key: keyof UserPreferences, value: any) => {
-        setDraftOverrides((prev) => ({ ...prev, [key]: value }));
-    }, []);
-
-    // Save all changes at once
-    const handleSave = useCallback(async () => {
-        if (!hasChanges) return;
-
-        // Compute only changed keys
-        const changed: Partial<UserPreferences> = {};
-        (Object.keys(draftOverrides) as (keyof UserPreferences)[]).forEach((key) => {
-            if (draftOverrides[key] !== savedPrefs[key]) {
-                (changed as any)[key] = draftOverrides[key];
-            }
-        });
+    // Direct update with auto-save and side effects
+    const handleSettingChange = useCallback(async (key: keyof UserPreferences, value: any) => {
+        // Optimistic update or just wait for revalidation?
+        // Since we are using react-query invalidate, the UI might flicker if we don't optimistically update,
+        // but for settings it's usually fine. To be safer and snappier, the mutation layout usually handles it.
+        // For now, we just fire the mutation.
 
         try {
+            const changed = { [key]: value };
             await updatePreferences.mutateAsync(changed);
 
-            // Side effects for theme & language
-            if ('theme' in changed) {
-                setTheme(changed.theme!);
+            // Side effects for theme & language (Immediate application)
+            if (key === 'theme') {
+                setTheme(value);
             }
-            if ('language' in changed) {
+            if (key === 'language') {
                 const segments = pathname.split('/');
+                // Assuming locale is at index 1 (e.g. /en/...)
                 if (segments[1] && ['en', 'es'].includes(segments[1])) {
-                    segments[1] = changed.language!;
+                    segments[1] = value;
                 }
-                router.push(segments.join('/'));
+                const newPath = segments.join('/');
+                router.push(newPath);
             }
 
-            setDraftOverrides({});
             toast.success(t('saved'));
         } catch {
             toast.error(t('saveFailed'));
         }
-    }, [hasChanges, draftOverrides, savedPrefs, updatePreferences, setTheme, router, pathname, t]);
-
-    // Reset draft on user data change
-    // (handled implicitly: draft is null when no edits made)
+    }, [updatePreferences, setTheme, router, pathname, t]);
 
     // ── Tab definitions ──────────────────────────────────────────────
     const tabs: SettingsTabDef<SettingsTab>[] = useMemo(() => [
@@ -271,25 +244,13 @@ export default function SettingsPage() {
                     <h1 className="text-base font-semibold text-foreground">{t('title')}</h1>
                 </div>
                 <div className="flex items-center gap-3">
-                    {hasChanges && (
-                        <span className="text-xs text-amber-500 font-medium flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            {t('unsavedChanges')}
+                    {/* Auto-save indicator could go here if needed, but toast is enough for now */}
+                    {isPending && (
+                        <span className="text-xs text-foreground-muted flex items-center gap-1.5">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {t('saving')}
                         </span>
                     )}
-                    <Button
-                        size="sm"
-                        disabled={!hasChanges || isPending}
-                        onClick={handleSave}
-                        className="gap-1.5"
-                    >
-                        {isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                            <Save className="h-3.5 w-3.5" />
-                        )}
-                        {isPending ? t('saving') : t('save')}
-                    </Button>
                 </div>
             </header>
 
@@ -318,11 +279,10 @@ export default function SettingsPage() {
                                     <SegmentedControl
                                         value={prefs.theme}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('theme', v)}
+                                        onChange={(v) => handleSettingChange('theme', v)}
                                         options={[
                                             { label: t('themeLight'), value: 'light', icon: <Sun className="h-3 w-3" /> },
                                             { label: t('themeDark'), value: 'dark', icon: <Moon className="h-3 w-3" /> },
-                                            { label: t('themeSystem'), value: 'system', icon: <Monitor className="h-3 w-3" /> },
                                         ]}
                                     />
                                 </SettingRow>
@@ -330,7 +290,7 @@ export default function SettingsPage() {
                                     <SegmentedControl
                                         value={prefs.language}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('language', v)}
+                                        onChange={(v) => handleSettingChange('language', v)}
                                         options={[
                                             { label: t('languageEn'), value: 'en' },
                                             { label: t('languageEs'), value: 'es' },
@@ -352,7 +312,7 @@ export default function SettingsPage() {
                                     <SegmentedControl
                                         value={prefs.defaultHomePage}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('defaultHomePage', v)}
+                                        onChange={(v) => handleSettingChange('defaultHomePage', v)}
                                         options={[
                                             { label: t('homeProjects'), value: 'projects' },
                                             { label: t('homeWalkthroughs'), value: 'walkthroughs' },
@@ -363,7 +323,7 @@ export default function SettingsPage() {
                                     <SelectControl
                                         value={prefs.displayNames}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('displayNames', v)}
+                                        onChange={(v) => handleSettingChange('displayNames', v)}
                                         options={[
                                             { label: t('displayFullName'), value: 'fullName' },
                                             { label: t('displayFirstName'), value: 'firstName' },
@@ -375,7 +335,7 @@ export default function SettingsPage() {
                                     <SegmentedControl
                                         value={prefs.firstDayOfWeek}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('firstDayOfWeek', v)}
+                                        onChange={(v) => handleSettingChange('firstDayOfWeek', v)}
                                         options={[
                                             { label: t('monday'), value: 'monday' },
                                             { label: t('sunday'), value: 'sunday' },
@@ -397,21 +357,21 @@ export default function SettingsPage() {
                                     <ToggleSwitch
                                         checked={prefs.emailNotifications}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('emailNotifications', v)}
+                                        onChange={(v) => handleSettingChange('emailNotifications', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('notifyOnInvitation')} description={t('notifyOnInvitationDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.notifyOnInvitation}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('notifyOnInvitation', v)}
+                                        onChange={(v) => handleSettingChange('notifyOnInvitation', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('notifyOnMemberJoin')} description={t('notifyOnMemberJoinDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.notifyOnMemberJoin}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('notifyOnMemberJoin', v)}
+                                        onChange={(v) => handleSettingChange('notifyOnMemberJoin', v)}
                                     />
                                 </SettingRow>
                             </div>
@@ -429,42 +389,42 @@ export default function SettingsPage() {
                                     <ToggleSwitch
                                         checked={prefs.emailOnMention}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnMention', v)}
+                                        onChange={(v) => handleSettingChange('emailOnMention', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('emailOnReply')} description={t('emailOnReplyDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.emailOnReply}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnReply', v)}
+                                        onChange={(v) => handleSettingChange('emailOnReply', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('emailOnReaction')} description={t('emailOnReactionDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.emailOnReaction}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnReaction', v)}
+                                        onChange={(v) => handleSettingChange('emailOnReaction', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('emailOnCorrection')} description={t('emailOnCorrectionDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.emailOnCorrection}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnCorrection', v)}
+                                        onChange={(v) => handleSettingChange('emailOnCorrection', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('emailOnResolved')} description={t('emailOnResolvedDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.emailOnResolved}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnResolved', v)}
+                                        onChange={(v) => handleSettingChange('emailOnResolved', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('emailOnAnnouncement')} description={t('emailOnAnnouncementDescription')}>
                                     <ToggleSwitch
                                         checked={prefs.emailOnAnnouncement}
                                         disabled={isPending || !prefs.emailNotifications}
-                                        onChange={(v) => updateDraft('emailOnAnnouncement', v)}
+                                        onChange={(v) => handleSettingChange('emailOnAnnouncement', v)}
                                     />
                                 </SettingRow>
                             </div>
@@ -482,14 +442,14 @@ export default function SettingsPage() {
                                     <ToggleSwitch
                                         checked={prefs.editorSidebarOpen}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('editorSidebarOpen', v)}
+                                        onChange={(v) => handleSettingChange('editorSidebarOpen', v)}
                                     />
                                 </SettingRow>
                                 <SettingRow label={t('defaultStepPlacement')} description={t('defaultStepPlacementDescription')}>
                                     <SelectControl
                                         value={prefs.defaultStepPlacement}
                                         disabled={isPending}
-                                        onChange={(v) => updateDraft('defaultStepPlacement', v)}
+                                        onChange={(v) => handleSettingChange('defaultStepPlacement', v)}
                                         options={[
                                             { label: t('placementAuto'), value: 'auto' },
                                             { label: t('placementTop'), value: 'top' },

@@ -4,15 +4,27 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ENV } from '@/lib/env';
-import { User, LogOut, Building2, Bell, CheckCheck, FolderKanban, MessageCircle, UserPlus, AtSign, ChevronDown, Settings, Mail, Calendar, Shield, AlertCircle, CheckCircle2, Megaphone, SmilePlus, ChevronRight } from 'lucide-react';
+import { User, LogOut, Building2, Bell, CheckCheck, FolderKanban, MessageCircle, UserPlus, AtSign, ChevronDown, Settings, Mail, Calendar, Shield, AlertCircle, CheckCircle2, Megaphone, SmilePlus, ChevronRight, Languages, Sun, Moon, Monitor, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { useCurrentUser, AuthService, useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, Notification as AppNotification, useActiveOrganization } from '@luma/infra';
+import { useCurrentUser, AuthService, useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, Notification as AppNotification, useActiveOrganization, useUpdatePreferences } from '@luma/infra';
 import { useQueryClient } from '@tanstack/react-query';
 import { Autocomplete } from '@/components/ui/autocomplete';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu';
 import { useSidebar } from '@/components/ui/sidebar';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { useTranslations, useLocale } from 'next-intl';
+import { useTheme } from 'next-themes';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 function timeAgo(dateStr: string, t: any): string {
@@ -57,6 +69,9 @@ export function TopBar() {
     const notifications: AppNotification[] = notificationsData?.data || [];
 
     const queryClient = useQueryClient();
+    const { theme, setTheme } = useTheme();
+    const pathname = usePathname();
+    const updatePreferences = useUpdatePreferences();
 
     const handleLogout = async () => {
         await AuthService.logout();
@@ -276,9 +291,9 @@ export function TopBar() {
                         </PopoverContent>
                     </Popover>
 
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button className="flex items-center gap-2 rounded-md hover:bg-accent transition-colors px-2 py-1.5 cursor-pointer">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-2 rounded-md hover:bg-accent transition-colors px-2 py-1.5 cursor-pointer outline-none">
                                 <UserAvatar
                                     firstName={currentUser?.firstName}
                                     lastName={currentUser?.lastName}
@@ -291,105 +306,135 @@ export function TopBar() {
                                 </span>
                                 <ChevronDown className="h-3 w-3 text-foreground-muted shrink-0 hidden sm:block" />
                             </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            side="bottom"
-                            align="end"
-                            sideOffset={6}
-                            className="w-72 p-0"
-                        >
-                            {/* User detail header */}
-                            <div className="px-4 pt-4 pb-3 flex flex-col items-center text-center">
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                            {/* Profile Header */}
+                            <div className="flex items-center gap-3 p-3">
                                 <UserAvatar
                                     firstName={currentUser?.firstName}
                                     lastName={currentUser?.lastName}
                                     avatar={currentUser?.avatar}
-                                    size="xl"
-                                    className="h-16 w-16 mb-3"
+                                    size="md"
+                                    className="h-10 w-10 shrink-0"
                                 />
-                                <span className="text-sm font-semibold text-foreground truncate max-w-full">
-                                    {fullName}
-                                </span>
-                                {currentUser?.email && (
-                                    <span className="text-xs text-foreground-muted truncate max-w-full mt-0.5">
-                                        {currentUser.email}
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-semibold text-foreground truncate">
+                                        {fullName}
                                     </span>
-                                )}
+                                    {currentUser?.email && (
+                                        <span className="text-xs text-foreground-muted truncate">
+                                            {currentUser.email}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* User info details */}
-                            {currentUser && (
-                                <>
-                                    <Separator />
-                                    <div className="px-4 py-2.5 space-y-2">
-                                        {currentUser.email && (
-                                            <div className="flex items-center gap-2.5 text-xs">
-                                                <Mail className="h-3.5 w-3.5 text-foreground-muted shrink-0" />
-                                                <span className="text-foreground-muted truncate">{currentUser.email}</span>
-                                            </div>
-                                        )}
-                                        {activeOrg && (
-                                            <div className="flex items-center gap-2.5 text-xs">
-                                                <Building2 className="h-3.5 w-3.5 text-foreground-muted shrink-0" />
-                                                <span className="text-foreground-muted truncate">{activeOrg.name}</span>
-                                                {activeOrg.role && (
-                                                    <span className="ml-auto text-[10px] font-medium text-foreground-subtle bg-background-secondary px-1.5 py-0.5 rounded capitalize shrink-0">
-                                                        {activeOrg.role}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                        {currentUser.createdAt && (
-                                            <div className="flex items-center gap-2.5 text-xs">
-                                                <Calendar className="h-3.5 w-3.5 text-foreground-muted shrink-0" />
-                                                <span className="text-foreground-muted">
-                                                    {t('memberSince', {
-                                                        date: new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(new Date(currentUser.createdAt))
-                                                    })}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {currentUser.globalRoles && currentUser.globalRoles.length > 0 && (
-                                            <div className="flex items-center gap-2.5 text-xs">
-                                                <Shield className="h-3.5 w-3.5 text-foreground-muted shrink-0" />
-                                                <span className="text-foreground-muted capitalize">
-                                                    {currentUser.globalRoles.join(', ').replace(/_/g, ' ')}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </>
-                            )}
+                            <DropdownMenuSeparator />
 
-                            <Separator />
                             <div className="p-1">
-                                <Link
-                                    href="/profile"
-                                    className="flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-                                >
-                                    <User className="h-4 w-4 opacity-70" />
-                                    {t('myProfile')}
-                                </Link>
-                                <Link
-                                    href="/settings"
-                                    className="flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-                                >
-                                    <Settings className="h-4 w-4 opacity-70" />
-                                    {t('settings')}
-                                </Link>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/profile" className="flex items-center gap-2.5 cursor-pointer">
+                                        <User className="h-4 w-4 opacity-60" />
+                                        <span>{t('myProfile')}</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/settings" className="flex items-center gap-2.5 cursor-pointer">
+                                        <Settings className="h-4 w-4 opacity-60" />
+                                        <span>{t('settings')}</span>
+                                    </Link>
+                                </DropdownMenuItem>
                             </div>
-                            <Separator />
+
+                            <DropdownMenuSeparator />
+
                             <div className="p-1">
-                                <button
+                                {/* Appearance Submenu */}
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger className="gap-2.5 cursor-pointer">
+                                        <Sun className="h-4 w-4 opacity-60" />
+                                        <span>{t('appearance')}</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent>
+                                        <DropdownMenuItem
+                                            onClick={async () => {
+                                                setTheme('light');
+                                                await updatePreferences.mutateAsync({ theme: 'light' });
+                                            }}
+                                            className="gap-2.5 cursor-pointer"
+                                        >
+                                            <Sun className="h-4 w-4 opacity-60" />
+                                            <span>{t('lightMode')}</span>
+                                            {theme === 'light' && <Check className="h-3.5 w-3.5 ml-auto text-accent-blue" />}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={async () => {
+                                                setTheme('dark');
+                                                await updatePreferences.mutateAsync({ theme: 'dark' });
+                                            }}
+                                            className="gap-2.5 cursor-pointer"
+                                        >
+                                            <Moon className="h-4 w-4 opacity-60" />
+                                            <span>{t('darkMode')}</span>
+                                            {theme === 'dark' && <Check className="h-3.5 w-3.5 ml-auto text-accent-blue" />}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+
+                                {/* Language Submenu */}
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger className="gap-2.5 cursor-pointer">
+                                        <Languages className="h-4 w-4 opacity-60" />
+                                        <span>{t('language')}</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent>
+                                        {[
+                                            { code: 'en', label: t('english') },
+                                            { code: 'es', label: t('spanish') }
+                                        ].map((loc) => (
+                                            <DropdownMenuItem
+                                                key={loc.code}
+                                                onClick={async () => {
+                                                    const segments = pathname.split('/');
+                                                    const localePrefixes = ['en', 'es'];
+                                                    const hasLocale = segments[1] && localePrefixes.includes(segments[1] as string);
+
+                                                    if (hasLocale) {
+                                                        segments[1] = loc.code;
+                                                    } else {
+                                                        segments.splice(1, 0, loc.code);
+                                                    }
+
+                                                    const newPath = segments.join('/') || '/';
+                                                    await updatePreferences.mutateAsync({ language: loc.code as 'en' | 'es' });
+                                                    router.push(newPath);
+                                                }}
+                                                className="gap-2.5 cursor-pointer"
+                                            >
+                                                <span className="uppercase text-[10px] font-bold w-4 text-center opacity-60">
+                                                    {loc.code}
+                                                </span>
+                                                <span>{loc.label}</span>
+                                                {locale === loc.code && <Check className="h-3.5 w-3.5 ml-auto text-accent-blue" />}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                            </div>
+
+                            <DropdownMenuSeparator />
+
+                            <div className="p-1">
+                                <DropdownMenuItem
                                     onClick={handleLogout}
-                                    className="flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                                    className="gap-2.5 text-destructive focus:text-destructive cursor-pointer"
                                 >
-                                    <LogOut className="h-4 w-4 opacity-70" />
-                                    {t('logOut')}
-                                </button>
+                                    <LogOut className="h-4 w-4 opacity-60" />
+                                    <span>{t('logOut')}</span>
+                                </DropdownMenuItem>
                             </div>
-                        </PopoverContent>
-                    </Popover>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </header>
