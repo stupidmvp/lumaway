@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { LumaProvider, useLuma } from '@luma/sdk'
+import { LumaProvider, useLuma } from '@lumaway/sdk/react'
 import './App.css'
 import { Package, Truck, Settings, Moon, Sun, Bell, Search, Plus, Home } from 'lucide-react'
 

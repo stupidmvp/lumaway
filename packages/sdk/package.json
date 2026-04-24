@@ -1,30 +1,93 @@
 {
-    "name": "@luma/sdk",
+    "name": "@lumaway/sdk",
     "version": "0.1.0",
+    "description": "Lumaway SDK — in-app AI guidance, walkthroughs and observer mode for web applications.",
+    "keywords": [
+        "lumaway",
+        "sdk",
+        "walkthrough",
+        "guidance",
+        "onboarding",
+        "ai",
+        "assistant",
+        "tooltip",
+        "observer"
+    ],
+    "author": "Blureffect <sebastian@blureffect.co>",
+    "license": "MIT",
+    "homepage": "https://lumaway.ai",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/stupidmvp/lumaway.git",
+        "directory": "packages/sdk"
+    },
+    "bugs": {
+        "url": "https://github.com/stupidmvp/lumaway/issues"
+    },
     "type": "module",
-    "private": true,
-    "main": "./src/index.ts",
-    "types": "./src/index.ts",
+    "sideEffects": false,
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        },
+        "./react": {
+            "types": "./dist/react.d.ts",
+            "import": "./dist/react.js",
+            "require": "./dist/react.cjs"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
     "scripts": {
+        "build": "tsup",
+        "build:watch": "tsup --watch",
+        "clean": "rm -rf dist",
         "lint": "eslint .",
-        "type-check": "tsc --noEmit"
+        "type-check": "tsc --noEmit",
+        "prepublishOnly": "pnpm run clean && pnpm run build"
     },
     "dependencies": {
         "@tanstack/query-core": "^5.90.20",
-        "@luma/core": "workspace:*",
-        "@luma/engine": "workspace:*",
-        "@luma/presenters": "workspace:*"
+        "socket.io-client": "^4.8.1"
     },
     "peerDependencies": {
         "react": "^18.0.0 || ^19.0.0",
         "react-dom": "^18.0.0 || ^19.0.0"
     },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "react-dom": {
+            "optional": true
+        }
+    },
     "devDependencies": {
+        "@luma/core": "workspace:*",
+        "@luma/engine": "workspace:*",
+        "@luma/presenters": "workspace:*",
         "@luma/typescript-config": "workspace:*",
         "@luma/eslint-config": "workspace:*",
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
-        "typescript": "latest",
+        "tsup": "^8.3.5",
+        "typescript": "^5.9.2",
         "eslint": "^9.0.0"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
+    },
+    "engines": {
+        "node": ">=18"
     }
 }
