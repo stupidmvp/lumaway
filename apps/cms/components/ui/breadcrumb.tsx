@@ -68,6 +68,7 @@ export function Breadcrumb() {
                 'projects': t('projects'),
                 'walkthroughs': t('walkthroughs'),
                 'settings': t('settings'),
+                'lumens': t('lumens'),
                 'new': t('new'),
                 'profile': t('profile'),
                 'my-organization': t('myOrganization'),
@@ -79,12 +80,14 @@ export function Breadcrumb() {
             };
 
             // If it's a UUID (approximation), try to resolve or show generic
-            if (segment.length > 20) {
-                if (breadcrumbSegments[index - 1] === 'projects') {
-                    label = projectData?.name || segment;
-                } else if (breadcrumbSegments[index - 1] === 'walkthroughs') {
-                    label = t('walkthrough');
-                } else if (breadcrumbSegments[index - 1] === 'users') {
+                if (segment.length > 20) {
+                    if (breadcrumbSegments[index - 1] === 'projects') {
+                        label = projectData?.name || segment;
+                    } else if (breadcrumbSegments[index - 1] === 'walkthroughs') {
+                        label = t('walkthrough');
+                    } else if (breadcrumbSegments[index - 1] === 'lumens') {
+                        label = t('lumen');
+                    } else if (breadcrumbSegments[index - 1] === 'users') {
                     const userName = userProfileData
                         ? [userProfileData.firstName, userProfileData.lastName].filter(Boolean).join(' ')
                         : null;

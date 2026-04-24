@@ -1,4 +1,6 @@
 import type { GuidancePlan } from "@luma/core";
+import type { SdkI18nStrings } from "../i18n.js";
+import { resolveSdkStrings } from "../i18n.js";
 
 export class Tooltip {
     private host: HTMLElement;
@@ -21,6 +23,7 @@ export class Tooltip {
     private focusedEl: HTMLElement | null = null;
     private focusStyleEl: HTMLStyleElement | null = null;
     private overlayEl: HTMLElement | null = null;
+    private strings: SdkI18nStrings;
 
     // Configurable
     private offset: number = 8;
@@ -30,13 +33,15 @@ export class Tooltip {
         onAction: (walkthroughId: string, stepId: string) => void,
         onBack: (walkthroughId: string, stepId: string) => void,
         onInteraction: (selector: string) => void,
-        isChatOpen: () => boolean = () => false
+        isChatOpen: () => boolean = () => false,
+        locale?: string
     ) {
         this.onDismiss = onDismiss;
         this.onAction = onAction;
         this.onBack = onBack;
         this.onInteraction = onInteraction;
         this.isChatOpen = isChatOpen;
+        this.strings = resolveSdkStrings(locale);
         this.handleTargetClick = () => {
             // Deterministic step advance when user clicks the highlighted target.
             // This avoids getting stuck if selector normalization differs across events.
@@ -76,7 +81,7 @@ export class Tooltip {
         this.tooltipEl.innerHTML = `
             <div class="luma-tooltip-caret"></div>
             <div class="luma-tooltip-caret-patch"></div>
-            <button class="luma-tooltip-close" aria-label="Cerrar">
+            <button class="luma-tooltip-close" aria-label="${this.strings.closeAriaLabel}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -235,8 +240,8 @@ export class Tooltip {
             /* Close Button */
             .luma-tooltip-close {
                 position: absolute;
-                top: 12px;
-                right: 12px;
+                top: 10px;
+                right: 10px;
                 background: transparent;
                 border: none;
                 color: var(--luma-text-muted);
@@ -265,6 +270,8 @@ export class Tooltip {
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                padding-right: 44px; /* prevent overlap with close button */
+                min-height: 24px;
             }
 
             /* Optional icon in header */
@@ -353,6 +360,14 @@ export class Tooltip {
                 background: var(--luma-primary);
                 border-radius: 9999px;
                 transition: width 0.4s ease;
+            }
+            .luma-step-counter {
+                margin-left: auto;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--luma-text-muted);
+                white-space: nowrap;
+                padding-right: 2px;
             }
 
             /* Target hash badge */
@@ -520,7 +535,7 @@ export class Tooltip {
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
             <span>${configName}</span>
-            ${hasCounter ? `<span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--luma-text-muted);">Paso ${stepIndex! + 1} / ${totalSteps}</span>` : ''}
+            ${hasCounter ? `<span class="luma-step-counter">${this.strings.stepCounter(stepIndex! + 1, totalSteps)}</span>` : ''}
         `;
 
         // ---- Build Content ----
@@ -556,7 +571,7 @@ export class Tooltip {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
                 </svg>
-                Anterior
+                ${this.strings.previous}
             `;
             prevBtn.onclick = () => this.onBack(walkthroughId, stepId);
             actionsContainer.appendChild(prevBtn);
@@ -570,7 +585,7 @@ export class Tooltip {
             // When there's a target on page: label as "Saltar" (skip)
             // When it's the last step: "Finalizar"
             // Otherwise: standard "Siguiente"
-            let btnLabel = isLast ? '✅ Finalizar' : (targetSelector && targetSelector !== 'body' ? 'Saltar' : 'Siguiente');
+            let btnLabel = isLast ? this.strings.finish : (targetSelector && targetSelector !== 'body' ? this.strings.skip : this.strings.next);
             nextBtn.innerHTML = `
                 ${btnLabel}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -591,6 +606,12 @@ export class Tooltip {
                 actionsContainer.appendChild(btn);
             });
         }
+    }
+
+    public setLocale(locale?: string) {
+        this.strings = resolveSdkStrings(locale);
+        const closeBtn = this.tooltipEl.querySelector(".luma-tooltip-close");
+        if (closeBtn) closeBtn.setAttribute("aria-label", this.strings.closeAriaLabel);
     }
 
     private renderMarkdown(text: string): string {

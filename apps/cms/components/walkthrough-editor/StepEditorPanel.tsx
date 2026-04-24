@@ -70,6 +70,126 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
 
     const [focusNewKey, setFocusNewKey] = React.useState<string | null>(null);
 
+    const isPlainObject = React.useCallback((value: unknown): value is Record<string, any> => {
+        return Object.prototype.toString.call(value) === '[object Object]';
+    }, []);
+
+    const renderObjectFields = React.useCallback((
+        objectValue: Record<string, any>,
+        onObjectChange: (nextObject: Record<string, any>) => void,
+        depth: number = 0
+    ): React.ReactNode => {
+        const entries = Object.entries(objectValue || {});
+
+        return (
+            <div className="space-y-1.5">
+                {entries.map(([childKey, childValue], childIndex) => {
+                    const childIsObject = isPlainObject(childValue);
+                    const childIsArray = Array.isArray(childValue);
+
+                    return (
+                        <div key={`${depth}-${childKey}-${childIndex}`} className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 group">
+                                <Input
+                                    className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-[0.8]"
+                                    value={childKey}
+                                    onChange={(e) => {
+                                        const nextObject = { ...objectValue };
+                                        const newKey = e.target.value;
+                                        if (newKey !== childKey) {
+                                            delete nextObject[childKey];
+                                            nextObject[newKey] = childValue;
+                                            onObjectChange(nextObject);
+                                        }
+                                    }}
+                                    placeholder="Key"
+                                />
+                                <span className="text-foreground-muted/30 text-[10px]">:</span>
+
+                                {!childIsObject && !childIsArray && (
+                                    <Input
+                                        className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-1"
+                                        value={childValue == null ? '' : String(childValue)}
+                                        onChange={(e) => {
+                                            const nextObject = { ...objectValue };
+                                            nextObject[childKey] = e.target.value;
+                                            onObjectChange(nextObject);
+                                        }}
+                                        placeholder="Value"
+                                    />
+                                )}
+
+                                {(childIsObject || childIsArray) && (
+                                    <div className="font-mono text-[10px] text-foreground-muted px-1.5 h-6 flex items-center rounded-sm bg-background-secondary/30 border border-transparent flex-1">
+                                        {childIsObject
+                                            ? `Object (${Object.keys(childValue as Record<string, any>).length})`
+                                            : `Array (${(childValue as unknown[]).length})`}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => {
+                                        const nextObject = { ...objectValue };
+                                        delete nextObject[childKey];
+                                        onObjectChange(nextObject);
+                                    }}
+                                    className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 rounded text-foreground-muted"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+
+                            {childIsObject && (
+                                <details className="ml-2 rounded-sm border border-border/40 bg-background-secondary/20 p-2">
+                                    <summary className="cursor-pointer text-[10px] text-foreground-muted select-none">
+                                        Ver atributos
+                                    </summary>
+                                    <div className="mt-2">
+                                        {renderObjectFields(
+                                            childValue as Record<string, any>,
+                                            (nextChildObject) => {
+                                                const nextObject = { ...objectValue };
+                                                nextObject[childKey] = nextChildObject;
+                                                onObjectChange(nextObject);
+                                            },
+                                            depth + 1
+                                        )}
+                                    </div>
+                                </details>
+                            )}
+
+                            {childIsArray && (
+                                <details className="ml-2 rounded-sm border border-border/40 bg-background-secondary/20 p-2">
+                                    <summary className="cursor-pointer text-[10px] text-foreground-muted select-none">
+                                        Ver contenido
+                                    </summary>
+                                    <pre className="mt-2 text-[10px] font-mono text-foreground-muted whitespace-pre-wrap break-all">
+                                        {JSON.stringify(childValue, null, 2)}
+                                    </pre>
+                                </details>
+                            )}
+                        </div>
+                    );
+                })}
+
+                <Button
+                    onClick={() => {
+                        const nextObject = { ...objectValue };
+                        const newKey = `property_${Object.keys(nextObject).length + 1}`;
+                        nextObject[newKey] = '';
+                        onObjectChange(nextObject);
+                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px] text-foreground-muted hover:bg-background-secondary/50"
+                >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add property
+                </Button>
+            </div>
+        );
+    }, [isPlainObject]);
+
     return (
         <div className="flex-1 flex flex-col">
             {/* Step header — section label + nav */}
@@ -220,50 +340,72 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
 
                         <div className="space-y-1.5">
                             {Object.entries(step.metadata || {}).map(([key, value], i) => (
-                                <div key={i} className="flex items-center gap-1.5 group">
-                                    <Input
-                                        ref={el => {
-                                            if (el && focusNewKey === key) {
-                                                el.focus();
-                                                // Small timeout to ensure selection happens after focus
-                                                setTimeout(() => el.select(), 0);
-                                                setFocusNewKey(null);
-                                            }
-                                        }}
-                                        className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-[0.8]"
-                                        value={key}
-                                        onChange={(e) => {
-                                            const newMeta = { ...step.metadata };
-                                            const newKey = e.target.value;
-                                            if (newKey !== key) {
+                                <div key={i} className="space-y-1.5">
+                                    <div className="flex items-center gap-1.5 group">
+                                        <Input
+                                            ref={el => {
+                                                if (el && focusNewKey === key) {
+                                                    el.focus();
+                                                    setTimeout(() => el.select(), 0);
+                                                    setFocusNewKey(null);
+                                                }
+                                            }}
+                                            className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-[0.8]"
+                                            value={key}
+                                            onChange={(e) => {
+                                                const newMeta = { ...(step.metadata || {}) };
+                                                const newKey = e.target.value;
+                                                if (newKey !== key) {
+                                                    delete newMeta[key];
+                                                    newMeta[newKey] = value;
+                                                    onUpdateStep(stepIndex, 'metadata', newMeta);
+                                                }
+                                            }}
+                                            placeholder="Key"
+                                        />
+                                        <span className="text-foreground-muted/30 text-[10px]">:</span>
+                                        {isPlainObject(value) ? (
+                                            <div className="font-mono text-[10px] text-foreground-muted px-1.5 h-6 flex items-center rounded-sm bg-background-secondary/30 border border-transparent flex-1">
+                                                {`Object (${Object.keys(value).length})`}
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-1"
+                                                value={value == null ? '' : String(value)}
+                                                onChange={(e) => {
+                                                    const newMeta = { ...(step.metadata || {}) };
+                                                    newMeta[key] = e.target.value;
+                                                    onUpdateStep(stepIndex, 'metadata', newMeta);
+                                                }}
+                                                placeholder="Value"
+                                            />
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                const newMeta = { ...(step.metadata || {}) };
                                                 delete newMeta[key];
-                                                newMeta[newKey] = value;
                                                 onUpdateStep(stepIndex, 'metadata', newMeta);
-                                            }
-                                        }}
-                                        placeholder="Key"
-                                    />
-                                    <span className="text-foreground-muted/30 text-[10px]">:</span>
-                                    <Input
-                                        className="font-mono text-[10px] bg-background-secondary/30 h-6 px-1.5 rounded-sm border-transparent focus:border-border/50 transition-all placeholder:text-foreground-subtle/50 flex-1"
-                                        value={value as string}
-                                        onChange={(e) => {
-                                            const newMeta = { ...step.metadata };
-                                            newMeta[key] = e.target.value;
-                                            onUpdateStep(stepIndex, 'metadata', newMeta);
-                                        }}
-                                        placeholder="Value"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const newMeta = { ...step.metadata };
-                                            delete newMeta[key];
-                                            onUpdateStep(stepIndex, 'metadata', newMeta);
-                                        }}
-                                        className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 rounded text-foreground-muted"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
+                                            }}
+                                            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 rounded text-foreground-muted"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+
+                                    {isPlainObject(value) && (
+                                        <details className="ml-2 rounded-sm border border-border/40 bg-background-secondary/20 p-2">
+                                            <summary className="cursor-pointer text-[10px] text-foreground-muted select-none">
+                                                Ver atributos
+                                            </summary>
+                                            <div className="mt-2">
+                                                {renderObjectFields(value, (nextObjectValue) => {
+                                                    const newMeta = { ...(step.metadata || {}) };
+                                                    newMeta[key] = nextObjectValue;
+                                                    onUpdateStep(stepIndex, 'metadata', newMeta);
+                                                })}
+                                            </div>
+                                        </details>
+                                    )}
                                 </div>
                             ))}
                             {Object.keys(step.metadata || {}).length === 0 && (
@@ -338,4 +480,3 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
         </div >
     );
 });
-

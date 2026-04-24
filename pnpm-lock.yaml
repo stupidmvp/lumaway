@@ -339,6 +339,9 @@ importers:
       '@luma/presenters':
         specifier: workspace:*
         version: link:../presenters
+      '@tanstack/query-core':
+        specifier: ^5.90.20
+        version: 5.90.20
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.0

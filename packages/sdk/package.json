@@ -10,6 +10,7 @@
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
+        "@tanstack/query-core": "^5.90.20",
         "@luma/core": "workspace:*",
         "@luma/engine": "workspace:*",
         "@luma/presenters": "workspace:*"

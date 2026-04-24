@@ -11,9 +11,29 @@ export interface ProjectSettings {
 
     // Assistant / Chatbot
     assistantEnabled?: boolean;
+    defaultLocale?: string;
+    supportedLocales?: string[];
     assistantName?: string;
     assistantWelcomeMessage?: string;
+    assistantSystemPrompt?: string;
     chatbotEnabled?: boolean;
+    chatbotUi?: {
+        template?: 'default' | 'compact' | 'minimal';
+        position?: 'bottom-right' | 'bottom-left';
+        primaryColor?: string;
+        secondaryColor?: string;
+        surfaceColor?: string;
+        chatWidth?: number;
+        chatHeight?: number;
+        triggerSize?: number;
+    };
+    observerMode?: {
+        enabled?: boolean;
+        allowedDomains?: string[];
+        captureAudio?: boolean;
+        requireHumanApproval?: boolean;
+        retentionDays?: number;
+    };
 
     // Security
     requireApiKey?: boolean;
@@ -51,9 +71,29 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
     description: '',
     mode: 'guided',
     assistantEnabled: false,
+    defaultLocale: 'en',
+    supportedLocales: ['en'],
     assistantName: 'LumaWay Assistant',
     assistantWelcomeMessage: 'Hi! How can I help you today?',
+    assistantSystemPrompt: undefined,
     chatbotEnabled: false,
+    chatbotUi: {
+        template: 'default',
+        position: 'bottom-right',
+        primaryColor: '#4f46e5',
+        secondaryColor: '#9333ea',
+        surfaceColor: '#ffffff',
+        chatWidth: 380,
+        chatHeight: 520,
+        triggerSize: 64,
+    },
+    observerMode: {
+        enabled: false,
+        allowedDomains: [],
+        captureAudio: false,
+        requireHumanApproval: true,
+        retentionDays: 90,
+    },
     requireApiKey: true,
     allowPublicAccess: false,
     allowedDomains: [],

@@ -1,4 +1,6 @@
 import type { GuidancePlan } from "@luma/core";
+import type { SdkI18nStrings } from "../i18n.js";
+import { resolveSdkStrings } from "../i18n.js";
 
 export interface ChatMessage {
     role: "user" | "bot";
@@ -9,6 +11,23 @@ export interface ChatMessage {
 export interface AssistantOptions {
     initialMessages?: ChatMessage[];
     onMessageAdded?: (msg: ChatMessage) => void;
+    locale?: string;
+    strings?: SdkI18nStrings;
+    theme?: "light" | "dark";
+    onLocaleChange?: (locale: string) => void;
+    onThemeChange?: (theme: "light" | "dark") => void;
+    uiSettings?: ChatbotUiSettings;
+}
+
+export interface ChatbotUiSettings {
+    template?: "default" | "compact" | "minimal";
+    position?: "bottom-right" | "bottom-left";
+    primaryColor?: string;
+    secondaryColor?: string;
+    surfaceColor?: string;
+    chatWidth?: number;
+    chatHeight?: number;
+    triggerSize?: number;
 }
 
 /**
@@ -29,12 +48,19 @@ export class Assistant {
     private progressPanel!: HTMLElement;
     private input!: HTMLInputElement;
     public isOpen: boolean = false;
+    private lockClosedForAutomation = false;
     private lastStepId: string | null = null;
     private contextualSuggestions: Array<{ label: string; action?: string; walkthroughId?: string; stepId?: string }> = [];
 
     private onTrackIntent: (intent: string) => void;
     private onAdvanceStep: (walkthroughId: string, stepId: string) => void;
     private onMessageAdded?: (msg: ChatMessage) => void;
+    private strings: SdkI18nStrings;
+    private locale: string = "en";
+    private theme: "light" | "dark" = "light";
+    private onLocaleChange?: (locale: string) => void;
+    private onThemeChange?: (theme: "light" | "dark") => void;
+    private uiSettings: ChatbotUiSettings = {};
 
     constructor(
         onTrackIntent: (intent: string) => void,
@@ -44,6 +70,12 @@ export class Assistant {
         this.onTrackIntent = onTrackIntent;
         this.onAdvanceStep = onAdvanceStep;
         this.onMessageAdded = options?.onMessageAdded;
+        this.strings = options?.strings || resolveSdkStrings(options?.locale);
+        this.locale = (options?.locale || "en").toLowerCase();
+        this.theme = options?.theme || "light";
+        this.onLocaleChange = options?.onLocaleChange;
+        this.onThemeChange = options?.onThemeChange;
+        this.uiSettings = options?.uiSettings || {};
 
         // 1. Create Host Element
         // Prevent duplicates: Remove existing instance if present
@@ -70,6 +102,7 @@ export class Assistant {
         // 5. Create Components
         this.createTriggerButton();
         this.createChatWindow(options?.initialMessages);
+        this.applyUiSettings(this.uiSettings);
     }
 
     private injectStyles() {
@@ -89,6 +122,12 @@ export class Assistant {
                 flex-direction: column;
                 align-items: flex-end;
                 pointer-events: none;
+                --luma-primary: #4f46e5;
+                --luma-secondary: #9333ea;
+                --luma-surface: #ffffff;
+                --luma-chat-width: 380px;
+                --luma-chat-height: 520px;
+                --luma-trigger-size: 64px;
             }
 
             .luma-assistant-container * {
@@ -98,10 +137,10 @@ export class Assistant {
 
             /* --- Trigger Button --- */
             .luma-trigger {
-                width: 64px;
-                height: 64px;
+                width: var(--luma-trigger-size);
+                height: var(--luma-trigger-size);
                 border-radius: 50%;
-                background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+                background: linear-gradient(135deg, var(--luma-primary) 0%, var(--luma-secondary) 100%);
                 box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
                 display: flex;
                 align-items: center;
@@ -196,9 +235,9 @@ export class Assistant {
                 position: absolute;
                 bottom: 95px;
                 right: 0px;
-                width: 380px;
-                height: 520px;
-                background: white;
+                width: var(--luma-chat-width);
+                height: var(--luma-chat-height);
+                background: var(--luma-surface);
                 border-radius: 24px;
                 box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
                 display: flex;
@@ -223,12 +262,13 @@ export class Assistant {
 
             .luma-chat-header {
                 padding: 16px;
-                background: linear-gradient(135deg, #4f46e5, #9333ea);
+                background: linear-gradient(135deg, var(--luma-primary), var(--luma-secondary));
                 color: white;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 flex-shrink: 0;
+                gap: 10px;
             }
 
             .luma-chat-header-info {
@@ -288,6 +328,73 @@ export class Assistant {
 
             .luma-close-btn:hover {
                 opacity: 1;
+            }
+
+            .luma-chat-header-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .luma-header-select {
+                appearance: none;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                background: rgba(255, 255, 255, 0.14);
+                color: #ffffff;
+                border-radius: 8px;
+                height: 30px;
+                padding: 0 10px;
+                font-size: 11px;
+                font-weight: 600;
+                outline: none;
+                cursor: pointer;
+            }
+
+            .luma-header-select option {
+                color: #111827;
+                background: #ffffff;
+            }
+
+            .luma-chat.luma-theme-dark {
+                background: #0b1222;
+                border-color: #1f2a44;
+            }
+
+            .luma-chat.luma-theme-dark .luma-messages {
+                background: #0f172a;
+            }
+
+            .luma-chat.luma-theme-dark .luma-msg-row.bot .luma-msg-bubble {
+                background: #111b31;
+                color: #e5e7eb;
+                border-color: #28354f;
+            }
+
+            .luma-chat.luma-theme-dark .luma-msg-avatar {
+                background: #162038;
+                border-color: #27344d;
+            }
+
+            .luma-chat.luma-theme-dark .luma-suggestions,
+            .luma-chat.luma-theme-dark .luma-input-area,
+            .luma-chat.luma-theme-dark .luma-footer {
+                background: #0b1222;
+                border-color: #1f2a44;
+            }
+
+            .luma-chat.luma-theme-dark .luma-input {
+                background: #111b31;
+                color: #e5e7eb;
+            }
+
+            .luma-chat.luma-theme-dark .luma-input::placeholder {
+                color: #94a3b8;
+            }
+
+            .luma-chat.luma-theme-dark .luma-chip {
+                background: #111b31;
+                border-color: #2e3a57;
+                color: #c7d2fe;
             }
 
             /* --- Messages --- */
@@ -358,7 +465,7 @@ export class Assistant {
             }
 
             .luma-msg-row.user .luma-msg-bubble {
-                background: #4f46e5;
+                background: var(--luma-primary);
                 color: white;
                 border-top-right-radius: 4px;
             }
@@ -449,7 +556,7 @@ export class Assistant {
                 width: 40px;
                 height: 40px;
                 border-radius: 12px;
-                background: #4f46e5;
+                background: var(--luma-primary);
                 color: white;
                 display: flex;
                 align-items: center;
@@ -476,7 +583,27 @@ export class Assistant {
                 background: white;
             }
 
-            .luma-footer b { color: #4f46e5; font-style: italic; }
+            .luma-footer b { color: var(--luma-primary); }
+
+            .luma-assistant-container.pos-bottom-left {
+                right: auto;
+                left: 24px;
+                align-items: flex-start;
+            }
+            .luma-assistant-container.pos-bottom-left .luma-chat {
+                right: auto;
+                left: 0;
+                transform-origin: bottom left;
+            }
+
+            .luma-chat.template-compact {
+                --luma-chat-width: 344px;
+                --luma-chat-height: 470px;
+            }
+            .luma-chat.template-minimal {
+                --luma-chat-width: 320px;
+                --luma-chat-height: 440px;
+            }
 
             /* --- Walkthrough Progress Panel --- */
             .luma-progress-panel {
@@ -530,7 +657,7 @@ export class Assistant {
             </div>
             <div class="luma-notification-dot"></div>
             <div class="luma-bubble">
-                <div class="luma-bubble-label">Guía de Luma</div>
+                <div class="luma-bubble-label">${this.escapeHtml(this.strings.guideLabel)}</div>
                 <div class="luma-bubble-content"></div>
                 <div class="luma-bubble-caret"></div>
             </div>
@@ -566,24 +693,34 @@ export class Assistant {
                         <div class="luma-chat-header-title">Luma Assistant</div>
                         <div class="luma-chat-header-status">
                             <div class="luma-status-dot"></div>
-                            En línea
+                            <span class="luma-chat-header-status-text">${this.escapeHtml(this.strings.online)}</span>
                         </div>
                     </div>
                 </div>
-                <button class="luma-close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
+                <div class="luma-chat-header-actions">
+                    <select class="luma-header-select luma-theme-select" aria-label="Theme">
+                        <option value="light">${this.escapeHtml(this.strings.themeLight)}</option>
+                        <option value="dark">${this.escapeHtml(this.strings.themeDark)}</option>
+                    </select>
+                    <select class="luma-header-select luma-lang-select" aria-label="Language">
+                        <option value="es">${this.escapeHtml(this.strings.langEs)}</option>
+                        <option value="en">${this.escapeHtml(this.strings.langEn)}</option>
+                    </select>
+                    <button class="luma-close-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
             </div>
             <div class="luma-progress-panel"></div>
             <div class="luma-messages"></div>
             <div class="luma-suggestions"></div>
             <form class="luma-input-area">
-                <input class="luma-input" placeholder="Escribe tu duda aquí..." spellcheck="false" />
+                <input class="luma-input" placeholder="${this.escapeHtml(this.strings.inputPlaceholder)}" spellcheck="false" />
                 <button type="submit" class="luma-send-btn" disabled>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
             </form>
-            <div class="luma-footer">Potenciado por <b>LumaWay</b></div>
+            <div class="luma-footer">${this.escapeHtml(this.strings.footerPoweredBy)} <b>LumaWay</b></div>
         `;
 
         this.messagesList = this.chatWindow.querySelector(".luma-messages")!;
@@ -592,6 +729,8 @@ export class Assistant {
         const sendBtn = this.chatWindow.querySelector(".luma-send-btn") as HTMLButtonElement;
         const form = this.chatWindow.querySelector(".luma-input-area") as HTMLFormElement;
         const closeBtn = this.chatWindow.querySelector(".luma-close-btn") as HTMLButtonElement;
+        const langSelect = this.chatWindow.querySelector(".luma-lang-select") as HTMLSelectElement;
+        const themeSelect = this.chatWindow.querySelector(".luma-theme-select") as HTMLSelectElement;
 
         // Restore conversation history so it survives SDK/Assistant re-creation
         if (initialMessages && initialMessages.length > 0) {
@@ -599,6 +738,19 @@ export class Assistant {
         }
 
         closeBtn.onclick = () => this.close();
+        this.applyThemeClass();
+        langSelect.value = this.locale.startsWith("es") ? "es" : "en";
+        themeSelect.value = this.theme;
+
+        langSelect.onchange = () => {
+            const locale = langSelect.value === "es" ? "es" : "en";
+            this.onLocaleChange?.(locale);
+        };
+        themeSelect.onchange = () => {
+            const next = themeSelect.value === "dark" ? "dark" : "light";
+            this.setTheme(next);
+            this.onThemeChange?.(next);
+        };
 
         this.input.oninput = () => {
             sendBtn.disabled = !this.input.value.trim();
@@ -671,14 +823,22 @@ export class Assistant {
 
                     if (btn.style.opacity === "0.7") return; // Prevent double clicks
                     btn.style.opacity = "0.7";
-
-                    // Close chat immediately before starting walkthrough
-                    // so that the render() call from the engine doesn't re-open it
-                    this.close();
+                    btn.disabled = true;
 
                     if (action.walkthroughId) {
+                        // Close chat immediately before starting walkthrough
+                        // so that the render() call from the engine doesn't re-open it
+                        this.close();
                         this.onAdvanceStep(action.walkthroughId, action.stepId || '');
                     } else if (action.action) {
+                        const siblings = Array.from(actionsContainer.querySelectorAll("button")) as HTMLButtonElement[];
+                        siblings.forEach((b) => {
+                            b.disabled = true;
+                            b.style.opacity = "0.55";
+                            b.style.pointerEvents = "none";
+                        });
+                        // Keep chat open for command actions (assist/browser run)
+                        // so user can see execution feedback in real time.
                         this.onTrackIntent(action.action);
                     }
                 };
@@ -721,7 +881,9 @@ export class Assistant {
 
     public setTyping(isTyping: boolean) {
         if (isTyping) {
-            if (this.typingRow) return;
+            if (this.typingRow) {
+                return;
+            }
             const row = document.createElement("div");
             row.className = "luma-msg-row bot";
             row.innerHTML = `
@@ -792,8 +954,19 @@ export class Assistant {
         return div.innerHTML;
     }
 
+    private sanitizeAssistantText(text: string): string {
+        if (!text) return '';
+        let clean = text;
+        clean = clean.replace(/\[\s*(target|selector|dom|elemento)\s*:\s*#[^\]]+\]/gi, '');
+        clean = clean.replace(/\b(target|selector|dom|elemento)\s*:\s*#[a-z0-9\-_:.]+/gi, '');
+        clean = clean.replace(/\(\s*#[a-z0-9\-_:.]+\s*\)/gi, '');
+        clean = clean.replace(/[ \t]{2,}/g, ' ');
+        clean = clean.replace(/\n{3,}/g, '\n\n');
+        return clean.trim();
+    }
+
     private renderMarkdown(text: string): string {
-        let html = this.escapeHtml(text);
+        let html = this.escapeHtml(this.sanitizeAssistantText(text));
 
         // Headers (##, ###)
         html = html.replace(/^### (.+)$/gm, '<h4 style="margin: 8px 0; font-size: 14px; font-weight: 600;">$1</h4>');
@@ -864,6 +1037,7 @@ export class Assistant {
     }
 
     public open() {
+        if (this.lockClosedForAutomation) return;
         this.isOpen = true;
         this.chatWindow.classList.add("open");
 
@@ -881,6 +1055,13 @@ export class Assistant {
         this.triggerButton.style.transform = "scale(1)";
     }
 
+    public setAutomationChatLock(locked: boolean) {
+        this.lockClosedForAutomation = locked;
+        if (locked) {
+            this.close();
+        }
+    }
+
     /**
      * Short message for the trigger bubble in guided mode. Must NOT duplicate the tooltip.
      * Supports Luma as helper or references the step intention briefly.
@@ -888,12 +1069,12 @@ export class Assistant {
     private getGuidedBubbleMessage(plan: GuidancePlan): string {
         const action = plan.suggestedAction || (plan.possibleActions?.[0]?.title);
         if (action && action.length <= 40) {
-            return `Te guío: ${action}`;
+            return `${this.strings.guidedBubblePrefix} ${action}`;
         }
         if (action && action.length > 40) {
-            return `Te guío paso a paso.`;
+            return this.strings.guidedBubbleShort;
         }
-        return `Luma te guía. Sigue el globo.`;
+        return this.strings.guidedBubbleGeneric;
     }
 
     /** Duration in ms before the bubble auto-hides (short so it doesn't compete with the tooltip). */
@@ -946,7 +1127,7 @@ export class Assistant {
         if (isComplete) {
             this.progressPanel.innerHTML = `
                 <div class="luma-progress-title">🗺️ ${walkthroughName}</div>
-                <div class="luma-progress-done-banner">✅ Recorrido completado</div>
+                <div class="luma-progress-done-banner">${this.escapeHtml(this.strings.walkthroughCompleted)}</div>
             `;
             return;
         }
@@ -970,6 +1151,10 @@ export class Assistant {
 
     public render(plan: GuidancePlan | null) {
         if (!plan) return;
+        if (this.lockClosedForAutomation) {
+            this.hideBubble();
+            return;
+        }
 
         // 0. Update Assistant Name
         if (plan && plan.config) {
@@ -978,6 +1163,7 @@ export class Assistant {
                 const name = plan.config.settings?.assistantName || plan.config.name || "Luma Assistant";
                 titleEl.textContent = name;
             }
+            this.setUiSettings((plan.config.settings as any)?.chatbotUi || {});
         }
 
         // 1. Welcome Message — show only when chat has no messages yet
@@ -1062,5 +1248,93 @@ export class Assistant {
             }
             this.lastStepId = stepId || 'universal';
         }
+    }
+
+    public setStrings(strings: SdkI18nStrings) {
+        this.strings = strings;
+        const bubbleLabel = this.triggerButton?.querySelector(".luma-bubble-label");
+        if (bubbleLabel) bubbleLabel.textContent = strings.guideLabel;
+        const statusText = this.chatWindow?.querySelector(".luma-chat-header-status-text");
+        if (statusText) statusText.textContent = strings.online;
+        if (this.input) this.input.placeholder = strings.inputPlaceholder;
+        const langSelect = this.chatWindow?.querySelector(".luma-lang-select") as HTMLSelectElement | null;
+        if (langSelect) langSelect.value = this.locale.startsWith("es") ? "es" : "en";
+        const themeSelect = this.chatWindow?.querySelector(".luma-theme-select") as HTMLSelectElement | null;
+        if (themeSelect) {
+            const lightOpt = themeSelect.querySelector('option[value="light"]');
+            const darkOpt = themeSelect.querySelector('option[value="dark"]');
+            if (lightOpt) lightOpt.textContent = strings.themeLight;
+            if (darkOpt) darkOpt.textContent = strings.themeDark;
+        }
+        if (langSelect) {
+            const esOpt = langSelect.querySelector('option[value="es"]');
+            const enOpt = langSelect.querySelector('option[value="en"]');
+            if (esOpt) esOpt.textContent = strings.langEs;
+            if (enOpt) enOpt.textContent = strings.langEn;
+        }
+        const footer = this.chatWindow?.querySelector(".luma-footer");
+        if (footer) footer.innerHTML = `${this.escapeHtml(strings.footerPoweredBy)} <b>LumaWay</b>`;
+    }
+
+    public setLocale(locale: string) {
+        this.locale = (locale || "en").toLowerCase();
+        this.setStrings(resolveSdkStrings(this.locale));
+    }
+
+    public setTheme(theme: "light" | "dark") {
+        this.theme = theme;
+        this.applyThemeClass();
+        const themeSelect = this.chatWindow?.querySelector(".luma-theme-select") as HTMLSelectElement | null;
+        if (themeSelect) themeSelect.value = theme;
+    }
+
+    public setUiSettings(settings: ChatbotUiSettings) {
+        this.uiSettings = { ...this.uiSettings, ...(settings || {}) };
+        this.applyUiSettings(this.uiSettings);
+    }
+
+    private applyThemeClass() {
+        if (!this.chatWindow) return;
+        this.chatWindow.classList.remove("luma-theme-light", "luma-theme-dark");
+        this.chatWindow.classList.add(this.theme === "dark" ? "luma-theme-dark" : "luma-theme-light");
+    }
+
+    private applyUiSettings(settings: ChatbotUiSettings) {
+        if (!this.container || !this.chatWindow) return;
+
+        const position = settings.position || "bottom-right";
+        this.container.classList.remove("pos-bottom-left");
+        if (position === "bottom-left") this.container.classList.add("pos-bottom-left");
+
+        const template = settings.template || "default";
+        this.chatWindow.classList.remove("template-compact", "template-minimal");
+        if (template === "compact") this.chatWindow.classList.add("template-compact");
+        if (template === "minimal") this.chatWindow.classList.add("template-minimal");
+
+        const root = this.container;
+        const primary = this.sanitizeColor(settings.primaryColor);
+        const secondary = this.sanitizeColor(settings.secondaryColor);
+        const surface = this.sanitizeColor(settings.surfaceColor);
+        if (primary) root.style.setProperty("--luma-primary", primary);
+        if (secondary) root.style.setProperty("--luma-secondary", secondary);
+        if (surface) root.style.setProperty("--luma-surface", surface);
+
+        if (typeof settings.chatWidth === "number" && settings.chatWidth >= 300 && settings.chatWidth <= 560) {
+            root.style.setProperty("--luma-chat-width", `${settings.chatWidth}px`);
+        }
+        if (typeof settings.chatHeight === "number" && settings.chatHeight >= 420 && settings.chatHeight <= 760) {
+            root.style.setProperty("--luma-chat-height", `${settings.chatHeight}px`);
+        }
+        if (typeof settings.triggerSize === "number" && settings.triggerSize >= 48 && settings.triggerSize <= 88) {
+            root.style.setProperty("--luma-trigger-size", `${settings.triggerSize}px`);
+        }
+    }
+
+    private sanitizeColor(color?: string): string | null {
+        const raw = String(color || "").trim();
+        if (!raw) return null;
+        if (/^#[0-9a-fA-F]{3,8}$/.test(raw)) return raw;
+        if (/^rgb(a?)\(.+\)$/.test(raw)) return raw;
+        return null;
     }
 }

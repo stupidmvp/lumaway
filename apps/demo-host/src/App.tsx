@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { LumaProvider, useLuma } from '@luma/sdk'
 import './App.css'
 import { Package, Truck, Settings, Moon, Sun, Bell, Search, Plus, Home } from 'lucide-react'
@@ -249,13 +249,30 @@ function App() {
   const [route, setRoute] = useState('/')
 
   // Simulating a fast internal router that the Engine can track
-  const navigate = (newRoute: string) => {
+  const navigate = useCallback((newRoute: string) => {
     // In a real app we'd push state. For Demo, state is fine.
     // Luma Engine will automatically detect this if we hook the router
     // but the LumaProvider handles history pushState normally.
     window.history.pushState({}, '', newRoute)
     setRoute(newRoute)
-  }
+  }, [])
+
+  const lumaConfig = useMemo(() => ({
+    apiKey: "sk_test_demo",
+    apiUrl: "http://localhost:3030",
+    onNavigate: navigate,
+    debug: true,
+    cache: {
+      enabled: true,
+      projectStaleTimeMs: 60_000,
+      walkthroughsStaleTimeMs: 30_000,
+      versionsStaleTimeMs: 15_000,
+    }
+  }), [navigate])
+
+  const lumaUserContext = useMemo(() => ({
+    locale: "es-CO"
+  }), [])
 
   // Listen to popstate for back buttons
   useEffect(() => {
@@ -266,15 +283,8 @@ function App() {
 
   return (
     <LumaProvider
-      config={{
-        apiKey: "sk_test_demo",
-        apiUrl: "http://localhost:3001",
-        onNavigate: navigate,
-        debug: true
-      }}
-      userContext={{
-        locale: "es-CO"
-      }}
+      config={lumaConfig}
+      userContext={lumaUserContext}
     >
       <Layout currentRoute={route} navigate={navigate}>
         {route === '/' && <Dashboard onNavigate={navigate} />}

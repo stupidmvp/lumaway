@@ -13,6 +13,7 @@ import {
     Plus,
     Archive,
     UserCog,
+    Clapperboard,
 } from 'lucide-react';
 import {
     useProject,
@@ -30,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
-type TabKey = 'walkthroughs' | 'activity' | 'members' | 'invitations' | 'actors' | 'settings';
+type TabKey = 'walkthroughs' | 'lumens' | 'activity' | 'members' | 'invitations' | 'actors' | 'settings';
 
 interface TabDef {
     key: TabKey;
@@ -85,6 +86,7 @@ export default function ProjectLayout({
     // ── Active tab from pathname ──────────────────────────────────────
     const activeTab: TabKey = useMemo(() => {
         if (pathname.endsWith('/activity')) return 'activity';
+        if (pathname.includes('/lumens')) return 'lumens';
         if (pathname.endsWith('/members')) return 'members';
         if (pathname.endsWith('/invitations')) return 'invitations';
         if (pathname.endsWith('/actors')) return 'actors';
@@ -102,6 +104,8 @@ export default function ProjectLayout({
 
         if (tab === 'activity' || tab === 'discussion') {
             router.replace(`/projects/${id}/activity${qs}`);
+        } else if (tab === 'lumens') {
+            router.replace(`/projects/${id}/lumens`);
         } else if (tab === 'members') {
             router.replace(`/projects/${id}/members`);
         } else if (tab === 'settings') {
@@ -116,6 +120,13 @@ export default function ProjectLayout({
             href: `/projects/${id}`,
             icon: GitPullRequest,
             label: t('walkthroughs'),
+        },
+        {
+            key: 'lumens',
+            href: `/projects/${id}/lumens`,
+            icon: Clapperboard,
+            label: t('lumens'),
+            hidden: !canManageProject,
         },
         {
             key: 'activity',

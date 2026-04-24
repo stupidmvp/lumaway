@@ -79,7 +79,7 @@ export function PermissionsProviderWrapper({ children }: { children: React.React
  * Redirects to onboarding if the user hasn't completed it yet.
  */
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
-    const { data: user, isLoading, isError } = useCurrentUser();
+    const { data: user, isLoading, isError, error, refetch, isFetching } = useCurrentUser();
     const router = useRouter();
     const pathname = usePathname();
     const { setTheme } = useTheme();
@@ -87,9 +87,12 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
     const prefsApplied = useRef(false);
     const queryClient = useQueryClient();
 
-    // If the /me call fails (e.g. expired token), redirect to login
+    const status = ((error as any)?.response?.status ?? (error as any)?.status) as number | undefined;
+    const isAuthError = status === 401 || status === 403;
+
+    // If /me fails with auth error, redirect to login
     useEffect(() => {
-        if (isError) {
+        if (isError && isAuthError) {
             AuthService.logout();
             queryClient.clear();
             const redirectParam = pathname && pathname !== '/login' && pathname !== '/register'
@@ -97,7 +100,7 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
                 : '';
             router.replace(`/login${redirectParam}`);
         }
-    }, [isError, router, pathname, queryClient]);
+    }, [isError, isAuthError, router, pathname, queryClient]);
 
     // Redirect to onboarding if the user truly needs it
     useEffect(() => {
@@ -132,6 +135,27 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
         return (
             <div className="flex items-center justify-center h-screen w-screen bg-background">
                 <Loader2 className="h-8 w-8 animate-spin text-accent-blue" />
+            </div>
+        );
+    }
+
+    // Keep the user on screen for transient network/backend issues.
+    // Do not force logout for "Failed to fetch" or API downtime.
+    if (isError && !isAuthError) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-3 h-screen w-screen bg-background px-6 text-center">
+                <div className="text-sm font-medium text-foreground">No se pudo conectar con el backend.</div>
+                <div className="text-xs text-foreground-muted">
+                    Verifica que la API esté corriendo y vuelve a intentar.
+                </div>
+                <button
+                    type="button"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                    className="inline-flex items-center justify-center rounded-md bg-accent-blue px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                    {isFetching ? 'Reintentando...' : 'Reintentar'}
+                </button>
             </div>
         );
     }
