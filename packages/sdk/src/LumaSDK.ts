@@ -6,7 +6,7 @@ import type {
     LumaEvent,
     LumaUserContext,
     Walkthrough
-} from "@luma/core";
+} from "./public-types.js";
 import { LumaClient } from "./LumaClient.js";
 import type { AssistPlan, BrowserFlowPlan, LumaClientConfig, ObserverCapturedEvent } from "./LumaClient.js";
 import { Tooltip } from "./ui/Tooltip.js";
@@ -49,8 +49,12 @@ export class LumaSDK {
     private static readonly STREAM_PAINT_THROTTLE_MS = 50;
     private static readonly INTENT_SUGGEST_DEBOUNCE_MS = 180;
     private config: LumaClientConfig;
-    private engine: LumaEngine;
-    private presenter: LumaPresenter;
+    // Typed as `any` to keep internal engine/presenter classes out of the
+    // published .d.ts (they are private implementation details).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private engine: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private presenter: any;
     private client: LumaClient;
     private state: ExecutionState;
     private context: LumaUserContext;

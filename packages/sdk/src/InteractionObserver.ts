@@ -1,4 +1,4 @@
-import type { LumaEvent } from "@luma/core";
+import type { LumaEvent } from "./public-types.js";
 
 export class InteractionObserver {
     private onEvent: (event: LumaEvent) => void;

@@ -1,6 +1,6 @@
 {
     "name": "@lumaway/sdk",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Lumaway SDK — in-app AI guidance, walkthroughs and observer mode for web applications.",
     "keywords": [
         "lumaway",

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import type { GuidancePlan, LumaUserContext } from "@luma/core";
+import type { GuidancePlan, LumaUserContext } from "./public-types.js";
 import type { LumaClientConfig } from "./LumaClient.js";
 import { LumaSDK } from "./LumaSDK.js";
 

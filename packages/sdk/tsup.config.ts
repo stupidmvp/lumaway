@@ -14,10 +14,12 @@ export default defineConfig({
     treeshake: true,
     target: "es2020",
     platform: "browser",
+    tsconfig: "tsconfig.build.json",
     // Bundle the internal workspace packages into the SDK so consumers install
     // a single package and do not need to resolve @luma/* from their own tree.
+    // All public-facing types are mirrored locally in src/public-types.ts so
+    // the generated .d.ts is fully self-contained.
     noExternal: [/^@luma\//],
-    // Keep these as external — the consumer's app will provide them.
     external: [
         "react",
         "react-dom",

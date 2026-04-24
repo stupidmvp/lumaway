@@ -1,4 +1,4 @@
-import type { GuidancePlan } from "@luma/core";
+import type { GuidancePlan } from "../public-types.js";
 import type { SdkI18nStrings } from "../i18n.js";
 import { resolveSdkStrings } from "../i18n.js";
 

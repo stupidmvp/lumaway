@@ -1,4 +1,4 @@
-import type { Walkthrough } from "@luma/core";
+import type { Walkthrough } from "./public-types.js";
 import { io, type Socket } from "socket.io-client";
 
 export interface LumaClientConfig {
