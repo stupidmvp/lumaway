@@ -14,6 +14,7 @@ export interface AssistantOptions {
     locale?: string;
     strings?: SdkI18nStrings;
     theme?: "light" | "dark";
+    enabled?: boolean;
     onLocaleChange?: (locale: string) => void;
     onThemeChange?: (theme: "light" | "dark") => void;
     uiSettings?: ChatbotUiSettings;
@@ -51,6 +52,7 @@ export class Assistant {
     private lockClosedForAutomation = false;
     private lastStepId: string | null = null;
     private contextualSuggestions: Array<{ label: string; action?: string; walkthroughId?: string; stepId?: string }> = [];
+    private enabled = true;
 
     private onTrackIntent: (intent: string) => void;
     private onAdvanceStep: (walkthroughId: string, stepId: string) => void;
@@ -103,6 +105,7 @@ export class Assistant {
         this.createTriggerButton();
         this.createChatWindow(options?.initialMessages);
         this.applyUiSettings(this.uiSettings);
+        this.setEnabled(options?.enabled ?? true);
     }
 
     private injectStyles() {
@@ -1037,6 +1040,7 @@ export class Assistant {
     }
 
     public open() {
+        if (!this.enabled) return;
         if (this.lockClosedForAutomation) return;
         this.isOpen = true;
         this.chatWindow.classList.add("open");
@@ -1053,6 +1057,17 @@ export class Assistant {
         this.chatWindow.classList.remove("open");
 
         this.triggerButton.style.transform = "scale(1)";
+    }
+
+    public setEnabled(enabled: boolean) {
+        this.enabled = enabled;
+        if (!enabled) {
+            this.close();
+            this.hideBubble();
+            this.host.style.display = "none";
+            return;
+        }
+        this.host.style.display = "";
     }
 
     public setAutomationChatLock(locked: boolean) {
@@ -1085,6 +1100,7 @@ export class Assistant {
      * Used in guided mode: do NOT duplicate the tooltip text. Show a brief helper line instead.
      */
     public showBubbleMessage(shortMessage: string) {
+        if (!this.enabled) return;
         if (this.isOpen) return; // Never show bubble if chat is open
 
         const bubble = this.triggerButton.querySelector(".luma-bubble")!;
@@ -1100,6 +1116,7 @@ export class Assistant {
     }
 
     public notifyUnread(shortMessage?: string) {
+        if (!this.enabled) return;
         const dot = this.triggerButton.querySelector(".luma-notification-dot") as HTMLElement | null;
         if (dot) {
             dot.style.display = "block";

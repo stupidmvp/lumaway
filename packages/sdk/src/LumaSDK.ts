@@ -163,6 +163,7 @@ export class LumaSDK {
             (intent: string) => this.trackIntent(intent),
             (walkthroughId: string, stepId?: string) => this.startWalkthrough(walkthroughId, stepId),
             {
+                enabled: false,
                 initialMessages: messageHistory,
                 locale: userContext.locale || config.locale,
                 strings: this.strings,
@@ -250,6 +251,9 @@ export class LumaSDK {
         const projectLocale = this.projectConfig?.settings?.defaultLocale || this.projectConfig?.settings?.supportedLocales?.[0];
         if (!this.context.locale && projectLocale) this.context.locale = String(projectLocale);
         this.applyRuntimeLocale(this.context.locale || this.config.locale || "en");
+        const assistantEnabled = Boolean(this.projectConfig?.settings?.assistantEnabled);
+        const chatbotEnabled = Boolean(this.projectConfig?.settings?.chatbotEnabled);
+        this.assistant.setEnabled(assistantEnabled && chatbotEnabled);
         this.assistant.setUiSettings(this.projectConfig?.settings?.chatbotUi || {});
         this.observerEnabled = Boolean(this.projectConfig?.settings?.observerMode?.enabled);
         if (this.observerEnabled) {
