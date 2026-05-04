@@ -54,6 +54,7 @@ interface ReviewTimelineStep {
     description: string;
     targetSelector?: string | null;
     timestampMs: number;
+    durationMs?: number;
     confidence: number;
 }
 
@@ -469,27 +470,64 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const handleSplitStep = useCallback(() => {
         const currentMs = currentTime * 1000;
-        toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
         
-        // Find the step that encompasses currentTime (using the 8s UI duration as reference)
-        const stepToSplit = presentSteps.find(s => currentMs >= s.timestampMs && currentMs <= s.timestampMs + 8000);
-        
+        // Find the step that encompasses currentTime
+        const index = presentSteps.findIndex(s => {
+            const duration = s.durationMs ?? 8000;
+            return currentMs > s.timestampMs && currentMs < s.timestampMs + duration;
+        });
+
+        if (index === -1) {
+            // If no step covers current time, maybe create a new one at current time
+            const newStep: ReviewTimelineStep = {
+                id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                order: presentSteps.length + 1,
+                title: t('newStep') || 'Nuevo Paso',
+                description: '',
+                timestampMs: currentMs,
+                durationMs: 8000,
+                confidence: 100
+            };
+            setPresentSteps(current => {
+                setPastSteps(past => [...past, current]);
+                setFutureSteps([]);
+                const next = [...current, newStep].sort((a, b) => a.timestampMs - b.timestampMs);
+                return next.map((s, i) => ({ ...s, order: i + 1 }));
+            });
+            setActiveStepId(newStep.id);
+            return;
+        }
+
+        const stepToSplit = presentSteps[index];
+        const originalDuration = stepToSplit.durationMs ?? 8000;
+        const firstPartDuration = currentMs - stepToSplit.timestampMs;
+        const secondPartDuration = Math.max(500, originalDuration - firstPartDuration);
+
+        // Update original and create new
+        const updatedStep: ReviewTimelineStep = {
+            ...stepToSplit,
+            durationMs: firstPartDuration
+        };
+
         const newStep: ReviewTimelineStep = {
+            ...stepToSplit,
             id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            order: (stepToSplit?.order ?? presentSteps.length) + 1,
-            title: t('newStep') || 'Nuevo Paso',
-            description: '',
             timestampMs: currentMs,
-            confidence: 100,
-            ...(stepToSplit ? { ...stepToSplit, id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, timestampMs: currentMs } : {})
+            durationMs: secondPartDuration,
+            order: stepToSplit.order + 1
         };
 
         setPresentSteps(current => {
             setPastSteps(past => [...past, current]);
             setFutureSteps([]);
-            const next = [...current, newStep].sort((a, b) => a.timestampMs - b.timestampMs);
-            return next.map((s, i) => ({ ...s, order: i + 1 }));
+            const next = [...current];
+            next[index] = updatedStep;
+            next.push(newStep);
+            const sorted = next.sort((a, b) => a.timestampMs - b.timestampMs);
+            return sorted.map((s, i) => ({ ...s, order: i + 1 }));
         });
+        
+        toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
         setActiveStepId(newStep.id);
     }, [currentTime, presentSteps, t]);
 
@@ -1059,7 +1097,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     id: s.id,
                                     order: s.order,
                                     startMs: s.timestampMs,
-                                    endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + 8000),
+                                    endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + (s.durationMs ?? 8000)),
                                     text: s.title,
                                     description: s.description
                                 }))}
@@ -1083,7 +1121,10 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     }
                                 }}
                                 onUpdateStep={(id, patch) => {
-                                    handleUpdateStep(id, { timestampMs: patch.startMs });
+                                    handleUpdateStep(id, { 
+                                        timestampMs: patch.startMs,
+                                        durationMs: patch.endMs ? patch.endMs - patch.startMs : undefined 
+                                    });
                                 }}
                                 onDeleteStep={handleDeleteStep}
                                 onSplitStep={handleSplitStep}
