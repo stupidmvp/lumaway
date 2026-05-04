@@ -85,11 +85,7 @@ export const LumensService = {
     },
     async saveReview(
         observerSessionId: string,
-        input: { 
-            processingSummary?: Record<string, any>; 
-            subtitleSegments: any[]; 
-            stepCandidates: any[] 
-        }
+        input: { processingSummary: Record<string, any>; subtitleSegments: any[]; stepCandidates: any[] }
     ): Promise<any> {
         const { data } = await httpClient.post('/observer-session-review-save', {
             observerSessionId,
@@ -99,15 +95,14 @@ export const LumensService = {
         });
         return data;
     },
-    async improveSubtitle(
+    async saveTranscriptSegments(
         observerSessionId: string,
-        input: { segmentId: string; text: string }
-    ): Promise<{ text: string }> {
-        const { data } = await httpClient.post('/observer-improve-subtitle', {
-            observerSessionId,
-            segmentId: input.segmentId,
-            text: input.text,
+        input: { processingSummary: Record<string, any>; segments: any[] }
+    ): Promise<any> {
+        return this.saveReview(observerSessionId, {
+            processingSummary: input.processingSummary,
+            subtitleSegments: input.segments,
+            stepCandidates: [],
         });
-        return data;
     },
 };

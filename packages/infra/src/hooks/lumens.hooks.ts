@@ -45,32 +45,16 @@ export const useReprocessLumen = () => {
     });
 };
 
-export const useSaveLumenReview = () => {
+export const useSaveLumenTranscriptSegments = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ 
-            observerSessionId, 
-            processingSummary, 
-            subtitleSegments, 
-            stepCandidates 
-        }: { 
-            observerSessionId: string; 
-            processingSummary?: Record<string, any>; 
-            subtitleSegments: any[]; 
-            stepCandidates: any[] 
-        }) => LumensService.saveReview(observerSessionId, { processingSummary, subtitleSegments, stepCandidates }),
+        mutationFn: ({ observerSessionId, processingSummary, segments }: { observerSessionId: string; processingSummary: Record<string, any>; segments: any[] }) =>
+            LumensService.saveTranscriptSegments(observerSessionId, { processingSummary, segments }),
         onSuccess: async (_, { observerSessionId }) => {
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['lumens'] }),
                 queryClient.invalidateQueries({ queryKey: ['lumens', 'review', observerSessionId] }),
             ]);
         },
-    });
-};
-
-export const useImproveSubtitle = () => {
-    return useMutation({
-        mutationFn: ({ observerSessionId, segmentId, text }: { observerSessionId: string; segmentId: string; text: string }) =>
-            LumensService.improveSubtitle(observerSessionId, { segmentId, text }),
     });
 };
