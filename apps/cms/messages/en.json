@@ -943,6 +943,8 @@
             "unknown": "Unknown"
         },
         "manualTargetRequired": "Manual target required",
+        "segmentsSaved": "Subtitle segments saved successfully.",
+        "segmentsSaveFailed": "Failed to save subtitle segments.",
         "log": {
             "title": "Processing log",
             "live": "Auto-updating",

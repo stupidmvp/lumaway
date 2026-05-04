@@ -943,6 +943,8 @@
             "unknown": "Desconocida"
         },
         "manualTargetRequired": "Requiere target manual",
+        "segmentsSaved": "Segmentos de subtítulos guardados con éxito.",
+        "segmentsSaveFailed": "Error al guardar los segmentos de subtítulos.",
         "log": {
             "title": "Registro de procesamiento",
             "live": "Actualización automática",

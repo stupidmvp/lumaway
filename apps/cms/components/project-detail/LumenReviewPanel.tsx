@@ -115,6 +115,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [videoDuration, setVideoDuration] = useState<number | null>(null);
     const [showSubtitles, setShowSubtitles] = useState(true);
     const [playbackRate, setPlaybackRate] = useState(1);
+    const [volume, setVolume] = useState(1);
     const stepsListRef = useRef<HTMLDivElement>(null);
 
     const [pastSteps, setPastSteps] = useState<ReviewTimelineStep[][]>([]);
@@ -948,6 +949,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             if (finalTime > 0) setVideoDuration(finalTime);
                                         }}
                                         formatTime={formatVideoTime}
+                                        hideControls={true}
+                                        volume={volume}
+                                        onVolumeChange={setVolume}
                                         renderTimeline={() => (
                                             <LumenTimeline
                                                 durationSec={durationSec}
@@ -974,17 +978,17 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     </div>
                                 )}
 
-                                <div className="rounded-md border border-border bg-[#0f0f0f] overflow-hidden">
-                                    <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-[#141414]">
+                                <div className="rounded-md border border-border bg-background overflow-hidden">
+                                    <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-secondary/50">
                                         <div className="flex items-center gap-2">
                                             <Captions className="h-4 w-4 text-[#ff7a00]" />
-                                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-white/60">Integrated Timeline Editor</h3>
+                                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-foreground/60">Integrated Timeline Editor</h3>
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="h-7 w-7 text-white/40 hover:text-white" 
+                                                className="h-7 w-7 text-foreground/40 hover:text-foreground" 
                                                 onClick={undo} 
                                                 disabled={pastSteps.length === 0}
                                                 title="Undo (Ctrl+Z)"
@@ -994,7 +998,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="h-7 w-7 text-white/40 hover:text-white" 
+                                                className="h-7 w-7 text-foreground/40 hover:text-foreground" 
                                                 onClick={redo} 
                                                 disabled={futureSteps.length === 0}
                                                 title="Redo (Ctrl+Shift+Z)"
@@ -1002,9 +1006,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                 <Redo2 className="h-3.5 w-3.5" />
                                             </Button>
 
-                                            <div className="w-px h-4 bg-white/10 mx-1"></div>
+                                            <div className="w-px h-4 bg-border mx-1"></div>
 
-                                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] text-white/40 hover:text-white" onClick={resetSubtitleSegments} disabled={saveTranscriptSegmentsMutation.isPending}>
+                                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] text-foreground/40 hover:text-foreground" onClick={resetSubtitleSegments} disabled={saveTranscriptSegmentsMutation.isPending}>
                                                 <RotateCcw className="h-3 w-3 mr-1" />
                                                 Reset
                                             </Button>
@@ -1053,6 +1057,14 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                 handleUpdateStep(id, { timestampMs: patch.startMs });
                                             }}
                                             videoRef={videoRef}
+                                            isPlaying={isPlaying}
+                                            onTogglePlayback={togglePlayback}
+                                            playbackRate={playbackRate}
+                                            onPlaybackRateChange={setPlaybackRate}
+                                            showSubtitles={showSubtitles}
+                                            onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                            volume={volume}
+                                            onVolumeChange={setVolume}
                                         />
                                     </div>
                                 </div>
@@ -1113,7 +1125,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                     return (
                                                         <>
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                <div className="h-5 w-5 rounded bg-[#3b82f6] flex items-center justify-center text-[10px] text-white font-bold">{step.order}</div>
+                                                                <div className="h-5 w-5 rounded bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold">{step.order}</div>
                                                                 <h3 className="text-sm font-semibold">Step Properties</h3>
                                                             </div>
                                                             <div className="space-y-1.5">
@@ -1135,7 +1147,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                                     <Magnet className="h-3.5 w-3.5 mr-2" />
                                                                     Sync Timestamp to Playhead
                                                                 </Button>
-                                                                <Button className="w-full text-xs h-8 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white" onClick={() => seekTo(step.timestampMs / 1000)}>
+                                                                <Button className="w-full text-xs h-8 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => seekTo(step.timestampMs / 1000)}>
                                                                     <Play className="h-3 w-3 mr-2" />
                                                                     Go to Moment
                                                                 </Button>

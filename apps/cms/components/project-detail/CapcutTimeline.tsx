@@ -3,6 +3,36 @@
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Triangle, Minus, Plus } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+    Play, 
+    Pause, 
+    Captions, 
+    Settings2, 
+    ChevronDown, 
+    Check,
+    Languages,
+    Scissors,
+    Trash2,
+    RotateCcw,
+    RotateCw,
+    Download,
+    Volume2,
+    VolumeX
+} from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from '@/components/ui/button';
 
 interface VideoTextSegment {
     id: string;
@@ -25,6 +55,14 @@ interface CapcutTimelineProps {
     onUpdateStep?: (id: string, patch: Partial<VideoTextSegment>) => void;
     onSelectStep?: (id: string) => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
+    isPlaying?: boolean;
+    onTogglePlayback?: () => void;
+    playbackRate?: number;
+    onPlaybackRateChange?: (rate: number) => void;
+    showSubtitles?: boolean;
+    onToggleSubtitles?: () => void;
+    volume?: number;
+    onVolumeChange?: (val: number) => void;
 }
 
 function formatVideoTime(seconds: number) {
@@ -47,6 +85,14 @@ export function CapcutTimeline({
     onUpdateStep,
     onSelectStep,
     videoRef,
+    isPlaying = false,
+    onTogglePlayback,
+    playbackRate = 1,
+    onPlaybackRateChange,
+    showSubtitles = true,
+    onToggleSubtitles,
+    volume = 1,
+    onVolumeChange,
 }: CapcutTimelineProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
@@ -55,6 +101,25 @@ export function CapcutTimeline({
 
     const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
     const sidebarWidth = 280;
+    const TIMELINE_PADDING_LEFT = 80;
+    // Keyboard Shortcuts for Zoom
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.metaKey || e.ctrlKey) {
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    setPixelsPerSecond(prev => Math.min(500, prev + 20));
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    setPixelsPerSecond(prev => Math.max(20, prev - 20));
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const timelineWidth = Math.max(800, safeDuration * pixelsPerSecond);
 
     const lastManualScrollTime = useRef(0);
@@ -114,7 +179,7 @@ export function CapcutTimeline({
 
             if (video && playhead) {
                 // x is relative to trackRef (which starts after sidebar)
-                const x = video.currentTime * pixelsPerSecond;
+                const x = TIMELINE_PADDING_LEFT + (video.currentTime * pixelsPerSecond);
                 playhead.style.transform = `translate3d(${x}px, 0, 0)`;
                 
                 if (container) {
@@ -155,7 +220,7 @@ export function CapcutTimeline({
     const handleTrackClick = (e: React.MouseEvent) => {
         if (!safeDuration || !trackRef.current) return;
         const rect = trackRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left - sidebarWidth;
+        const x = e.clientX - rect.left - sidebarWidth - TIMELINE_PADDING_LEFT;
         if (x < 0) return; // Clicked in sidebar
         
         const seekSec = x / pixelsPerSecond;
@@ -305,13 +370,13 @@ export function CapcutTimeline({
         const count = Math.min(Math.floor(safeDuration / interval), 3000); 
         return Array.from({ length: count + 1 }).map((_, i) => ({
             sec: i * interval,
-            x: i * interval * pixelsPerSecond,
+            x: TIMELINE_PADDING_LEFT + (i * interval * pixelsPerSecond),
             isMajor: i % 5 === 0
         }));
     }, [safeDuration, pixelsPerSecond]);
 
     const renderTimelineItem = (item: VideoTextSegment, type: 'subtitle' | 'step', onUpdate: (id: string, patch: Partial<VideoTextSegment>) => void, onSelect: (id: string) => void) => {
-        const x = (item.startMs / 1000) * pixelsPerSecond;
+        const x = TIMELINE_PADDING_LEFT + ((item.startMs / 1000) * pixelsPerSecond);
         const width = ((item.endMs - item.startMs) / 1000) * pixelsPerSecond;
         // Restoring original Blue/Salmon scheme
         const isSelected = selectedSegmentId === item.id;
@@ -333,7 +398,7 @@ export function CapcutTimeline({
                         ? "border-[1.5px] border-white z-20" 
                         : isActive
                             ? "border-white/20 z-15"
-                            : "border-transparent z-10"
+                            : "border-white/10 z-10"
                 )}
                 style={{ 
                     left: `${x}px`, 
@@ -361,9 +426,9 @@ export function CapcutTimeline({
                 >
                     <div 
                         className={cn("w-full h-full rounded-l-[1px] flex items-center justify-center")}
-                        style={{ backgroundColor: isSelected ? 'white' : 'rgba(255,255,255,0.05)' }}
+                        style={{ backgroundColor: isSelected ? selectionColor : 'rgba(128,128,128,0.1)' }}
                     >
-                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-black" : "bg-white/20")} />
+                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-background" : "bg-white/20")} />
                     </div>
                 </div>
                 
@@ -388,9 +453,9 @@ export function CapcutTimeline({
                 >
                     <div 
                         className={cn("w-full h-full rounded-r-[1px] flex items-center justify-center")}
-                        style={{ backgroundColor: isSelected ? selectionColor : 'rgba(255,255,255,0.05)' }}
+                        style={{ backgroundColor: isSelected ? selectionColor : 'rgba(128,128,128,0.1)' }}
                     >
-                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-black" : "bg-white/10")} />
+                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-background" : "bg-white/20")} />
                     </div>
                 </div>
             </div>
@@ -398,62 +463,174 @@ export function CapcutTimeline({
     };
 
     return (
-        <div className="flex flex-col h-full bg-black rounded-xl overflow-hidden border border-white/10 select-none shadow-2xl">
-            {/* Timeline Toolbar */}
-            <div className="bg-[#111] h-12 flex items-center px-6 border-b border-white/10 justify-between shrink-0 relative z-50">
-                {/* Left side actions could go here */}
-                <div />
+        <div className="flex flex-col h-full bg-background overflow-hidden border border-border select-none shadow-2xl">
+            {/* Toolbar (Capcut Style) */}
+            <div className="h-14 border-b border-border bg-secondary/50 grid grid-cols-[1fr_auto_1fr] items-center px-4 shrink-0 gap-4">
+                {/* Left side: Editing Tools & Zoom */}
+                <div className="flex items-center gap-1 min-w-0">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-foreground/60 hover:text-foreground shrink-0">
+                                    <Scissors className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Dividir (B)</TooltipContent>
+                        </Tooltip>
 
-                {/* Right side: Time & Zoom */}
-                <div className="flex items-center gap-6">
-                    {/* Zoom Control (Capcut Style) */}
-                    <div className="flex items-center gap-2 group">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-foreground/60 hover:text-destructive shrink-0">
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Borrar (Del)</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <div className="w-px h-4 bg-border/50 mx-2 shrink-0" />
+
+                    {/* Zoom Control Group (Moved to Left) */}
+                    <div className="flex items-center gap-1 group shrink-0">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button 
+                                        onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))}
+                                        disabled={pixelsPerSecond <= 20}
+                                        className="text-foreground/40 hover:text-foreground transition-colors disabled:opacity-10 p-1"
+                                    >
+                                        <Minus className="w-3.5 h-3.5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-[10px]">Alejar</TooltipContent>
+                            </Tooltip>
+                            
+                            <div className="w-20 sm:w-24 relative flex items-center">
+                                <Slider 
+                                    min={20}
+                                    max={500}
+                                    step={1}
+                                    value={[pixelsPerSecond]}
+                                    onValueChange={(val) => setPixelsPerSecond(val[0])}
+                                    className="cursor-pointer [&_[role=slider]]:bg-white [&_[role=slider]]:border-sky-500 [&_[role=slider]]:ring-offset-0 [&_[role=slider]]:shadow-sm [&_.relative]:bg-sky-500"
+                                />
+                            </div>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button 
+                                        onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))}
+                                        disabled={pixelsPerSecond >= 500}
+                                        className="text-foreground/40 hover:text-foreground transition-colors disabled:opacity-10 p-1"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-[10px]">Acercar</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                </div>
+
+                {/* Center: Playback Controls */}
+                <div className="flex justify-center min-w-0">
+                    <div className="flex items-center gap-3 bg-background/40 px-3 py-1 rounded-full border border-border/50 shadow-sm backdrop-blur-sm">
                         <button 
-                            onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))}
-                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                            onClick={onTogglePlayback}
+                            className="w-7 h-7 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 transition-all shadow-md ring-2 ring-sky-500/20 shrink-0"
                         >
-                            <Minus className="w-3.5 h-3.5" />
+                            {isPlaying ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
                         </button>
                         
-                        <div className="w-32 h-1 bg-white/10 rounded-full relative overflow-hidden group-hover:bg-white/20 transition-colors">
-                            <input 
-                                type="range" 
-                                min="20" 
-                                max="500" 
-                                value={pixelsPerSecond}
-                                onChange={(e) => setPixelsPerSecond(parseInt(e.target.value))}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            />
-                            <div 
-                                className="absolute top-0 left-0 h-full bg-white transition-all duration-100"
-                                style={{ width: `${((pixelsPerSecond - 20) / (500 - 20)) * 100}%` }}
+                        <div className="flex items-center gap-1.5 font-mono text-[12px] tracking-tight tabular-nums whitespace-nowrap">
+                            <span className="text-foreground font-black">
+                                {formatVideoTime(currentTimeSec).split('.')[0]}
+                            </span>
+                            <span className="text-foreground/20 font-bold">|</span>
+                            <span className="text-foreground/40 font-bold">
+                                {formatVideoTime(durationSec).split('.')[0]}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right side: Audio & Config */}
+                <div className="flex items-center justify-end gap-3 min-w-0">
+                    {/* Volume Control */}
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-foreground/40 hover:text-foreground shrink-0"
+                            onClick={() => onVolumeChange?.(volume === 0 ? 1 : 0)}
+                        >
+                            {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                        </Button>
+                        <div className="w-20 sm:w-24 flex items-center mr-2">
+                            <Slider 
+                                min={0}
+                                max={1}
+                                step={0.01}
+                                value={[volume]}
+                                onValueChange={(val) => onVolumeChange?.(val[0])}
+                                className="w-full cursor-pointer"
                             />
                         </div>
-
-                        <button 
-                            onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))}
-                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors"
-                        >
-                            <Plus className="w-3.5 h-3.5" />
-                        </button>
                     </div>
 
-                    <div className="flex items-center gap-3 bg-black/60 px-4 py-1.5 rounded-md border border-white/10 h-8">
-                        <span className="text-[11px] font-mono text-white font-bold tabular-nums tracking-wider">
-                            {formatVideoTime(currentTimeSec)}
-                        </span>
-                        <span className="text-[11px] font-mono text-white/20">/</span>
-                        <span className="text-[11px] font-mono text-white/50 tabular-nums">
-                            {formatVideoTime(safeDuration)}
-                        </span>
-                    </div>
+                    <div className="w-px h-4 bg-border/50 shrink-0" />
+
+                    {/* Speed Selector */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 gap-1 px-2 text-[11px] font-bold text-foreground/60 hover:text-foreground hover:bg-transparent">
+                                {playbackRate}x
+                                <ChevronDown className="w-3 h-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[80px]">
+                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                                <DropdownMenuItem 
+                                    key={rate} 
+                                    className="text-[11px] font-medium flex items-center justify-between"
+                                    onClick={() => onPlaybackRateChange?.(rate)}
+                                >
+                                    {rate}x
+                                    {playbackRate === rate && <Check className="w-3 h-3 text-sky-500" />}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* CC Toggle */}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={onToggleSubtitles}
+                                    className={cn(
+                                        "h-8 w-8 rounded-md transition-colors",
+                                        showSubtitles ? "text-sky-500 bg-sky-50" : "text-foreground/40 hover:text-foreground"
+                                    )}
+                                >
+                                    <Captions className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">
+                                Subtítulos
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </div>
 
             {/* Scrollable Area */}
             <div 
                 ref={containerRef}
-                className="flex-1 overflow-auto relative custom-scrollbar bg-black"
+                className="flex-1 overflow-auto relative custom-scrollbar bg-background"
                 style={{ scrollBehavior: 'auto' }}
                 onScroll={handleScroll}
             >
@@ -461,19 +638,19 @@ export function CapcutTimeline({
                 <div className="flex relative" style={{ width: `${timelineWidth + sidebarWidth}px` }}>
                     
                     {/* Sticky Sidebar */}
-                    <div className="sticky left-0 w-[280px] z-[70] bg-[#0d0d0d] border-r border-white/10 flex flex-col shadow-2xl shrink-0">
+                    <div className="sticky left-0 w-[280px] z-[70] bg-background border-r border-border flex flex-col shadow-2xl shrink-0">
                          <div className="flex flex-col py-0 flex-1 overflow-visible">
                              {/* Ruler Spacer (Matches Ruler Height) */}
-                             <div className="h-10 shrink-0 border-b border-white/10 bg-[#111]" />
+                             <div className="h-10 shrink-0 border-b border-border bg-secondary/50" />
 
                              {/* Subtitles Row Sidebar */}
-                             <div className="h-12 flex items-center px-4 shrink-0 bg-[#161616] border-b border-white/5 relative">
-                                 <span className="text-[11px] font-bold text-white/50 truncate uppercase tracking-[0.1em]">Subtitles</span>
+                             <div className="h-12 flex items-center px-4 shrink-0 bg-secondary/30 border-b border-border/50 relative">
+                                 <span className="text-[11px] font-bold text-foreground/80 truncate uppercase tracking-[0.1em]">Subtitles</span>
                              </div>
 
                              {/* Section Divider Sidebar */}
-                             <div className="h-8 flex items-center px-4 shrink-0 bg-[#0a0a0a] border-b border-white/5">
-                                 <span className="text-[9px] font-bold text-white/10 uppercase tracking-[0.2em]">Steps</span>
+                             <div className="h-8 flex items-center px-4 shrink-0 bg-background border-b border-border/50">
+                                 <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-[0.2em]">Steps</span>
                              </div>
 
                              {/* Step Rows Sidebar */}
@@ -484,12 +661,12 @@ export function CapcutTimeline({
                                      <button 
                                          key={`label-${step.id}-${index}`} 
                                          className={cn(
-                                             "h-12 flex flex-col justify-center px-4 transition-colors text-left shrink-0 overflow-hidden relative border-b border-white/5",
+                                             "h-12 flex flex-col justify-center px-4 transition-colors text-left shrink-0 overflow-hidden relative border-b border-border/50",
                                              isStepActive 
-                                                 ? "bg-white/10 z-10" 
+                                                 ? "bg-foreground/5 z-10" 
                                                  : isEven 
-                                                     ? "bg-[#0d0d0d] hover:bg-[#151515]"
-                                                     : "bg-[#0a0a0a] hover:bg-[#151515]"
+                                                     ? "bg-background hover:bg-secondary/50"
+                                                     : "bg-secondary/20 hover:bg-secondary/50"
                                          )}
                                          onPointerDown={(e) => {
                                              e.stopPropagation();
@@ -502,14 +679,14 @@ export function CapcutTimeline({
                                      >
                                          <div className="flex justify-between items-center w-full relative z-10">
                                              <div className="flex flex-col overflow-hidden">
-                                                 <span className={cn("text-[10px] font-bold truncate uppercase tracking-[0.1em]", isStepActive ? "text-white" : "text-white/40")}>
+                                                 <span className={cn("text-[10px] font-bold truncate uppercase tracking-[0.1em]", isStepActive ? "text-foreground" : "text-foreground/40")}>
                                                      Step {step.order}
                                                  </span>
-                                                 <span className={cn("text-[9px] truncate font-medium", isStepActive ? "text-white/70" : "text-white/20")}>
+                                                 <span className={cn("text-[9px] truncate font-medium", isStepActive ? "text-foreground/70" : "text-foreground/20")}>
                                                      {step.text}
                                                  </span>
                                              </div>
-                                             <span className={cn("text-[10px] font-mono shrink-0 tabular-nums font-bold", isStepActive ? "text-white" : "text-white/20")}>
+                                             <span className={cn("text-[10px] font-mono shrink-0 tabular-nums font-bold", isStepActive ? "text-foreground" : "text-foreground/20")}>
                                                  {formatVideoTime(step.startMs / 1000)}
                                              </span>
                                          </div>
@@ -526,19 +703,19 @@ export function CapcutTimeline({
                         onClick={handleTrackClick}
                     >
                         {/* Ruler */}
-                        <div className="h-10 border-b border-white/10 sticky top-0 bg-[#111] z-40">
+                        <div className="h-10 border-b border-border sticky top-0 bg-secondary/50 backdrop-blur-sm z-40">
                         <div className="relative h-full">
                             {ticks.map((tick) => (
                                 <div 
                                     key={tick.sec} 
                                     className={cn(
                                         "absolute top-0 h-full border-l",
-                                        tick.isMajor ? "border-white/30 w-[1px]" : "border-white/10 h-1/4 mt-7"
+                                        tick.isMajor ? "border-foreground/30 w-[1px]" : "border-foreground/10 h-1/4 mt-7"
                                     )}
                                     style={{ left: `${tick.x}px` }}
                                 >
                                     {tick.isMajor && (
-                                        <span className="text-[9px] text-white/40 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1 leading-none font-bold tracking-tight">
+                                        <span className="text-[9px] text-foreground/40 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1 leading-none font-bold tracking-tight">
                                             {formatVideoTime(tick.sec).split('.')[0]}s
                                         </span>
                                     )}
@@ -550,28 +727,28 @@ export function CapcutTimeline({
                     {/* Tracks Container */}
                     <div className="flex flex-col px-0 relative min-h-[160px]">
                         {/* Subtitles Track Row */}
-                        <div className="h-12 relative border-b border-white/[0.05] bg-[#161616] group transition-colors">
+                        <div className="h-12 relative border-b border-border/50 bg-secondary/30 group transition-colors">
                             {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment, onSelectSegment))}
                         </div>
 
                         {/* Section Divider Track Area (Matches Sidebar Height) */}
-                        <div className="h-8 bg-[#0a0a0a] border-b border-white/5 relative" />
+                        <div className="h-8 bg-background border-b border-border/50 relative" />
 
                         {/* Step Track Rows */}
                         {steps.map((step, index) => {
                             const isEven = index % 2 === 0;
                             return (
-                                <div key={`${step.id}-${index}`} className={cn("h-12 relative border-b border-white/5 group hover:bg-white/[0.02] transition-colors", isEven ? "bg-[#0d0d0d]" : "bg-[#0a0a0a]")}>
+                                <div key={`${step.id}-${index}`} className={cn("h-12 relative border-b border-border/50 group hover:bg-foreground/[0.02] transition-colors", isEven ? "bg-background" : "bg-secondary/20")}>
                                     {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment, onSelectStep || onSelectSegment)}
                                 </div>
                             );
                         })}
 
                         {/* Video Background Tracks Style Capcut */}
-                        <div className="h-20 mt-6 relative bg-white/[0.02] border-y border-white/5 flex items-center overflow-hidden">
+                        <div className="h-20 mt-6 relative bg-foreground/[0.02] border-y border-border flex items-center overflow-hidden">
                              <div className="flex gap-1 h-full opacity-20">
                                 {Array.from({ length: Math.min(Math.ceil(timelineWidth / 120), 300) }).map((_, i) => (
-                                    <div key={i} className="w-[116px] h-full bg-white/5 shrink-0 border-r border-white/5" />
+                                    <div key={i} className="w-[116px] h-full bg-foreground/5 shrink-0 border-r border-border" />
                                 ))}
                              </div>
                         </div>
@@ -586,11 +763,11 @@ export function CapcutTimeline({
                             {/* Lucide Triangle Icon as Head - Pixel Perfect Alignment */}
                             <div className="relative z-10 top-[2px]">
                                 <Triangle 
-                                    className="w-[14px] h-[14px] fill-white text-black stroke-[1px] rotate-180 drop-shadow-md"
+                                    className="w-[14px] h-[14px] fill-foreground text-background stroke-[1px] rotate-180 drop-shadow-md"
                                 />
                             </div>
                             {/* Vertical Line - Starts exactly from the triangle tip */}
-                            <div className="w-[1.5px] h-[3000px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)] -mt-[1px]" />
+                            <div className="w-[1.5px] h-[3000px] bg-foreground shadow-[0_0_10px_rgba(var(--foreground),0.3)] -mt-[1px]" />
                         </div>
                     </div>
                     </div>

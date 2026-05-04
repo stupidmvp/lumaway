@@ -30,10 +30,10 @@ export const LumenTimeline: React.FC<LumenTimelineProps> = ({
     onSelectStep,
 }) => {
     return (
-        <div className="relative w-full h-1.5 transition-all duration-200 z-50 group/timeline cursor-pointer overflow-visible bg-black/40 backdrop-blur-sm border-t border-white/10">
+        <div className="relative w-full h-1.5 transition-all duration-200 z-50 group/timeline cursor-pointer overflow-visible bg-slate-300/80 backdrop-blur-sm border-t border-white/10">
             {/* Progress Fill (Absolute Edge-to-Edge) */}
             <div 
-                className="absolute inset-y-0 left-0 bg-red-600 transition-all duration-75 z-10 shadow-[0_0_15px_rgba(220,38,38,0.8)]"
+                className="absolute inset-y-0 left-0 bg-sky-500 transition-all duration-75 z-10 shadow-[0_0_15px_rgba(14,165,233,0.8)]"
                 style={{ width: `${progressPercent}%`, minWidth: progressPercent > 0.1 ? '2px' : '0' }}
             />
 
@@ -54,8 +54,8 @@ export const LumenTimeline: React.FC<LumenTimelineProps> = ({
                         className={cn(
                             "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 transition-all duration-200 rounded-full",
                             isActive 
-                                ? "h-3.5 w-3.5 bg-amber-400 border border-white shadow-[0_0_8px_rgba(245,158,11,0.6)] scale-110" 
-                                : "h-2 w-2 bg-white border border-black/10 hover:h-3 hover:w-3 hover:bg-amber-300"
+                                 ? "h-3.5 w-3.5 bg-white border-2 border-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)] scale-110" 
+                                 : "h-2 w-2 bg-slate-500 border border-white/20 hover:h-3 hover:w-3 hover:bg-slate-400"
                         )}
                         style={{ left: `${left}%` }}
                         onClick={(e) => {
