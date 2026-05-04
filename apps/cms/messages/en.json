@@ -987,7 +987,16 @@
             "completedDetail": "Lumen is ready for review.",
             "failed": "Processing failed",
             "failedDetail": "Check processing summary for technical details."
-        }
+        },
+        "split": "Split",
+        "splitAt": "Splitting at {time}",
+        "delete": "Delete",
+        "newStep": "New Step",
+        "zoomTo75": "Zoom to 75%",
+        "segmentsSaved": "Subtitle segments saved successfully.",
+        "segmentsSaveFailed": "Failed to save subtitle segments.",
+        "stepsSaved": "Steps saved successfully.",
+        "stepsSaveFailed": "Failed to save steps."
     },
     "Onboarding": {
         "continue": "Continue",

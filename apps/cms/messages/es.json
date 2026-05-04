@@ -962,6 +962,10 @@
         "noAudioExtracts": "Aún no se detectaron extractos de audio.",
         "noChapters": "Aún no hay chapters generados.",
         "noSteps": "Aún no hay candidatos de paso.",
+        "segmentsSaved": "Subtítulos guardados exitosamente.",
+        "segmentsSaveFailed": "Error al guardar los subtítulos.",
+        "stepsSaved": "Pasos guardados exitosamente.",
+        "stepsSaveFailed": "Error al guardar los pasos.",
         "captureSource": {
             "dom": "DOM",
             "webmcp": "WebMCP",
@@ -987,7 +991,16 @@
             "completedDetail": "Lumen listo para revisión.",
             "failed": "Procesamiento fallido",
             "failedDetail": "Revisa el summary técnico para más detalle."
-        }
+        },
+        "split": "Dividir",
+        "splitAt": "Dividiendo en {time}",
+        "delete": "Eliminar",
+        "newStep": "Nuevo Paso",
+        "zoomTo75": "Zoom al 75%",
+        "segmentsSaved": "Subtítulos guardados exitosamente.",
+        "segmentsSaveFailed": "Error al guardar los subtítulos.",
+        "stepsSaved": "Pasos guardados exitosamente.",
+        "stepsSaveFailed": "Error al guardar los pasos."
     },
     "Onboarding": {
         "continue": "Continuar",

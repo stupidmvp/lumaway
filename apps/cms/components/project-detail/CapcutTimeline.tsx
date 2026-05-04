@@ -18,13 +18,13 @@ import {
     ChevronDown, 
     Check,
     Languages,
-    Scissors,
     Trash2,
     RotateCcw,
     RotateCw,
     Download,
     Volume2,
-    VolumeX
+    VolumeX,
+    SquareSplitHorizontal
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -63,6 +63,12 @@ interface CapcutTimelineProps {
     onToggleSubtitles?: () => void;
     volume?: number;
     onVolumeChange?: (val: number) => void;
+    onSplitStep?: () => void;
+    onDeleteStep?: (id: string) => void;
+    onUndo?: () => void;
+    onRedo?: () => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
 }
 
 function formatVideoTime(seconds: number) {
@@ -93,6 +99,12 @@ export function CapcutTimeline({
     onToggleSubtitles,
     volume = 1,
     onVolumeChange,
+    onSplitStep,
+    onDeleteStep,
+    onUndo,
+    onRedo,
+    canUndo = false,
+    canRedo = false,
 }: CapcutTimelineProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
@@ -114,11 +126,16 @@ export function CapcutTimeline({
                     setPixelsPerSecond(prev => Math.max(20, prev - 20));
                 }
             }
+            
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+                e.preventDefault();
+                onSplitStep?.();
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [onSplitStep]);
 
     const timelineWidth = Math.max(800, (safeDuration * pixelsPerSecond) + TIMELINE_PADDING_LEFT + 200);
 
@@ -472,29 +489,71 @@ export function CapcutTimeline({
             <div className="h-14 border-b border-border bg-white flex items-center px-4 shrink-0 gap-4">
                 {/* Left side: Editing Tools */}
                 <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                    <Button variant="ghost" size="sm" className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50">
-                        <Scissors className="w-3.5 h-3.5" />
-                        Editar plantilla
-                    </Button>
-                    <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
-                    
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50"
+                                    onClick={() => onSplitStep?.()}
+                                >
+                                    <SquareSplitHorizontal className="w-3.5 h-3.5" />
+                                    Dividir
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Dividir (⌘B)</TooltipContent>
+                        </Tooltip>
+
+                        <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
+                        
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
+                                    onClick={() => {
+                                        if (selectedSegmentId) onDeleteStep?.(selectedSegmentId);
+                                    }}
+                                    disabled={!selectedSegmentId}
+                                >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px]">Borrar (Del)</TooltipContent>
                         </Tooltip>
 
+                        <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
+
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
+                                    onClick={() => onUndo?.()}
+                                    disabled={!canUndo}
+                                >
                                     <RotateCcw className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Deshacer (Ctrl+Z)</TooltipContent>
+                            <TooltipContent side="bottom" className="text-[10px]">Deshacer (⌘Z)</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
+                                    onClick={() => onRedo?.()}
+                                    disabled={!canRedo}
+                                >
+                                    <RotateCw className="w-3.5 h-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Rehacer (⌘⇧Z)</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 </div>

@@ -102,7 +102,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const saveReviewMutation = useSaveReview();
 
     // Zoom and Pan State
-    const [zoom, setZoom] = useState(100);
+    const [zoom, setZoom] = useState(75);
     const [isPanning, setIsPanning] = useState(false);
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -115,13 +115,13 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [isPlaying, setIsPlaying] = useState(false);
 
     const togglePlayback = useCallback(() => {
-        if (!videoRef.current) return;
+        if (!videoRef.current || isPanning) return;
         if (videoRef.current.paused) {
             videoRef.current.play().catch(() => undefined);
         } else {
             videoRef.current.pause();
         }
-    }, []);
+    }, [isPanning]);
 
     const [subtitleSegments, setSubtitleSegments] = useState<VideoTextSegment[]>([]);
     const [selectedSubtitleSegmentId, setSelectedSubtitleSegmentId] = useState<string | null>(null);
@@ -139,6 +139,12 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const lastHistoryPushTime = useRef<number>(0);
 
     useEffect(() => {
+        if (isPanning && videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+        }
+    }, [isPanning]);
+
+    useEffect(() => {
         if (videoRef.current) {
             videoRef.current.playbackRate = playbackRate;
         }
@@ -149,22 +155,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         return subtitleSegments.find(s => timeMs >= s.startMs && timeMs <= s.endMs);
     }, [subtitleSegments, currentTime]);
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Only trigger if not typing in an input/textarea
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-            if ((e.shiftKey) && !e.ctrlKey && !e.metaKey) {
-                if (e.key === 'F') { e.preventDefault(); setZoom(100); setPanOffset({ x: 0, y: 0 }); }
-                if (e.key === '0') { e.preventDefault(); setZoom(50); }
-                if (e.key === '1') { e.preventDefault(); setZoom(100); }
-                if (e.key === '2') { e.preventDefault(); setZoom(200); }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown, { capture: true });
-        return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    }, [togglePlayback]);
 
     // Panning logic
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -457,9 +447,51 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
             const next = [...current];
             next[index] = { ...current[index], ...patch };
+            
+            // If timestamp changed, re-sort and re-order
+            if (patch.timestampMs !== undefined) {
+                return next.sort((a, b) => a.timestampMs - b.timestampMs)
+                           .map((s, i) => ({ ...s, order: i + 1 }));
+            }
             return next;
         });
     }, []);
+
+    const handleDeleteStep = useCallback((id: string) => {
+        setPresentSteps((current) => {
+            setPastSteps(past => [...past, current]);
+            setFutureSteps([]);
+            const filtered = current.filter(s => s.id !== id);
+            return filtered.map((s, i) => ({ ...s, order: i + 1 }));
+        });
+        if (activeStepId === id) setActiveStepId(null);
+    }, [activeStepId]);
+
+    const handleSplitStep = useCallback(() => {
+        const currentMs = currentTime * 1000;
+        toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
+        
+        // Find the step that encompasses currentTime (using the 8s UI duration as reference)
+        const stepToSplit = presentSteps.find(s => currentMs >= s.timestampMs && currentMs <= s.timestampMs + 8000);
+        
+        const newStep: ReviewTimelineStep = {
+            id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            order: (stepToSplit?.order ?? presentSteps.length) + 1,
+            title: t('newStep') || 'Nuevo Paso',
+            description: '',
+            timestampMs: currentMs,
+            confidence: 100,
+            ...(stepToSplit ? { ...stepToSplit, id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, timestampMs: currentMs } : {})
+        };
+
+        setPresentSteps(current => {
+            setPastSteps(past => [...past, current]);
+            setFutureSteps([]);
+            const next = [...current, newStep].sort((a, b) => a.timestampMs - b.timestampMs);
+            return next.map((s, i) => ({ ...s, order: i + 1 }));
+        });
+        setActiveStepId(newStep.id);
+    }, [currentTime, presentSteps, t]);
 
     const undo = useCallback(() => {
         if (pastSteps.length === 0) return;
@@ -484,22 +516,36 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     }, [futureSteps, presentSteps]);
 
     useEffect(() => {
-        const handleHistoryKeyDown = (e: KeyboardEvent) => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only trigger if not typing in an input/textarea
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            if ((e.shiftKey) && !e.ctrlKey && !e.metaKey) {
+                if (e.key === 'F') { e.preventDefault(); setZoom(100); setPanOffset({ x: 0, y: 0 }); }
+                if (e.key === '0') { e.preventDefault(); setZoom(50); }
+                if (e.key === '1') { e.preventDefault(); setZoom(100); }
+                if (e.key === '2') { e.preventDefault(); setZoom(200); }
+            }
+
+            if (e.key === ' ' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
                 e.preventDefault();
-                if (e.shiftKey) {
-                    redo();
-                } else {
-                    undo();
-                }
+                togglePlayback();
+            }
+
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                undo();
+            }
+
+            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                redo();
             }
         };
 
-        window.addEventListener('keydown', handleHistoryKeyDown);
-        return () => window.removeEventListener('keydown', handleHistoryKeyDown);
-    }, [undo, redo]);
+        window.addEventListener('keydown', handleKeyDown, { capture: true });
+        return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    }, [togglePlayback, undo, redo]);
 
     const activeSubtitleSegment = useMemo(() => {
         const currentMs = currentTime * 1000;
@@ -868,25 +914,28 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     onValueChange={([v]) => setZoom(v)}
                                 />
                             </div>
-                            <DropdownMenuSeparator />
-                            <div className="space-y-1">
-                                <DropdownMenuItem onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }} className="text-xs font-medium justify-between cursor-pointer">
-                                    {t('zoomToFit')}
-                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ F</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setZoom(50)} className="text-xs font-medium justify-between cursor-pointer">
-                                    {t('zoomTo50')}
-                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 0</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setZoom(100)} className="text-xs font-medium justify-between cursor-pointer">
-                                    {t('zoomTo100')}
-                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 1</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setZoom(200)} className="text-xs font-medium justify-between cursor-pointer">
-                                    {t('zoomTo200')}
-                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 2</span>
-                                </DropdownMenuItem>
-                            </div>
+                                <DropdownMenuSeparator />
+                                <div className="space-y-1">
+                                    <DropdownMenuItem onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }} className="text-xs font-medium justify-between cursor-pointer">
+                                        {t('zoomToFit')}
+                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ F</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setZoom(50)} className="text-xs font-medium justify-between cursor-pointer">
+                                        {t('zoomTo50')}
+                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 0</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setZoom(75)} className="text-xs font-medium justify-between cursor-pointer">
+                                        {t('zoomTo75')}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setZoom(100)} className="text-xs font-medium justify-between cursor-pointer">
+                                        {t('zoomTo100')}
+                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 1</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setZoom(200)} className="text-xs font-medium justify-between cursor-pointer">
+                                        {t('zoomTo200')}
+                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 2</span>
+                                    </DropdownMenuItem>
+                                </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -1036,6 +1085,12 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 onUpdateStep={(id, patch) => {
                                     handleUpdateStep(id, { timestampMs: patch.startMs });
                                 }}
+                                onDeleteStep={handleDeleteStep}
+                                onSplitStep={handleSplitStep}
+                                onUndo={undo}
+                                onRedo={redo}
+                                canUndo={pastSteps.length > 0}
+                                canRedo={futureSteps.length > 0}
                                 videoRef={videoRef}
                                 isPlaying={isPlaying}
                                 onTogglePlayback={togglePlayback}
