@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGenerateWalkthroughsFromLumen, useLumenReview, useReprocessLumen, useSaveLumenTranscriptSegments, useSaveReview } from '@luma/infra';
+import { useGenerateWalkthroughsFromLumen, useLumenReview, useMergeLumenSteps, useReprocessLumen, useSaveLumenTranscriptSegments, useSaveReview } from '@luma/infra';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,7 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, Circle, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, Circle, Combine, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -101,6 +101,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const reprocessMutation = useReprocessLumen();
     const saveTranscriptSegmentsMutation = useSaveLumenTranscriptSegments();
     const saveReviewMutation = useSaveReview();
+    const mergeStepsMutation = useMergeLumenSteps();
 
     // Zoom and Pan State
     const [zoom, setZoom] = useState(75);
@@ -112,6 +113,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
+    const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(new Set());
+    const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
     const [isVideoLoading, setIsVideoLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
 
@@ -417,44 +420,95 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     useEffect(() => {
         if (reviewSteps.length > 0 && !isStepsInitialized) {
-            setPresentSteps(reviewSteps);
+            // Deduplicate by ID just in case
+            const unique = reviewSteps.filter((s, i, arr) => arr.findIndex(t => t.id === s.id) === i);
+            setPresentSteps(unique);
             setIsStepsInitialized(true);
         }
     }, [reviewSteps, isStepsInitialized]);
 
     useEffect(() => {
-        if (!presentSteps.length) return;
+        if (!presentSteps.length || isDraggingTimeline) return;
+        
+        // Skip auto-selection if we are already at the exact timestamp of the active step
+        // to avoid jumping between steps with the same timestamp.
+        if (activeStepId) {
+            const currentActive = presentSteps.find(s => s.id === activeStepId);
+            if (currentActive && Math.abs((currentActive.timestampMs / 1000) - currentTime) < 0.05) {
+                return;
+            }
+        }
+
         const nearest = presentSteps.reduce<{ id: string; distance: number } | null>((best, step) => {
             const distance = Math.abs((step.timestampMs / 1000) - currentTime);
             if (!best || distance < best.distance) return { id: step.id, distance };
             return best;
         }, null);
+        
         if (nearest && nearest.distance <= 1.25) {
             setActiveStepId(nearest.id);
+            setSelectedStepIds(new Set([nearest.id]));
         }
-    }, [currentTime, presentSteps]);
+    }, [currentTime, presentSteps, activeStepId]);
 
     const handleUpdateStep = useCallback((id: string, patch: Partial<ReviewTimelineStep>) => {
+        setIsDraggingTimeline(true);
         setPresentSteps((current) => {
             const index = current.findIndex(s => s.id === id);
             if (index === -1) return current;
+            const next = [...current];
+            next[index] = { ...current[index], ...patch };
+            return next;
+        });
+    }, []);
 
-            const now = Date.now();
-            if (now - lastHistoryPushTime.current > 800) {
+    const commitStepChanges = useCallback(() => {
+        setIsDraggingTimeline(false);
+        setPresentSteps(current => {
+            const sorted = [...current].sort((a, b) => a.timestampMs - b.timestampMs);
+            const ordered = sorted.map((s, i) => ({ ...s, order: i + 1 }));
+            
+            // Only push to history if there are changes compared to the last state in pastSteps
+            const lastState = pastSteps[pastSteps.length - 1];
+            if (JSON.stringify(lastState) !== JSON.stringify(ordered)) {
                 setPastSteps(past => [...past, current]);
                 setFutureSteps([]);
             }
-            lastHistoryPushTime.current = now;
-
-            const next = [...current];
-            next[index] = { ...current[index], ...patch };
             
-            // If timestamp changed, re-sort and re-order
-            if (patch.timestampMs !== undefined) {
-                return next.sort((a, b) => a.timestampMs - b.timestampMs)
-                           .map((s, i) => ({ ...s, order: i + 1 }));
+            return ordered;
+        });
+
+        // Refocus active step after drag if needed
+        if (activeStepId) {
+            const step = presentSteps.find(s => s.id === activeStepId);
+            if (step) {
+                seekTo(step.timestampMs / 1000, { autoplay: false, stepId: activeStepId });
+                setSelectedStepIds(new Set([activeStepId]));
             }
-            return next;
+        }
+    }, [pastSteps, activeStepId, presentSteps]);
+
+    const handleReorderSteps = useCallback((newOrderSteps: any[]) => {
+        setPresentSteps(current => {
+            // Store history
+            setPastSteps(past => [...past, current]);
+            setFutureSteps([]);
+
+            // To "alter the timeline", we swap the timestamps based on the new visual order
+            // Get original timestamps in chronological order
+            const originalTimestamps = [...current]
+                .sort((a, b) => a.timestampMs - b.timestampMs)
+                .map(s => s.timestampMs);
+
+            // Re-map the steps with the new order but keeping the original timestamp sequence
+            return newOrderSteps.map((s, i) => {
+                const original = current.find(c => c.id === s.id);
+                return {
+                    ...original!,
+                    order: i + 1,
+                    timestampMs: originalTimestamps[i] || original!.timestampMs
+                };
+            });
         });
     }, []);
 
@@ -495,6 +549,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 return next.map((s, i) => ({ ...s, order: i + 1 }));
             });
             setActiveStepId(newStep.id);
+            setSelectedStepIds(new Set([newStep.id]));
             return;
         }
 
@@ -529,6 +584,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         
         toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
         setActiveStepId(newStep.id);
+        setSelectedStepIds(new Set([newStep.id]));
     }, [currentTime, presentSteps, t]);
 
     const undo = useCallback(() => {
@@ -1093,14 +1149,16 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 durationSec={durationSec}
                                 currentTimeSec={currentTime}
                                 segments={subtitleSegments}
-                                steps={presentSteps.map(s => ({
-                                    id: s.id,
-                                    order: s.order,
-                                    startMs: s.timestampMs,
-                                    endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + (s.durationMs ?? 8000)),
-                                    text: s.title,
-                                    description: s.description
-                                }))}
+                                steps={presentSteps
+                                    .filter((s, i, arr) => arr.findIndex(t => t.id === s.id) === i)
+                                    .map(s => ({
+                                        id: s.id,
+                                        order: s.order,
+                                        startMs: s.timestampMs,
+                                        endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + (s.durationMs ?? 8000)),
+                                        text: s.title,
+                                        description: s.description
+                                    }))}
                                 selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
                                 onSeek={(sec) => seekTo(sec, { autoplay: false })}
                                 onUpdateSegment={updateSubtitleSegment}
@@ -1112,12 +1170,23 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     setSelectedSubtitleSegmentId(id);
                                     setActiveStepId(null);
                                 }}
-                                onSelectStep={(id) => {
+                                onSelectStep={(id, multi) => {
                                     const step = presentSteps.find(s => s.id === id);
                                     if (step) {
                                         seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
                                         setActiveStepId(id);
                                         setSelectedSubtitleSegmentId(null);
+                                        
+                                        if (multi) {
+                                            setSelectedStepIds(prev => {
+                                                const next = new Set(prev);
+                                                if (next.has(id)) next.delete(id);
+                                                else next.add(id);
+                                                return next;
+                                            });
+                                        } else {
+                                            setSelectedStepIds(new Set([id]));
+                                        }
                                     }
                                 }}
                                 onUpdateStep={(id, patch) => {
@@ -1128,6 +1197,41 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 }}
                                 onDeleteStep={handleDeleteStep}
                                 onSplitStep={handleSplitStep}
+                                onMergeSteps={async () => {
+                                    if (selectedStepIds.size < 2) return;
+                                    
+                                    const stepIds = Array.from(selectedStepIds);
+                                    const sortedIds = presentSteps
+                                        .filter(s => selectedStepIds.has(s.id))
+                                        .map(s => s.id);
+
+                                    const loadingToast = toast.loading('Merging steps with AI...');
+                                    const idsToMerge = [...sortedIds];
+                                    setSelectedStepIds(new Set());
+                                    try {
+                                        const result = await mergeStepsMutation.mutateAsync({
+                                            observerSessionId: lumenId,
+                                            stepIds: idsToMerge
+                                        });
+
+                                        setPastSteps(prev => [...prev, presentSteps]);
+                                        setFutureSteps([]);
+                                        
+                                        setPresentSteps(prev => {
+                                            const filtered = prev.filter(s => !idsToMerge.includes(s.id));
+                                            const firstIndex = prev.findIndex(s => s.id === idsToMerge[0]);
+                                            const next = [...filtered];
+                                            next.splice(firstIndex, 0, result);
+                                            return next.map((s, i) => ({ ...s, order: i + 1 }));
+                                        });
+                                        
+                                        setActiveStepId(result.id);
+                                        toast.success('Steps merged and refined successfully', { id: loadingToast });
+                                    } catch (error) {
+                                        toast.error('Failed to merge steps', { id: loadingToast });
+                                    }
+                                }}
+                                selectedStepIds={selectedStepIds}
                                 onUndo={undo}
                                 onRedo={redo}
                                 canUndo={pastSteps.length > 0}
@@ -1141,6 +1245,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
                                 volume={volume}
                                 onVolumeChange={setVolume}
+                                onDragEnd={commitStepChanges}
+                                onReorderSteps={handleReorderSteps}
                             />
                         </div>
                     </ResizablePanel>

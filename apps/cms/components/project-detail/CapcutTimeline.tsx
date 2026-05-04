@@ -11,6 +11,24 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { 
+    DndContext, 
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+import { 
     Play, 
     Pause, 
     Captions, 
@@ -24,7 +42,8 @@ import {
     Download,
     Volume2,
     VolumeX,
-    SquareSplitHorizontal
+    SquareSplitHorizontal,
+    Combine
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -53,7 +72,6 @@ interface CapcutTimelineProps {
     onUpdateSegment: (id: string, patch: Partial<VideoTextSegment>) => void;
     onSelectSegment: (id: string) => void;
     onUpdateStep?: (id: string, patch: Partial<VideoTextSegment>) => void;
-    onSelectStep?: (id: string) => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
     isPlaying?: boolean;
     onTogglePlayback?: () => void;
@@ -69,6 +87,11 @@ interface CapcutTimelineProps {
     onRedo?: () => void;
     canUndo?: boolean;
     canRedo?: boolean;
+    onDragEnd?: () => void;
+    onReorderSteps?: (newSteps: any[]) => void;
+    onSelectStep?: (id: string, multi?: boolean) => void;
+    onMergeSteps?: () => void;
+    selectedStepIds?: Set<string>;
 }
 
 function formatVideoTime(seconds: number) {
@@ -77,6 +100,93 @@ function formatVideoTime(seconds: number) {
     const secs = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 10);
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${ms}`;
+}
+
+interface SortableStepItemProps {
+    step: any;
+    index: number;
+    selectedStepIds: Set<string>;
+    selectedSegmentId: string | null;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
+    onSelectStep?: (id: string, multi?: boolean) => void;
+}
+
+function SortableStepItem({ 
+    step, 
+    index, 
+    selectedStepIds, 
+    selectedSegmentId, 
+    videoRef,
+    onSelectStep 
+}: SortableStepItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: step.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 100 : undefined,
+    };
+
+    const isStepSelected = selectedStepIds.has(step.id);
+    const isStepActive = selectedSegmentId === step.id || isStepSelected;
+    const isEven = index % 2 === 0;
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+                "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group",
+                isStepActive 
+                    ? "bg-foreground/[0.07] z-10 border-l-4 border-sky-500" 
+                    : isEven 
+                        ? "bg-background hover:bg-secondary/50 border-l-4 border-transparent"
+                        : "bg-secondary/20 hover:bg-secondary/50 border-l-4 border-transparent",
+                isDragging && "opacity-50 grayscale"
+            )}
+        >
+            <div 
+                {...attributes} 
+                {...listeners}
+                className="px-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+                <GripVertical className="w-3.5 h-3.5 text-foreground/40" />
+            </div>
+
+            <button 
+                className="flex-1 h-full flex flex-col justify-center pr-4 overflow-hidden text-left"
+                onPointerDown={(e) => {
+                    e.stopPropagation();
+                    if (videoRef.current) {
+                        videoRef.current.currentTime = step.startMs / 1000;
+                    }
+                    if (onSelectStep) onSelectStep(step.id, e.shiftKey || e.metaKey || e.ctrlKey);
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-center w-full relative z-10">
+                    <div className="flex flex-col overflow-hidden items-start">
+                        <span className={cn("text-[10px] font-bold truncate uppercase tracking-[0.1em]", isStepActive ? "text-foreground" : "text-foreground/40")}>
+                            Step {step.order}
+                        </span>
+                        <span className={cn("text-[9px] truncate font-medium", isStepActive ? "text-foreground/70" : "text-foreground/20")}>
+                            {step.text}
+                        </span>
+                    </div>
+                    <span className={cn("text-[10px] font-mono shrink-0 tabular-nums font-bold", isStepActive ? "text-foreground" : "text-foreground/20")}>
+                        {formatVideoTime(step.startMs / 1000)}
+                    </span>
+                </div>
+            </button>
+        </div>
+    );
 }
 
 export function CapcutTimeline({
@@ -89,7 +199,6 @@ export function CapcutTimeline({
     onUpdateSegment,
     onSelectSegment,
     onUpdateStep,
-    onSelectStep,
     videoRef,
     isPlaying = false,
     onTogglePlayback,
@@ -105,7 +214,32 @@ export function CapcutTimeline({
     onRedo,
     canUndo = false,
     canRedo = false,
+    onDragEnd,
+    onReorderSteps,
+    onSelectStep,
+    onMergeSteps,
+    selectedStepIds = new Set(),
 }: CapcutTimelineProps) {
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEndSidebar = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = steps.findIndex((s) => s.id === active.id);
+            const newIndex = steps.findIndex((s) => s.id === over.id);
+            const newSteps = arrayMove(steps, oldIndex, newIndex);
+            if (onReorderSteps) onReorderSteps(newSteps);
+        }
+    };
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const playheadRef = useRef<HTMLDivElement>(null);
@@ -149,28 +283,27 @@ export function CapcutTimeline({
 
     // Scroll to active item logic ONLY when selection changes, NOT during dragging (when segments/steps update)
     useEffect(() => {
-        if (selectedSegmentId && selectedSegmentId !== lastSelectedId.current && containerRef.current) {
+        if (selectedSegmentId && containerRef.current) {
             const allItems = [...segments, ...steps];
             const item = allItems.find(i => i.id === selectedSegmentId);
             if (item) {
+                // If it's a step and we just finished dragging, or if it's a new selection
+                const isNewSelection = selectedSegmentId !== lastSelectedId.current;
+                
+                // Always scroll if it's the active one and we want to focalize
                 const x = (item.startMs / 1000) * pixelsPerSecond;
                 const container = containerRef.current;
-                
-                // Horizontal scroll to center item (accounting for sidebar)
                 const targetX = x - ((container.clientWidth - sidebarWidth) / 2);
                 
-                // Vertical scroll to center item
                 let targetY = 0;
                 const stepIndex = steps.findIndex(s => s.id === selectedSegmentId);
                 if (stepIndex !== -1) {
-                    // py-4 (16px) + Subtitle row (44px) + step index * 44px
                     const itemY = 16 + 44 + (stepIndex * 44);
-                    targetY = itemY - (container.clientHeight / 2) + 22; // +22 for half item height
+                    targetY = itemY - (container.clientHeight / 2) + 22;
                 } else {
                     const isSubtitle = segments.some(s => s.id === selectedSegmentId);
                     if (isSubtitle) {
-                        const itemY = 16;
-                        targetY = itemY - (container.clientHeight / 2) + 22;
+                        targetY = 16 - (container.clientHeight / 2) + 22;
                     }
                 }
                 
@@ -183,7 +316,7 @@ export function CapcutTimeline({
                 lastSelectedId.current = selectedSegmentId;
             }
         }
-    }, [selectedSegmentId, segments, steps, pixelsPerSecond]);
+    }, [selectedSegmentId, steps.length, pixelsPerSecond]);
 
     // Hardware-accelerated sync loop for playhead
     useEffect(() => {
@@ -308,6 +441,7 @@ export function CapcutTimeline({
             window.removeEventListener('pointerup', handlePointerUp);
             cancelAnimationFrame(animationFrameId);
             document.body.style.cursor = 'default';
+            if (onDragEnd) onDragEnd();
         };
 
         window.addEventListener('pointermove', handlePointerMove);
@@ -373,6 +507,7 @@ export function CapcutTimeline({
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
             cancelAnimationFrame(animationFrameId);
+            if (onDragEnd) onDragEnd();
         };
 
         window.addEventListener('pointermove', handlePointerMove);
@@ -412,7 +547,7 @@ export function CapcutTimeline({
                     "absolute h-8 top-1.5 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
                     type === 'step' ? (isSelected ? "bg-[#2980b9]" : "bg-[#2980b9]/60") : (isSelected ? "bg-[#e67e22]" : "bg-[#e67e22]/60"),
                     isSelected 
-                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_12px_rgba(0,0,0,0.3)]" 
+                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_12px_rgba(0,0,0,0.3)] ring-2 ring-white/20 ring-offset-2 ring-offset-black/50 animate-in fade-in zoom-in duration-300" 
                         : isActive
                             ? "border-white/20 z-15"
                             : "border-white/10 z-10"
@@ -503,6 +638,22 @@ export function CapcutTimeline({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px]">Dividir (⌘B)</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50"
+                                    onClick={() => onMergeSteps?.()}
+                                    disabled={selectedStepIds.size < 2}
+                                >
+                                    <Combine className="w-3.5 h-3.5" />
+                                    Combinar
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Combinar Pasos (IA)</TooltipContent>
                         </Tooltip>
 
                         <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
@@ -702,45 +853,28 @@ export function CapcutTimeline({
                              </div>
 
                              {/* Step Rows Sidebar */}
-                             {steps.map((step, index) => {
-                                 const isStepActive = selectedSegmentId === step.id;
-                                 const isEven = index % 2 === 0;
-                                 return (
-                                     <button 
-                                         key={`label-${step.id}-${index}`} 
-                                         className={cn(
-                                             "h-12 flex flex-col justify-center px-4 transition-colors text-left shrink-0 overflow-hidden relative border-b border-border/50",
-                                             isStepActive 
-                                                 ? "bg-foreground/5 z-10" 
-                                                 : isEven 
-                                                     ? "bg-background hover:bg-secondary/50"
-                                                     : "bg-secondary/20 hover:bg-secondary/50"
-                                         )}
-                                         onPointerDown={(e) => {
-                                             e.stopPropagation();
-                                             if (videoRef.current) {
-                                                 videoRef.current.currentTime = step.startMs / 1000;
-                                             }
-                                             if (onSelectStep) onSelectStep(step.id);
-                                         }}
-                                         onClick={(e) => e.stopPropagation()}
-                                     >
-                                         <div className="flex justify-between items-center w-full relative z-10">
-                                             <div className="flex flex-col overflow-hidden">
-                                                 <span className={cn("text-[10px] font-bold truncate uppercase tracking-[0.1em]", isStepActive ? "text-foreground" : "text-foreground/40")}>
-                                                     Step {step.order}
-                                                 </span>
-                                                 <span className={cn("text-[9px] truncate font-medium", isStepActive ? "text-foreground/70" : "text-foreground/20")}>
-                                                     {step.text}
-                                                 </span>
-                                             </div>
-                                             <span className={cn("text-[10px] font-mono shrink-0 tabular-nums font-bold", isStepActive ? "text-foreground" : "text-foreground/20")}>
-                                                 {formatVideoTime(step.startMs / 1000)}
-                                             </span>
-                                         </div>
-                                     </button>
-                                 );
-                             })}
+                             <DndContext
+                                 sensors={sensors}
+                                 collisionDetection={closestCenter}
+                                 onDragEnd={handleDragEndSidebar}
+                             >
+                                 <SortableContext
+                                     items={steps.map(s => s.id)}
+                                     strategy={verticalListSortingStrategy}
+                                 >
+                                     {steps.map((step, index) => (
+                                         <SortableStepItem
+                                             key={step.id}
+                                             step={step}
+                                             index={index}
+                                             selectedStepIds={selectedStepIds}
+                                             selectedSegmentId={selectedSegmentId}
+                                             videoRef={videoRef}
+                                             onSelectStep={onSelectStep}
+                                         />
+                                     ))}
+                                 </SortableContext>
+                             </DndContext>
                          </div>
                     </div>
 

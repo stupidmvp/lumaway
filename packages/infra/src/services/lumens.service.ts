@@ -87,8 +87,7 @@ export const LumensService = {
         observerSessionId: string,
         input: { processingSummary: Record<string, any>; subtitleSegments: any[]; stepCandidates: any[] }
     ): Promise<any> {
-        const { data } = await httpClient.post('/observer-session-review-save', {
-            observerSessionId,
+        const { data } = await httpClient.patch(`/observer-session-review/${observerSessionId}`, {
             processingSummary: input.processingSummary,
             subtitleSegments: input.subtitleSegments,
             stepCandidates: input.stepCandidates,
@@ -99,10 +98,17 @@ export const LumensService = {
         observerSessionId: string,
         input: { processingSummary: Record<string, any>; segments: any[] }
     ): Promise<any> {
-        return this.saveReview(observerSessionId, {
+        const { data } = await httpClient.patch(`/observer-session-review/${observerSessionId}`, {
             processingSummary: input.processingSummary,
             subtitleSegments: input.segments,
-            stepCandidates: [],
         });
+        return data;
+    },
+    async mergeSteps(observerSessionId: string, stepIds: string[]): Promise<any> {
+        const { data } = await httpClient.post('/observer-session-merge-steps', {
+            observerSessionId,
+            stepIds,
+        });
+        return data;
     },
 };

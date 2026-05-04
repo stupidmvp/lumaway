@@ -72,3 +72,10 @@ export const useSaveReview = () => {
         },
     });
 };
+
+export const useMergeLumenSteps = () => {
+    return useMutation({
+        mutationFn: ({ observerSessionId, stepIds }: { observerSessionId: string; stepIds: string[] }) =>
+            LumensService.mergeSteps(observerSessionId, stepIds),
+    });
+};
