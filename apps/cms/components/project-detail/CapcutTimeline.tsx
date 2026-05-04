@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface VideoTextSegment {
@@ -9,21 +9,30 @@ interface VideoTextSegment {
     startMs: number;
     endMs: number;
     text: string;
+    title?: string;
+    description?: string;
 }
 
 interface CapcutTimelineProps {
     durationSec: number;
     currentTimeSec: number;
-    segments: VideoTextSegment[];
-    selectedSegmentId: string | null;
+    subtitleSegments: VideoTextSegment[];
+    selectedSubtitleId: string | null;
+    stepSegments: VideoTextSegment[];
+    selectedStepId: string | null;
     onSeek: (sec: number) => void;
-    onUpdateSegment: (id: string, patch: Partial<VideoTextSegment>) => void;
-    onSelectSegment: (id: string) => void;
+    onUpdateSubtitle: (id: string, patch: Partial<VideoTextSegment>) => void;
+    onUpdateStep: (id: string, patch: Partial<VideoTextSegment>) => void;
+    onUpdateEnd?: (type: 'subtitle' | 'step', id: string) => void;
+    onSelectSubtitle: (id: string) => void;
+    onSelectStep: (id: string) => void;
+    onSegmentClickStep?: (id: string) => void;
+    onSegmentClickSubtitle?: (id: string) => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 function formatVideoTime(seconds: number) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
+    if (!Number.isFinite(seconds) || seconds < 0) return '00:00.0';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 10);
@@ -33,20 +42,27 @@ function formatVideoTime(seconds: number) {
 export function CapcutTimeline({
     durationSec,
     currentTimeSec,
-    segments,
-    selectedSegmentId,
+    subtitleSegments,
+    selectedSubtitleId,
+    stepSegments,
+    selectedStepId,
     onSeek,
-    onUpdateSegment,
-    onSelectSegment,
+    onUpdateSubtitle,
+    onUpdateStep,
+    onUpdateEnd,
+    onSelectSubtitle,
+    onSelectStep,
+    onSegmentClickStep,
+    onSegmentClickSubtitle,
     videoRef,
 }: CapcutTimelineProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const playheadRef = useRef<HTMLDivElement>(null);
+    const [zoomLevel] = useState(50); // pixels per second
 
     const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
-    const pixelsPerSecond = 50; // New scale for verification
-    const timelineWidth = Math.max(800, safeDuration * pixelsPerSecond);
+    const timelineWidth = Math.max(800, safeDuration * zoomLevel);
 
     const lastManualScrollTime = useRef(0);
 
@@ -57,14 +73,13 @@ export function CapcutTimeline({
     // Hardware-accelerated sync loop
     useEffect(() => {
         let frameId: number;
-
         const sync = () => {
             const container = containerRef.current;
             const playhead = playheadRef.current;
             const video = videoRef.current;
 
             if (video && playhead) {
-                const x = video.currentTime * pixelsPerSecond;
+                const x = video.currentTime * zoomLevel;
                 playhead.style.transform = `translate3d(${x}px, 0, 0)`;
                 
                 if (container) {
@@ -74,14 +89,12 @@ export function CapcutTimeline({
                     if (!isManualScrolling) {
                         const scrollLeft = container.scrollLeft;
                         const containerWidth = container.clientWidth;
-                        const padding = 100; // More lenient padding
+                        const padding = 150;
                         
-                        // Only auto-scroll if playhead is really near the edges
                         const isNearRightEdge = x > (scrollLeft + containerWidth - padding);
                         const isNearLeftEdge = x < (scrollLeft + padding);
                         
                         if (isNearRightEdge || isNearLeftEdge) {
-                            // Smoothly center the playhead
                             const targetScroll = x - (containerWidth / 2);
                             container.scrollTo({
                                 left: Math.max(0, targetScroll),
@@ -93,88 +106,70 @@ export function CapcutTimeline({
             }
             frameId = requestAnimationFrame(sync);
         };
-
         frameId = requestAnimationFrame(sync);
         return () => cancelAnimationFrame(frameId);
-    }, [videoRef, pixelsPerSecond, timelineWidth]);
+    }, [videoRef, zoomLevel]);
 
     const handleTrackClick = (e: React.MouseEvent) => {
         if (!safeDuration || !trackRef.current) return;
         const rect = trackRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
-        const seekSec = x / pixelsPerSecond;
+        const seekSec = x / zoomLevel;
         onSeek(Math.max(0, Math.min(safeDuration, seekSec)));
     };
 
-    const handleSegmentMove = (segment: VideoTextSegment) => (e: React.PointerEvent) => {
+    const handleSegmentMouseDown = (
+        e: React.MouseEvent, 
+        type: 'subtitle' | 'step', 
+        segment: VideoTextSegment, 
+        action: 'move' | 'resize-left' | 'resize-right'
+    ) => {
         e.stopPropagation();
         const startX = e.clientX;
         const initialStartMs = segment.startMs;
         const initialEndMs = segment.endMs;
         const durationMs = initialEndMs - initialStartMs;
         
+        const onUpdate = type === 'subtitle' ? onUpdateSubtitle : onUpdateStep;
+        const onSelect = type === 'subtitle' ? onSelectSubtitle : onSelectStep;
+
+        onSelect(segment.id);
+
         const handlePointerMove = (moveEvent: PointerEvent) => {
             const deltaX = moveEvent.clientX - startX;
-            const deltaMs = (deltaX / pixelsPerSecond) * 1000;
+            const deltaMs = (deltaX / zoomLevel) * 1000;
             
-            let newStartMs = initialStartMs + deltaMs;
-            let newEndMs = initialEndMs + deltaMs;
-
-            // Constrain to timeline bounds
-            if (newStartMs < 0) {
-                newStartMs = 0;
-                newEndMs = durationMs;
+            if (action === 'move') {
+                let newStartMs = initialStartMs + deltaMs;
+                let newEndMs = initialEndMs + deltaMs;
+                if (newStartMs < 0) {
+                    newStartMs = 0;
+                    newEndMs = durationMs;
+                }
+                if (newEndMs > safeDuration * 1000) {
+                    newEndMs = safeDuration * 1000;
+                    newStartMs = newEndMs - durationMs;
+                }
+                onUpdate(segment.id, { startMs: Math.round(newStartMs), endMs: Math.round(newEndMs) });
+            } else if (action === 'resize-left') {
+                const newStartMs = Math.max(0, Math.min(initialEndMs - 100, initialStartMs + deltaMs));
+                onUpdate(segment.id, { startMs: Math.round(newStartMs) });
+            } else if (action === 'resize-right') {
+                const newEndMs = Math.max(initialStartMs + 100, Math.min(safeDuration * 1000, initialEndMs + deltaMs));
+                onUpdate(segment.id, { endMs: Math.round(newEndMs) });
             }
-            if (newEndMs > safeDuration * 1000) {
-                newEndMs = safeDuration * 1000;
-                newStartMs = newEndMs - durationMs;
-            }
-            
-            onUpdateSegment(segment.id, { 
-                startMs: Math.round(newStartMs), 
-                endMs: Math.round(newEndMs) 
-            });
         };
 
         const handlePointerUp = () => {
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
             document.body.style.cursor = 'default';
+            if (onUpdateEnd) onUpdateEnd(type, segment.id);
         };
 
         window.addEventListener('pointermove', handlePointerMove);
         window.addEventListener('pointerup', handlePointerUp);
-        document.body.style.cursor = 'grabbing';
-    };
-
-    const handleSegmentResize = (segment: VideoTextSegment, type: 'start' | 'end') => (e: React.PointerEvent) => {
-        e.stopPropagation();
-        const startX = e.clientX;
-        const startValueMs = type === 'start' ? segment.startMs : segment.endMs;
-        
-        const handlePointerMove = (moveEvent: PointerEvent) => {
-            const deltaX = moveEvent.clientX - startX;
-            const deltaMs = (deltaX / pixelsPerSecond) * 1000;
-            const newValueMs = Math.max(0, Math.min(safeDuration * 1000, startValueMs + deltaMs));
-            
-            if (type === 'start') {
-                if (newValueMs < segment.endMs - 100) {
-                    onUpdateSegment(segment.id, { startMs: Math.round(newValueMs) });
-                }
-            } else {
-                if (newValueMs > segment.startMs + 100) {
-                    onUpdateSegment(segment.id, { endMs: Math.round(newValueMs) });
-                }
-            }
-        };
-
-        const handlePointerUp = () => {
-            window.removeEventListener('pointermove', handlePointerMove);
-            window.removeEventListener('pointerup', handlePointerUp);
-        };
-
-        window.addEventListener('pointermove', handlePointerMove);
-        window.addEventListener('pointerup', handlePointerUp);
+        document.body.style.cursor = action === 'move' ? 'grabbing' : 'ew-resize';
     };
 
     const ticks = useMemo(() => {
@@ -183,47 +178,61 @@ export function CapcutTimeline({
         const count = Math.min(Math.floor(safeDuration / interval), 3000); 
         return Array.from({ length: count + 1 }).map((_, i) => ({
             sec: i * interval,
-            x: i * interval * pixelsPerSecond,
+            x: i * interval * zoomLevel,
             isMajor: i % 5 === 0
         }));
-    }, [safeDuration, pixelsPerSecond]);
+    }, [safeDuration, zoomLevel]);
 
     return (
-        <div className="flex flex-col h-full bg-[#0a0a0a] rounded-md overflow-hidden border border-white/5 select-none">
-            <div className="bg-[#141414] h-8 flex items-center px-4 border-b border-white/5 justify-between">
+        <div className="flex flex-col bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+            {/* Header / Ruler Controls */}
+            <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/5 z-50">
                 <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Timeline</span>
+                    <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                        <span className="text-[11px] font-mono font-bold text-accent-blue">
+                            {formatVideoTime(currentTimeSec)}
+                        </span>
+                    </div>
+                    <span className="text-[10px] text-white/30 font-medium">
+                        / {formatVideoTime(safeDuration)}
+                    </span>
                 </div>
-                <span className="text-[10px] font-mono text-white/60 tabular-nums bg-white/5 px-2 py-0.5 rounded">
-                    {formatVideoTime(currentTimeSec)} / {formatVideoTime(safeDuration)}
-                </span>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                        <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Subtitles</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                        <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Steps</span>
+                    </div>
+                </div>
             </div>
 
             <div 
                 ref={containerRef}
                 className="flex-1 overflow-auto scrollbar-none relative bg-[#0f0f0f]"
-                style={{ scrollBehavior: 'auto' }}
                 onScroll={handleScroll}
             >
                 <div 
                     ref={trackRef}
-                    className="relative min-h-full"
+                    className="relative min-h-[220px]"
                     style={{ width: `${timelineWidth}px` }}
                     onClick={handleTrackClick}
                 >
                     {/* Ruler */}
-                    <div className="h-8 border-b border-white/10 sticky top-0 bg-[#141414]/95 backdrop-blur-sm z-40">
+                    <div className="h-8 border-b border-white/5 sticky top-0 bg-[#0a0a0a]/95 backdrop-blur-md z-40">
                         {ticks.map((tick) => (
                             <div 
                                 key={tick.sec} 
                                 className={cn(
-                                    "absolute top-0 h-full border-l flex flex-col justify-end pb-1",
-                                    tick.isMajor ? "border-white/30 w-px" : "border-white/10 h-1/3 mt-5"
+                                    "absolute top-0 h-full border-l transition-opacity",
+                                    tick.isMajor ? "border-white/20 w-px" : "border-white/5 h-1/3 mt-5"
                                 )}
                                 style={{ left: `${tick.x}px` }}
                             >
                                 {tick.isMajor && (
-                                    <span className="text-[9px] text-white/50 -translate-x-1/2 ml-[-1px] mb-0.5 leading-none font-mono">
+                                    <span className="text-[9px] text-white/40 -translate-x-1/2 ml-[-1px] mb-0.5 leading-none font-mono">
                                         {formatVideoTime(tick.sec)}
                                     </span>
                                 )}
@@ -231,71 +240,101 @@ export function CapcutTimeline({
                         ))}
                     </div>
 
-                    {/* Tracks Container */}
-                    <div className="flex flex-col py-4 px-0 relative min-h-[160px]">
-                        {/* Subtitle Tracks */}
-                        {segments.map((segment) => {
-                            const x = (segment.startMs / 1000) * pixelsPerSecond;
-                            const width = ((segment.endMs - segment.startMs) / 1000) * pixelsPerSecond;
-                            const isSelected = selectedSegmentId === segment.id;
-                            const isActive = (currentTimeSec * 1000) >= segment.startMs && (currentTimeSec * 1000) <= segment.endMs;
+                    <div className="flex flex-col gap-1 py-6">
+                        {/* Subtitle Track */}
+                        <div className="relative h-12 bg-white/[0.02] border-y border-white/[0.03]">
+                            {subtitleSegments.map((seg) => {
+                                const x = (seg.startMs / 1000) * zoomLevel;
+                                const width = ((seg.endMs - seg.startMs) / 1000) * zoomLevel;
+                                const isSelected = selectedSubtitleId === seg.id;
+                                const isActive = (currentTimeSec * 1000) >= seg.startMs && (currentTimeSec * 1000) <= seg.endMs;
 
-                            return (
-                                <div 
-                                    key={segment.id} 
-                                    className={cn(
-                                        "h-11 relative border-b border-white/[0.02] transition-colors",
-                                        isSelected ? "bg-white/[0.06]" : isActive ? "bg-white/[0.03]" : ""
-                                    )}
-                                >
+                                return (
                                     <div
+                                        key={seg.id}
                                         className={cn(
-                                            "absolute h-8 top-1.5 rounded-sm cursor-grab active:cursor-grabbing transition-shadow flex items-center overflow-hidden border-x-[3px]",
+                                            "absolute h-8 top-2 rounded-md cursor-grab active:cursor-grabbing transition-all flex items-center overflow-hidden border",
                                             isSelected 
-                                                ? "bg-[#ff7a00] border-white shadow-[0_0_20px_rgba(255,122,0,0.4)] z-20" 
+                                                ? "bg-slate-700 border-white shadow-[0_0_15px_rgba(255,255,255,0.2)] z-30" 
                                                 : isActive
-                                                    ? "bg-[#ff7a00] border-white/50 z-15"
-                                                    : "bg-[#ff7a00]/40 border-transparent hover:bg-[#ff7a00]/60 z-10"
+                                                    ? "bg-slate-800 border-white/50 z-20"
+                                                    : "bg-slate-900/60 border-white/10 hover:bg-slate-800/80 z-10"
                                         )}
                                         style={{ left: `${x}px`, width: `${width}px` }}
-                                        onPointerDown={handleSegmentMove(segment)}
+                                        onMouseDown={(e) => handleSegmentMouseDown(e, 'subtitle', seg, 'move')}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            onSelectSegment(segment.id);
+                                            if (onSegmentClickSubtitle) onSegmentClickSubtitle(seg.id);
                                         }}
                                     >
-                                        <div 
-                                            className="absolute left-0 inset-y-0 w-3 cursor-ew-resize hover:bg-white/20 transition-colors z-30"
-                                            onPointerDown={handleSegmentResize(segment, 'start')}
-                                        />
-                                        <div 
-                                            className="absolute right-0 inset-y-0 w-3 cursor-ew-resize hover:bg-white/20 transition-colors z-30"
-                                            onPointerDown={handleSegmentResize(segment, 'end')}
-                                        />
-                                        <div className="px-4 text-[11px] font-bold text-white truncate pointer-events-none drop-shadow-md">
-                                            {segment.text}
+                                        <div className="px-3 text-[10px] font-medium text-white/90 truncate pointer-events-none">
+                                            {seg.text}
                                         </div>
+                                        <div 
+                                            className="absolute left-0 inset-y-0 w-2 cursor-ew-resize hover:bg-white/20 z-40"
+                                            onMouseDown={(e) => handleSegmentMouseDown(e, 'subtitle', seg, 'resize-left')}
+                                        />
+                                        <div 
+                                            className="absolute right-0 inset-y-0 w-2 cursor-ew-resize hover:bg-white/20 z-40"
+                                            onMouseDown={(e) => handleSegmentMouseDown(e, 'subtitle', seg, 'resize-right')}
+                                        />
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
 
-                        {/* Video Background Tracks Style Capcut */}
-                        <div className="h-20 mt-6 relative bg-white/[0.02] border-y border-white/5 flex items-center overflow-hidden">
-                             <div className="flex gap-1 h-full opacity-20">
-                                {Array.from({ length: Math.min(Math.ceil(timelineWidth / 120), 300) }).map((_, i) => (
-                                    <div key={i} className="w-[116px] h-full bg-white/5 shrink-0 border-r border-white/5" />
-                                ))}
-                             </div>
+                        {/* Steps Track */}
+                        <div className="relative h-14 bg-amber-500/[0.02] border-y border-amber-500/5 mt-4">
+                            {stepSegments.map((seg) => {
+                                const x = (seg.startMs / 1000) * zoomLevel;
+                                const width = ((seg.endMs - seg.startMs) / 1000) * zoomLevel;
+                                const isSelected = selectedStepId === seg.id;
+                                const isActive = (currentTimeSec * 1000) >= seg.startMs && (currentTimeSec * 1000) <= seg.endMs;
+
+                                return (
+                                    <div
+                                        key={seg.id}
+                                        className={cn(
+                                            "absolute h-10 top-2 rounded-lg cursor-grab active:cursor-grabbing transition-all flex flex-col justify-center px-3 overflow-hidden border-2",
+                                            isSelected 
+                                                ? "bg-amber-500 text-black border-white shadow-[0_0_20px_rgba(245,158,11,0.4)] z-30" 
+                                                : isActive
+                                                    ? "bg-amber-500/80 text-black border-amber-400 z-20"
+                                                    : "bg-amber-500/20 text-amber-200/70 border-amber-500/20 hover:bg-amber-500/30 z-10"
+                                        )}
+                                        style={{ left: `${x}px`, width: `${width}px` }}
+                                        onMouseDown={(e) => handleSegmentMouseDown(e, 'step', seg, 'move')}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (onSegmentClickStep) onSegmentClickStep(seg.id);
+                                        }}
+                                    >
+                                        <div className="text-[10px] font-bold truncate pointer-events-none uppercase tracking-tight leading-none">
+                                            {seg.title || `Step ${seg.order}`}
+                                        </div>
+                                        <div className="text-[9px] opacity-70 truncate pointer-events-none italic mt-0.5">
+                                            {seg.description}
+                                        </div>
+                                        <div 
+                                            className="absolute left-0 inset-y-0 w-2 cursor-ew-resize hover:bg-white/20 z-40"
+                                            onMouseDown={(e) => handleSegmentMouseDown(e, 'step', seg, 'resize-left')}
+                                        />
+                                        <div 
+                                            className="absolute right-0 inset-y-0 w-2 cursor-ew-resize hover:bg-white/20 z-40"
+                                            onMouseDown={(e) => handleSegmentMouseDown(e, 'step', seg, 'resize-right')}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Playhead - Pixel based with Ref for 60fps performance */}
+                    {/* Playhead */}
                     <div 
                         ref={playheadRef}
-                        className="absolute top-0 bottom-0 left-0 w-[2px] bg-white z-50 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.8)] will-change-transform"
+                        className="absolute top-0 bottom-0 left-0 w-[2px] bg-white z-50 pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.5)] will-change-transform"
                     >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rounded-full border-2 border-[#ff7a00]" />
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rounded-full border-2 border-accent-blue" />
                     </div>
                 </div>
             </div>
