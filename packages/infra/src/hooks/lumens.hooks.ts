@@ -58,3 +58,17 @@ export const useSaveLumenTranscriptSegments = () => {
         },
     });
 };
+
+export const useSaveReview = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ observerSessionId, processingSummary, subtitleSegments, stepCandidates }: { observerSessionId: string; processingSummary: Record<string, any>; subtitleSegments: any[]; stepCandidates: any[] }) =>
+            LumensService.saveReview(observerSessionId, { processingSummary, subtitleSegments, stepCandidates }),
+        onSuccess: async (_, { observerSessionId }) => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['lumens'] }),
+                queryClient.invalidateQueries({ queryKey: ['lumens', 'review', observerSessionId] }),
+            ]);
+        },
+    });
+};

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGenerateWalkthroughsFromLumen, useLumenReview, useReprocessLumen, useSaveLumenTranscriptSegments } from '@luma/infra';
+import { useGenerateWalkthroughsFromLumen, useLumenReview, useReprocessLumen, useSaveLumenTranscriptSegments, useSaveReview } from '@luma/infra';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,7 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertTriangle, Captions, CheckCircle2, Circle, Loader2, Magnet, Pause, Play, RotateCcw, Scissors, Settings2, Wand2 } from 'lucide-react';
+import { AlertTriangle, Captions, CheckCircle2, Circle, Loader2, Magnet, MousePointer2, Pause, Play, Redo2, RotateCcw, Scissors, Settings2, Undo2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -93,6 +93,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const generateMutation = useGenerateWalkthroughsFromLumen();
     const reprocessMutation = useReprocessLumen();
     const saveTranscriptSegmentsMutation = useSaveLumenTranscriptSegments();
+    const saveReviewMutation = useSaveReview();
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
@@ -115,6 +116,12 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [showSubtitles, setShowSubtitles] = useState(true);
     const [playbackRate, setPlaybackRate] = useState(1);
     const stepsListRef = useRef<HTMLDivElement>(null);
+
+    const [pastSteps, setPastSteps] = useState<ReviewTimelineStep[][]>([]);
+    const [presentSteps, setPresentSteps] = useState<ReviewTimelineStep[]>([]);
+    const [futureSteps, setFutureSteps] = useState<ReviewTimelineStep[][]>([]);
+    const [isStepsInitialized, setIsStepsInitialized] = useState(false);
+    const lastHistoryPushTime = useRef<number>(0);
 
     useEffect(() => {
         if (videoRef.current) {
@@ -382,8 +389,15 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     }, [actionableActions, durationSec, narratedActionUnits, stepCandidates]);
 
     useEffect(() => {
-        if (!reviewSteps.length) return;
-        const nearest = reviewSteps.reduce<{ id: string; distance: number } | null>((best, step) => {
+        if (reviewSteps.length > 0 && !isStepsInitialized) {
+            setPresentSteps(reviewSteps);
+            setIsStepsInitialized(true);
+        }
+    }, [reviewSteps, isStepsInitialized]);
+
+    useEffect(() => {
+        if (!presentSteps.length) return;
+        const nearest = presentSteps.reduce<{ id: string; distance: number } | null>((best, step) => {
             const distance = Math.abs((step.timestampMs / 1000) - currentTime);
             if (!best || distance < best.distance) return { id: step.id, distance };
             return best;
@@ -391,26 +405,70 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         if (nearest && nearest.distance <= 1.25) {
             setActiveStepId(nearest.id);
         }
-    }, [currentTime, reviewSteps]);
+    }, [currentTime, presentSteps]);
+
+    const handleUpdateStep = useCallback((id: string, patch: Partial<ReviewTimelineStep>) => {
+        setPresentSteps((current) => {
+            const index = current.findIndex(s => s.id === id);
+            if (index === -1) return current;
+
+            const now = Date.now();
+            if (now - lastHistoryPushTime.current > 800) {
+                setPastSteps(past => [...past, current]);
+                setFutureSteps([]);
+            }
+            lastHistoryPushTime.current = now;
+
+            const next = [...current];
+            next[index] = { ...current[index], ...patch };
+            return next;
+        });
+    }, []);
+
+    const undo = useCallback(() => {
+        if (pastSteps.length === 0) return;
+        
+        const previous = pastSteps[pastSteps.length - 1];
+        const newPast = pastSteps.slice(0, pastSteps.length - 1);
+        
+        setPastSteps(newPast);
+        setFutureSteps(future => [presentSteps, ...future]);
+        setPresentSteps(previous);
+    }, [pastSteps, presentSteps]);
+
+    const redo = useCallback(() => {
+        if (futureSteps.length === 0) return;
+        
+        const next = futureSteps[0];
+        const newFuture = futureSteps.slice(1);
+        
+        setPastSteps(past => [...past, presentSteps]);
+        setFutureSteps(newFuture);
+        setPresentSteps(next);
+    }, [futureSteps, presentSteps]);
+
+    useEffect(() => {
+        const handleHistoryKeyDown = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleHistoryKeyDown);
+        return () => window.removeEventListener('keydown', handleHistoryKeyDown);
+    }, [undo, redo]);
 
     const activeSubtitleSegment = useMemo(() => {
         const currentMs = currentTime * 1000;
         return subtitleSegments.find((segment) => currentMs >= segment.startMs && currentMs <= segment.endMs) ?? null;
     }, [currentTime, subtitleSegments]);
-
-    // Auto-scroll sidebar when active step changes
-    useEffect(() => {
-        if (activeStepId && stepsListRef.current) {
-            const activeElement = stepsListRef.current.querySelector(`[data-step-id="${activeStepId}"]`);
-            if (activeElement) {
-                activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }
-    }, [activeStepId]);
-
-    const selectedSubtitleSegment = useMemo(() => {
-        return subtitleSegments.find((segment) => segment.id === selectedSubtitleSegmentId) ?? null;
-    }, [selectedSubtitleSegmentId, subtitleSegments]);
 
     const activeSubtitleWords = useMemo(() => {
         if (!activeSubtitleSegment) return [] as Array<{ word: string; active: boolean }>;
@@ -420,7 +478,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         const activeWordCount = Math.min(words.length, Math.max(1, Math.ceil((elapsed / duration) * words.length)));
         return words.map((word, index) => ({ word, active: index < activeWordCount }));
     }, [activeSubtitleSegment, currentTime]);
-
 
     const processingPhase = useMemo(() => {
         if (!session) return 0;
@@ -556,65 +613,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const progressPercent = useMemo(() => {
         if (!durationSec || durationSec === 0) return 0;
-        // Snap to 100% if we are within 100ms of the end or if the video has ended
         if (currentTime >= durationSec - 0.1) return 100;
         return Math.min(100, Math.max(0, (currentTime / durationSec) * 100));
     }, [currentTime, durationSec]);
-
-    if (isLoading) {
-        return (
-            <div className="flex-1 overflow-y-auto bg-background min-w-0">
-                <div className="w-full max-w-5xl px-6 py-5 mx-auto space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <Skeleton className="h-6 w-48" />
-                            <Skeleton className="h-4 w-72" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Skeleton className="h-8 w-28" />
-                            <Skeleton className="h-8 w-24" />
-                            <Skeleton className="h-8 w-36" />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={`meta-skeleton-${i}`} className="rounded-lg border border-border p-3 bg-background-secondary">
-                                <Skeleton className="h-3 w-16" />
-                                <Skeleton className="h-5 w-20 mt-2" />
-                            </div>
-                        ))}
-                    </div>
-                    <div className="rounded-lg border border-border bg-background p-4 space-y-3">
-                        <Skeleton className="h-5 w-36" />
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                            <div className="md:col-span-4 rounded-md border border-border bg-background-secondary p-3 space-y-3">
-                                {Array.from({ length: 6 }).map((_, i) => (
-                                    <div key={`step-skeleton-${i}`} className="space-y-2">
-                                        <Skeleton className="h-4 w-5/6" />
-                                        <Skeleton className="h-3 w-full" />
-                                        <Skeleton className="h-3 w-2/3" />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="md:col-span-8 space-y-3">
-                                <Skeleton className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md`} />
-                                <Skeleton className="h-9 w-full rounded-full" />
-                                <Skeleton className="h-4 w-full rounded-md" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (isError || !data) {
-        return (
-            <div className="p-6">
-                <p className="text-sm text-destructive">{t('loadFailed')}</p>
-            </div>
-        );
-    }
 
     const seekTo = async (seconds: number, options?: { autoplay?: boolean; stepId?: string }) => {
         const video = videoRef.current;
@@ -645,12 +646,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         video.addEventListener('loadedmetadata', onLoaded);
     };
 
-
-
     const handleScrub = (value: number) => {
         void seekTo(value, { autoplay: isPlaying });
     };
-
 
     const updateSubtitleSegment = (id: string, patch: Partial<VideoTextSegment>) => {
         setSubtitleSegments((segments) => segments.map((segment) => {
@@ -695,7 +693,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             const newSegments = [...segments];
             newSegments.splice(index, 1, seg1, seg2);
             
-            // Re-order segments
             return newSegments.map((s, i) => ({ ...s, order: i + 1 }));
         });
     };
@@ -716,6 +713,71 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             toast.error(t('segmentsSaveFailed'));
         }
     };
+
+    const handleSaveSteps = async () => {
+        try {
+            const stepCandidates = presentSteps.map(step => ({
+                id: step.id,
+                observerSessionId: lumenId,
+                order: step.order,
+                title: step.title,
+                description: step.description,
+                targetSelector: step.targetSelector,
+                timestampMs: step.timestampMs,
+                confidence: step.confidence,
+                createdAt: new Date().toISOString(),
+            }));
+            
+            await saveReviewMutation.mutateAsync({
+                observerSessionId: lumenId,
+                processingSummary,
+                subtitleSegments,
+                stepCandidates,
+            });
+            toast.success("Cambios guardados exitosamente");
+        } catch {
+            toast.error("Error al guardar los cambios");
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex-1 overflow-y-auto bg-background min-w-0">
+                <div className="w-full max-w-5xl px-6 py-5 mx-auto space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <Skeleton className="h-6 w-48" />
+                            <Skeleton className="h-4 w-72" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="h-8 w-28" />
+                            <Skeleton className="h-8 w-24" />
+                            <Skeleton className="h-8 w-36" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={`meta-skeleton-${i}`} className="rounded-lg border border-border p-3 bg-background-secondary">
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="h-5 w-20 mt-2" />
+                            </div>
+                        ))}
+                    </div>
+                    <Skeleton className="h-[500px] w-full rounded-lg" />
+                </div>
+            </div>
+        );
+    }
+
+    if (isError || !data) {
+        return (
+            <div className="p-6">
+                <p className="text-sm text-destructive">{t('loadFailed')}</p>
+            </div>
+        );
+    }
+
+    const selectedSubtitleSegment = subtitleSegments.find((s) => s.id === selectedSubtitleSegmentId) ?? null;
 
     return (
         <div className="flex-1 overflow-y-auto bg-background min-w-0">
@@ -799,31 +861,23 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
                     <div className="rounded-lg border border-border p-3 bg-background-secondary">
                         <p className="text-xs text-foreground-muted">{t('status')}</p>
-                        {showSkeletons ? (
-                            <Skeleton className="h-5 w-24 mt-1" />
-                        ) : (
-                            <p className="text-sm font-medium text-foreground mt-1">{session.status}</p>
-                        )}
+                        <p className="text-sm font-medium text-foreground mt-1">{session.status}</p>
                     </div>
                     <div className="rounded-lg border border-border p-3 bg-background-secondary">
                         <p className="text-xs text-foreground-muted">{t('source')}</p>
-                        {showSkeletons ? (
-                            <Skeleton className="h-5 w-28 mt-1" />
-                        ) : (
-                            <p className="text-sm font-medium text-foreground mt-1">
-                                {t(`captureSource.${session.captureSource || 'unknown'}`)}
-                            </p>
-                        )}
+                        <p className="text-sm font-medium text-foreground mt-1">
+                            {t(`captureSource.${session.captureSource || 'unknown'}`)}
+                        </p>
                     </div>
                     {!isRegenerating && (
                         <div className="rounded-lg border border-border p-3 bg-background-secondary">
                             <p className="text-xs text-foreground-muted">{t('chapters')}</p>
-                            {showSkeletons ? <Skeleton className="h-5 w-10 mt-1" /> : <p className="text-sm font-medium text-foreground mt-1">{chapters.length}</p>}
+                            <p className="text-sm font-medium text-foreground mt-1">{chapters.length}</p>
                         </div>
                     )}
                     <div className="rounded-lg border border-border p-3 bg-background-secondary">
                         <p className="text-xs text-foreground-muted">{t('steps')}</p>
-                        {showSkeletons ? <Skeleton className="h-5 w-10 mt-1" /> : <p className="text-sm font-medium text-foreground mt-1">{reviewSteps.length}</p>}
+                        <p className="text-sm font-medium text-foreground mt-1">{presentSteps.length}</p>
                     </div>
                 </div>
 
@@ -838,12 +892,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 {visibleProcessingLogEntries.map((entry, index) => {
                                     const at = formatLogTime(entry.at);
                                     const isLast = index === visibleProcessingLogEntries.length - 1;
-
                                     return (
-                                        <div
-                                            key={entry.id}
-                                            className={`flex items-start gap-3 px-3 py-2.5 ${!isLast ? 'border-b border-border/70' : ''}`}
-                                        >
+                                        <div key={entry.id} className={`flex items-start gap-3 px-3 py-2.5 ${!isLast ? 'border-b border-border/70' : ''}`}>
                                             <div className="mt-0.5 shrink-0">
                                                 {entry.state === 'done' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
                                                 {entry.state === 'running' && <Loader2 className="h-4 w-4 text-accent-blue animate-spin" />}
@@ -853,15 +903,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <p className="text-xs font-medium text-foreground">{entry.label}</p>
-                                                    {at && (
-                                                        <span className="text-[10px] text-foreground-subtle font-mono shrink-0">{at}</span>
-                                                    )}
+                                                    {at && <span className="text-[10px] text-foreground-subtle font-mono shrink-0">{at}</span>}
                                                 </div>
-                                                {entry.detail && (
-                                                    <p className="text-[11px] text-foreground-muted mt-0.5 break-words">
-                                                        {entry.detail}
-                                                    </p>
-                                                )}
+                                                {entry.detail && <p className="text-[11px] text-foreground-muted mt-0.5 break-words">{entry.detail}</p>}
                                             </div>
                                         </div>
                                     );
@@ -872,326 +916,275 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 )}
 
                 {!isRegenerating && (
-                <div className="rounded-lg border border-border bg-background mb-4">
-                    <div className="px-4 py-3 border-b border-border">
-                        <h2 className="text-sm font-semibold text-foreground">{t('videoAndTimeline')}</h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-0 items-start">
-                        <div className="md:col-span-4 flex flex-col border-r border-border bg-background-secondary overflow-hidden max-h-[600px] md:sticky md:top-0 h-full">
-                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-                                <div className="px-3 py-2 border-b border-border shrink-0">
-                                    <TabsList className="w-full grid grid-cols-2">
-                                        <TabsTrigger value="steps" className="text-xs">{t('stepCandidates')}</TabsTrigger>
-                                        <TabsTrigger value="subtitles" className="text-xs">Subtitles</TabsTrigger>
-                                    </TabsList>
-                                </div>
-                                <TabsContent value="steps" className="flex-1 overflow-y-auto m-0 data-[state=inactive]:hidden">
-                                    <div 
-                                        ref={stepsListRef}
-                                        className="divide-y divide-border h-full"
-                                    >
-                                {showSkeletons && reviewSteps.length === 0 && (
-                                    <div className="px-3 py-3 space-y-3">
-                                        {Array.from({ length: 6 }).map((_, i) => (
-                                            <div key={`step-candidate-skeleton-${i}`} className="space-y-2">
-                                                <Skeleton className="h-4 w-4/5" />
-                                                <Skeleton className="h-3 w-full" />
-                                                <Skeleton className="h-3 w-2/3" />
-                                            </div>
-                                        ))}
+                    <div className="rounded-lg border border-border bg-background mb-4">
+                        <div className="px-4 py-3 border-b border-border">
+                            <h2 className="text-sm font-semibold text-foreground">{t('videoAndTimeline')}</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start p-4">
+                            <div className="md:col-span-9 flex flex-col gap-4">
+                                {data.videoUrl ? (
+                                    <LumenVideoPlayer
+                                        ref={videoRef}
+                                        videoUrl={data.videoUrl}
+                                        isVideoLoading={isVideoLoading}
+                                        isPlaying={isPlaying}
+                                        currentTime={currentTime}
+                                        durationSec={durationSec}
+                                        playbackRate={playbackRate}
+                                        showSubtitles={showSubtitles}
+                                        subtitleSegments={subtitleSegments}
+                                        activeSegment={activeSegment}
+                                        onTogglePlayback={togglePlayback}
+                                        onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                        onPlaybackRateChange={setPlaybackRate}
+                                        onTimeUpdate={setCurrentTime}
+                                        onLoadedMetadata={setVideoDuration}
+                                        onLoadedData={() => setIsVideoLoading(false)}
+                                        onCanPlay={() => setIsVideoLoading(false)}
+                                        onPlay={() => setIsPlaying(true)}
+                                        onPause={() => setIsPlaying(false)}
+                                        onEnded={(finalTime) => {
+                                            setIsPlaying(false);
+                                            if (finalTime > 0) setVideoDuration(finalTime);
+                                        }}
+                                        formatTime={formatVideoTime}
+                                        renderTimeline={() => (
+                                            <LumenTimeline
+                                                durationSec={durationSec}
+                                                currentTime={currentTime}
+                                                progressPercent={progressPercent}
+                                                reviewSteps={presentSteps}
+                                                activeStepId={activeStepId}
+                                                onSeek={(sec) => seekTo(sec, { autoplay: isPlaying })}
+                                                onScrub={handleScrub}
+                                                onSelectStep={(id) => {
+                                                    const step = presentSteps.find(s => s.id === id);
+                                                    if (step) {
+                                                        seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
+                                                        setActiveStepId(id);
+                                                        setSelectedSubtitleSegmentId(null);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    />
+                                ) : (
+                                    <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border bg-background-secondary flex items-center justify-center px-4`}>
+                                        <p className="text-sm text-foreground-muted">{t('noVideoAvailable')}</p>
                                     </div>
                                 )}
-                                {reviewSteps.length === 0 && (
-                                    <p className="text-sm text-foreground-muted px-3 py-4">{t('noSteps')}</p>
-                                )}
-                                {reviewSteps.map((step) => (
-                                    <button
-                                        key={step.id}
-                                        data-step-id={step.id}
-                                        type="button"
-                                        className={`px-3 py-3 w-full text-left transition-colors ${activeStepId === step.id ? 'bg-accent-blue/10' : 'hover:bg-background'}`}
-                                        onClick={() => seekTo(step.timestampMs / 1000, { autoplay: isPlaying, stepId: step.id })}
-                                    >
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium text-foreground">{step.order}. {step.title}</p>
-                                            <span className="text-[11px] text-foreground-muted">
-                                                {formatVideoTime(step.timestampMs / 1000)} · {step.confidence}%
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-foreground-muted mt-1">{step.description}</p>
-                                        <p className="text-[11px] text-foreground-subtle mt-1">
-                                            {step.targetSelector || t('manualTargetRequired')}
-                                        </p>
-                                    </button>
-                                ))}
-                                    </div>
-                                </TabsContent>
-                                <TabsContent value="subtitles" className="flex-1 overflow-y-auto m-0 p-4 data-[state=inactive]:hidden">
-                                    {!selectedSubtitleSegment ? (
-                                        <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-                                            <Captions className="h-8 w-8 text-foreground-muted opacity-50" />
-                                            <p className="text-sm text-foreground-muted">Select a subtitle segment on the timeline to edit.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-6">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Captions className="h-5 w-5 text-accent-blue" />
-                                                <h3 className="text-sm font-semibold">{t('editSegment')}</h3>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs text-foreground-muted">{t('segmentStart')}</Label>
-                                                    <div className="flex gap-1">
-                                                        <div className="flex-1 text-sm font-mono bg-background-secondary p-2 rounded border border-border tabular-nums">
-                                                            {formatVideoTime(selectedSubtitleSegment.startMs / 1000)}
-                                                        </div>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            className="h-9 w-9 shrink-0"
-                                                            title="Sync start with current time"
-                                                            onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { startMs: Math.round(currentTime * 1000) })}
-                                                        >
-                                                            <Magnet className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs text-foreground-muted">{t('segmentEnd')}</Label>
-                                                    <div className="flex gap-1">
-                                                        <div className="flex-1 text-sm font-mono bg-background-secondary p-2 rounded border border-border tabular-nums">
-                                                            {formatVideoTime(selectedSubtitleSegment.endMs / 1000)}
-                                                        </div>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            className="h-9 w-9 shrink-0"
-                                                            title="Sync end with current time"
-                                                            onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { endMs: Math.round(currentTime * 1000) })}
-                                                        >
-                                                            <Magnet className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
 
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <Label className="text-xs text-foreground-muted">{t('segmentText')}</Label>
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm" 
-                                                        className="h-7 text-[10px] text-accent-blue hover:text-accent-blue hover:bg-accent-blue/10"
-                                                        onClick={() => toast.info("AI Correction feature coming soon!")}
-                                                    >
-                                                        <Wand2 className="h-3 w-3 mr-1" />
-                                                        {t('improveWithAI')}
+                                <div className="rounded-md border border-border bg-[#0f0f0f] overflow-hidden">
+                                    <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-[#141414]">
+                                        <div className="flex items-center gap-2">
+                                            <Captions className="h-4 w-4 text-[#ff7a00]" />
+                                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-white/60">Integrated Timeline Editor</h3>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-white/40 hover:text-white" 
+                                                onClick={undo} 
+                                                disabled={pastSteps.length === 0}
+                                                title="Undo (Ctrl+Z)"
+                                            >
+                                                <Undo2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-white/40 hover:text-white" 
+                                                onClick={redo} 
+                                                disabled={futureSteps.length === 0}
+                                                title="Redo (Ctrl+Shift+Z)"
+                                            >
+                                                <Redo2 className="h-3.5 w-3.5" />
+                                            </Button>
+
+                                            <div className="w-px h-4 bg-white/10 mx-1"></div>
+
+                                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] text-white/40 hover:text-white" onClick={resetSubtitleSegments} disabled={saveTranscriptSegmentsMutation.isPending}>
+                                                <RotateCcw className="h-3 w-3 mr-1" />
+                                                Reset
+                                            </Button>
+                                            <Button size="sm" className="h-7 px-2 text-[10px] bg-[#ff7a00] hover:bg-[#ff7a00]/90 text-white border-none" onClick={() => {
+                                                saveSubtitleSegments();
+                                                handleSaveSteps();
+                                            }} disabled={saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending}>
+                                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                {(saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending) ? "Saving..." : "Save Changes"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="h-[300px]">
+                                        <CapcutTimeline
+                                            durationSec={durationSec}
+                                            currentTimeSec={currentTime}
+                                            segments={subtitleSegments}
+                                            steps={presentSteps.map(s => ({
+                                                id: s.id,
+                                                order: s.order,
+                                                startMs: s.timestampMs,
+                                                endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + 8000),
+                                                text: s.title,
+                                                description: s.description
+                                            }))}
+                                            selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
+                                            onSeek={(sec) => seekTo(sec, { autoplay: false })}
+                                            onUpdateSegment={updateSubtitleSegment}
+                                            onSelectSegment={(id) => {
+                                                const segment = subtitleSegments.find(s => s.id === id);
+                                                if (segment) {
+                                                    seekTo(segment.startMs / 1000, { autoplay: false });
+                                                }
+                                                setSelectedSubtitleSegmentId(id);
+                                                setActiveStepId(null);
+                                            }}
+                                            onSelectStep={(id) => {
+                                                const step = presentSteps.find(s => s.id === id);
+                                                if (step) {
+                                                    seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
+                                                    setActiveStepId(id);
+                                                    setSelectedSubtitleSegmentId(null);
+                                                }
+                                            }}
+                                            onUpdateStep={(id, patch) => {
+                                                handleUpdateStep(id, { timestampMs: patch.startMs });
+                                            }}
+                                            videoRef={videoRef}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-3 flex flex-col gap-4 md:sticky md:top-4 max-h-[calc(100vh-100px)] overflow-y-auto">
+                                <div className="rounded-lg border border-border bg-background-secondary overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-background/50">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/70">Properties</h3>
+                                    </div>
+                                    <div className="p-4">
+                                        {selectedSubtitleSegment ? (
+                                            <div className="space-y-6">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Captions className="h-5 w-5 text-[#ff7a00]" />
+                                                    <h3 className="text-sm font-semibold">Edit Subtitle</h3>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase text-foreground-muted">Start</Label>
+                                                        <div className="flex gap-1">
+                                                            <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
+                                                                {formatVideoTime(selectedSubtitleSegment.startMs / 1000)}
+                                                            </div>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { startMs: Math.round(currentTime * 1000) })}>
+                                                                <Magnet className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase text-foreground-muted">End</Label>
+                                                        <div className="flex gap-1">
+                                                            <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
+                                                                {formatVideoTime(selectedSubtitleSegment.endMs / 1000)}
+                                                            </div>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { endMs: Math.round(currentTime * 1000) })}>
+                                                                <Magnet className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase text-foreground-muted">Text</Label>
+                                                    <textarea value={selectedSubtitleSegment.text} onChange={(e) => updateSubtitleSegment(selectedSubtitleSegment.id, { text: e.target.value })} rows={4} className="w-full bg-background border border-border rounded-md p-2.5 text-sm focus:border-[#ff7a00] outline-none resize-none" />
+                                                </div>
+                                                <div className="flex flex-col gap-2 pt-2">
+                                                    <Button variant="outline" className="w-full justify-start text-xs h-8" disabled={currentTime * 1000 <= selectedSubtitleSegment.startMs || currentTime * 1000 >= selectedSubtitleSegment.endMs} onClick={() => handleSplitSegment(selectedSubtitleSegment.id, currentTime * 1000)}>
+                                                        <Scissors className="h-3.5 w-3.5 mr-2" />
+                                                        Split at Playhead
                                                     </Button>
                                                 </div>
-                                                <textarea
-                                                    value={selectedSubtitleSegment.text}
-                                                    onChange={(e) => updateSubtitleSegment(selectedSubtitleSegment.id, { text: e.target.value })}
-                                                    rows={5}
-                                                    className="w-full bg-background border border-border rounded-md p-3 text-sm focus:border-accent-blue outline-none resize-none"
-                                                    placeholder={t('segmentTextPlaceholder')}
-                                                />
                                             </div>
-
-                                            <div className="flex flex-col gap-2 pt-4">
-                                                <Button
-                                                    variant="secondary"
-                                                    className="w-full justify-start text-xs h-9 bg-accent-blue/10 hover:bg-accent-blue/20 text-accent-blue border border-accent-blue/20"
-                                                    disabled={reprocessMutation.isPending}
-                                                    onClick={() => reprocessMutation.mutate({ observerSessionId: lumenId })}
-                                                >
-                                                    <RotateCcw className={cn("h-3.5 w-3.5 mr-2", reprocessMutation.isPending && "animate-spin")} />
-                                                    {reprocessMutation.isPending ? "Reprocessing with Whisper..." : "Reprocess with Whisper (Sync Fix)"}
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-full justify-start text-xs h-9"
-                                                    disabled={currentTime * 1000 <= selectedSubtitleSegment.startMs || currentTime * 1000 >= selectedSubtitleSegment.endMs}
-                                                    onClick={() => handleSplitSegment(selectedSubtitleSegment.id, currentTime * 1000)}
-                                                >
-                                                    <Scissors className="h-3.5 w-3.5 mr-2" />
-                                                    {t('splitAtPlayhead')}
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-full justify-start text-xs h-9"
-                                                    onClick={() => seekTo(selectedSubtitleSegment.startMs / 1000)}
-                                                >
-                                                    <Play className="h-3.5 w-3.5 mr-2" />
-                                                    {t('previewSegment')}
-                                                </Button>
+                                        ) : activeStepId ? (
+                                            <div className="space-y-6">
+                                                {(() => {
+                                                    const step = presentSteps.find(s => s.id === activeStepId);
+                                                    if (!step) return null;
+                                                    return (
+                                                        <>
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div className="h-5 w-5 rounded bg-[#3b82f6] flex items-center justify-center text-[10px] text-white font-bold">{step.order}</div>
+                                                                <h3 className="text-sm font-semibold">Step Properties</h3>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] uppercase text-foreground-muted">Timestamp</Label>
+                                                                <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
+                                                                    {formatVideoTime(step.timestampMs / 1000)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] uppercase text-foreground-muted">Title</Label>
+                                                                <p className="text-sm font-medium text-foreground">{step.title}</p>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] uppercase text-foreground-muted">Description</Label>
+                                                                <p className="text-xs text-foreground-muted leading-relaxed">{step.description}</p>
+                                                            </div>
+                                                            <div className="pt-4">
+                                                                <Button variant="outline" className="w-full text-xs h-8 mb-2" onClick={() => handleUpdateStep(step.id, { timestampMs: Math.round(currentTime * 1000) })}>
+                                                                    <Magnet className="h-3.5 w-3.5 mr-2" />
+                                                                    Sync Timestamp to Playhead
+                                                                </Button>
+                                                                <Button className="w-full text-xs h-8 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white" onClick={() => seekTo(step.timestampMs / 1000)}>
+                                                                    <Play className="h-3 w-3 mr-2" />
+                                                                    Go to Moment
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
-                                        </div>
-                                    )}
-                                </TabsContent>
-                            </Tabs>
-                        </div>
-
-                        <div className="md:col-span-8 flex flex-col bg-black/5">
-                            {showSkeletons && !data.videoUrl ? (
-                                <>
-                                    <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border overflow-hidden`}>
-                                        <Skeleton className="h-full w-full rounded-none" />
-                                    </div>
-                                    <Skeleton className="h-9 w-full rounded-full" />
-                                    <Skeleton className="h-4 w-full rounded-md" />
-                                </>
-                            ) : data.videoUrl ? (
-                                <LumenVideoPlayer
-                                    ref={videoRef}
-                                    videoUrl={data.videoUrl}
-                                    isVideoLoading={isVideoLoading}
-                                    isPlaying={isPlaying}
-                                    currentTime={currentTime}
-                                    durationSec={durationSec}
-                                    playbackRate={playbackRate}
-                                    showSubtitles={showSubtitles}
-                                    subtitleSegments={subtitleSegments}
-                                    activeSegment={activeSegment}
-                                    onTogglePlayback={togglePlayback}
-                                    onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
-                                    onPlaybackRateChange={setPlaybackRate}
-                                    onTimeUpdate={setCurrentTime}
-                                    onLoadedMetadata={setVideoDuration}
-                                    onLoadedData={() => setIsVideoLoading(false)}
-                                    onCanPlay={() => setIsVideoLoading(false)}
-                                    onPlay={() => setIsPlaying(true)}
-                                    onPause={() => setIsPlaying(false)}
-                                    onEnded={(finalTime) => {
-                                        setIsPlaying(false);
-                                        // If the video naturally ends earlier than the metadata/session expected, 
-                                        // sync the duration to reality so the progress bar hits 100%.
-                                        if (finalTime > 0) {
-                                            setVideoDuration(finalTime);
-                                        }
-                                    }}
-                                    formatTime={formatVideoTime}
-                                    renderTimeline={() => (
-                                        <LumenTimeline
-                                            durationSec={durationSec}
-                                            currentTime={currentTime}
-                                            progressPercent={progressPercent}
-                                            reviewSteps={reviewSteps}
-                                            activeStepId={activeStepId}
-                                            onSeek={(sec) => seekTo(sec, { autoplay: isPlaying })}
-                                            onScrub={handleScrub}
-                                        />
-                                    )}
-                                />
-                            ) : (
-                                <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border bg-background-secondary flex items-center justify-center px-4`}>
-                                    <p className="text-sm text-foreground-muted">{t('noVideoAvailable')}</p>
-                                </div>
-                            )}
-
-                            <div className="rounded-md border border-border bg-background-secondary">
-                                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                                    <div className="flex items-center gap-2">
-                                        <Captions className="h-4 w-4 text-accent-blue" />
-                                        <h3 className="text-xs font-bold uppercase tracking-wider">Subtitle Editor (Live Sync)</h3>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            className="h-7 px-2 text-[10px]"
-                                            onClick={resetSubtitleSegments}
-                                            disabled={saveTranscriptSegmentsMutation.isPending}
-                                        >
-                                            <RotateCcw className="h-3 w-3 mr-1" />
-                                            Reset
-                                        </Button>
-                                        <Button 
-                                            size="sm" 
-                                            className="h-7 px-2 text-[10px] bg-accent-blue hover:bg-accent-blue/90" 
-                                            onClick={saveSubtitleSegments}
-                                            disabled={saveTranscriptSegmentsMutation.isPending}
-                                        >
-                                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                                            {saveTranscriptSegmentsMutation.isPending ? "Saving..." : "Save"}
-                                        </Button>
-                                    </div>
-                                </div>
-                                {subtitleSegments.length === 0 ? (
-                                            <p className="px-3 py-3 text-sm text-foreground-muted">{t('noSubtitleSegments')}</p>
                                         ) : (
-                                            <div className="py-2">
-                                                <CapcutTimeline
-                                                    durationSec={durationSec}
-                                                    currentTimeSec={currentTime}
-                                                    segments={subtitleSegments}
-                                                    steps={reviewSteps.map(s => ({
-                                                        id: s.id,
-                                                        order: s.order,
-                                                        startMs: s.timestampMs,
-                                                        endMs: s.timestampMs + 2000,
-                                                        text: s.title
-                                                    }))}
-                                                    selectedSegmentId={selectedSubtitleSegmentId}
-                                                    onSeek={(sec) => seekTo(sec, { autoplay: false })}
-                                                    onUpdateSegment={updateSubtitleSegment}
-                                                    onSelectSegment={(id) => {
-                                                        setSelectedSubtitleSegmentId(id);
-                                                        setActiveTab('subtitles');
-                                                    }}
-                                                    onSelectStep={(id) => {
-                                                        const step = reviewSteps.find(s => s.id === id);
-                                                        if (step) {
-                                                            seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
-                                                            setActiveTab('steps');
-                                                        }
-                                                    }}
-                                                    videoRef={videoRef}
-                                                />
+                                            <div className="flex flex-col items-center justify-center py-12 text-center space-y-3 opacity-40">
+                                                <MousePointer2 className="h-8 w-8" />
+                                                <p className="text-xs">Select an item on the timeline to see properties</p>
                                             </div>
                                         )}
-
-
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+                )}
 
                 {!isRegenerating && (
-                <div className="rounded-lg border border-border bg-background mb-4">
-                    <div className="px-4 py-3 border-b border-border">
-                        <h2 className="text-sm font-semibold text-foreground">{t('chapters')}</h2>
+                    <div className="rounded-lg border border-border bg-background mb-4">
+                        <div className="px-4 py-3 border-b border-border">
+                            <h2 className="text-sm font-semibold text-foreground">{t('chapters')}</h2>
+                        </div>
+                        <div className="divide-y divide-border">
+                            {showSkeletons && chapters.length === 0 && (
+                                <div className="px-4 py-3 space-y-3">
+                                    {Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={`chapters-skeleton-${i}`} className="space-y-2">
+                                            <Skeleton className="h-4 w-1/2" />
+                                            <Skeleton className="h-3 w-4/5" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {chapters.length === 0 && !showSkeletons && <p className="text-sm text-foreground-muted px-4 py-4">{t('noChapters')}</p>}
+                            {chapters.map((chapter) => (
+                                <button key={chapter.id} type="button" className="px-4 py-3 w-full text-left hover:bg-background-secondary transition-colors" onClick={() => seekTo(chapter.startMs / 1000)}>
+                                    <p className="text-sm font-medium text-foreground">{chapter.title}</p>
+                                    <p className="text-xs text-foreground-muted mt-1">
+                                        {formatVideoTime(chapter.startMs / 1000)} - {formatVideoTime(chapter.endMs / 1000)}
+                                        {chapter.summary ? ` · ${chapter.summary}` : ''}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="divide-y divide-border">
-                        {showSkeletons && chapters.length === 0 && (
-                            <div className="px-4 py-3 space-y-3">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={`chapters-skeleton-${i}`} className="space-y-2">
-                                        <Skeleton className="h-4 w-1/2" />
-                                        <Skeleton className="h-3 w-4/5" />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {chapters.length === 0 && (
-                            <p className="text-sm text-foreground-muted px-4 py-4">{t('noChapters')}</p>
-                        )}
-                        {chapters.map((chapter) => (
-                            <button
-                                key={chapter.id}
-                                type="button"
-                                className="px-4 py-3 w-full text-left hover:bg-background-secondary transition-colors"
-                                onClick={() => seekTo(chapter.startMs / 1000)}
-                            >
-                                <p className="text-sm font-medium text-foreground">{chapter.title}</p>
-                                <p className="text-xs text-foreground-muted mt-1">
-                                    {formatVideoTime(chapter.startMs / 1000)} - {formatVideoTime(chapter.endMs / 1000)}
-                                    {chapter.summary ? ` · ${chapter.summary}` : ''}
-                                </p>
-                            </button>
-                        ))}
-                    </div>
-                </div>
                 )}
 
                 <div className="rounded-lg border border-border bg-background mb-4">
@@ -1211,41 +1204,24 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-muted">
                                     {transcriptSummary.provider && <span>{t('transcriptProvider')}: {transcriptSummary.provider}</span>}
                                     {transcriptSummary.model && <span>· {t('transcriptModel')}: {transcriptSummary.model}</span>}
-                                    {typeof transcriptSummary.segmentsCount === 'number' && (
-                                        <span>· {t('transcriptSegments')}: {transcriptSummary.segmentsCount}</span>
-                                    )}
+                                    {typeof transcriptSummary.segmentsCount === 'number' && <span>· {t('transcriptSegments')}: {transcriptSummary.segmentsCount}</span>}
                                 </div>
-                                {transcriptSummary.preview && (
-                                    <p className="text-xs text-foreground mt-2">{transcriptSummary.preview}</p>
-                                )}
+                                {transcriptSummary.preview && <p className="text-xs text-foreground mt-2">{transcriptSummary.preview}</p>}
                             </div>
                         )}
-
-                        {transcriptExtracts.length === 0 && (
+                        {transcriptExtracts.length === 0 && !showSkeletons && (
                             <div className="space-y-1">
                                 <p className="text-sm text-foreground-muted">{t('noAudioExtracts')}</p>
-                                {transcriptSummary?.reasonLabel && (
-                                    <p className="text-xs text-amber-400">{transcriptSummary.reasonLabel}</p>
-                                )}
+                                {transcriptSummary?.reasonLabel && <p className="text-xs text-amber-400">{transcriptSummary.reasonLabel}</p>}
                             </div>
                         )}
-
                         {transcriptExtracts.length > 0 && (
                             <div className="rounded-md border border-border divide-y divide-border">
                                 {transcriptExtracts.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        className="w-full text-left px-3 py-2.5 hover:bg-background-secondary transition-colors"
-                                        onClick={() => seekTo(item.timestampMs / 1000, { autoplay: false })}
-                                    >
+                                    <button key={item.id} type="button" className="w-full text-left px-3 py-2.5 hover:bg-background-secondary transition-colors" onClick={() => seekTo(item.timestampMs / 1000, { autoplay: false })}>
                                         <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs font-medium text-foreground">
-                                                Step {item.order}
-                                            </p>
-                                            <span className="text-[11px] text-foreground-muted">
-                                                {formatVideoTime(item.timestampMs / 1000)}
-                                            </span>
+                                            <p className="text-xs font-medium text-foreground">Step {item.order}</p>
+                                            <span className="text-[11px] text-foreground-muted">{formatVideoTime(item.timestampMs / 1000)}</span>
                                         </div>
                                         <p className="text-sm text-foreground-muted mt-1">{item.text}</p>
                                     </button>
@@ -1254,7 +1230,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         )}
                     </div>
                 </div>
-
             </div>
         </div>
     );

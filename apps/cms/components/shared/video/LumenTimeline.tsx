@@ -38,7 +38,7 @@ export const LumenTimeline: React.FC<LumenTimelineProps> = ({
             />
 
             {/* Key Points (Review Steps) */}
-            {reviewSteps.map((step) => {
+            {reviewSteps.map((step, index) => {
                 let stepSec = step.timestampMs;
                 if (stepSec > durationSec && stepSec > 1000) {
                     stepSec = stepSec / 1000;
@@ -49,7 +49,7 @@ export const LumenTimeline: React.FC<LumenTimelineProps> = ({
                 
                 return (
                     <button
-                        key={step.id}
+                        key={`${step.id}-${index}`}
                         type="button"
                         className={cn(
                             "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 transition-all duration-200 rounded-full",
