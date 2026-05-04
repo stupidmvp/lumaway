@@ -1,21 +1,35 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGenerateWalkthroughsFromLumen, useLumenReview, useReprocessLumen } from '@luma/infra';
+import { useGenerateWalkthroughsFromLumen, useLumenReview, useReprocessLumen, useSaveLumenTranscriptSegments } from '@luma/infra';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, CheckCircle2, Circle, Loader2 } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AlertTriangle, Captions, CheckCircle2, Circle, Loader2, Magnet, Pause, Play, RotateCcw, Scissors, Settings2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { CapcutTimeline } from './CapcutTimeline';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { LumenVideoPlayer } from '../shared/video/LumenVideoPlayer';
+import { LumenTimeline } from '../shared/video/LumenTimeline';
 
 interface LumenReviewPanelProps {
     projectId: string;
     lumenId: string;
 }
 
-const VIDEO_STAGE_HEIGHT_CLASS = 'h-[250px] md:h-[320px]';
+const VIDEO_STAGE_HEIGHT_CLASS = 'aspect-video w-full';
 
 type ProcessingLogState = 'done' | 'running' | 'pending' | 'error';
 
@@ -27,8 +41,34 @@ interface ProcessingLogEntry {
     at?: string | null;
 }
 
+interface ReviewTimelineStep {
+    id: string;
+    order: number;
+    title: string;
+    description: string;
+    targetSelector?: string | null;
+    timestampMs: number;
+    confidence: number;
+}
+
+interface VideoTextWord {
+    text: string;
+    startMs: number;
+    endMs: number;
+}
+
+interface VideoTextSegment {
+    id: string;
+    order: number;
+    startMs: number;
+    endMs: number;
+    text: string;
+    words?: VideoTextWord[];
+}
+
 function formatVideoTime(seconds: number) {
-    const safe = Math.max(0, seconds);
+    if (!Number.isFinite(seconds) || seconds < 0) return '00:00.0';
+    const safe = seconds;
     const mins = Math.floor(safe / 60);
     const secs = Math.floor(safe % 60);
     const ms = Math.floor((safe - Math.floor(safe)) * 10);
@@ -52,10 +92,55 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const { data, isLoading, isError, refetch, isFetching } = useLumenReview(lumenId);
     const generateMutation = useGenerateWalkthroughsFromLumen();
     const reprocessMutation = useReprocessLumen();
+    const saveTranscriptSegmentsMutation = useSaveLumenTranscriptSegments();
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
     const [isVideoLoading, setIsVideoLoading] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const togglePlayback = useCallback(() => {
+        if (!videoRef.current) return;
+        if (videoRef.current.paused) {
+            videoRef.current.play().catch(() => undefined);
+        } else {
+            videoRef.current.pause();
+        }
+    }, []);
+
+    const [subtitleSegments, setSubtitleSegments] = useState<VideoTextSegment[]>([]);
+    const [selectedSubtitleSegmentId, setSelectedSubtitleSegmentId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState('steps');
+    const [videoDuration, setVideoDuration] = useState<number | null>(null);
+    const [showSubtitles, setShowSubtitles] = useState(true);
+    const [playbackRate, setPlaybackRate] = useState(1);
+    const stepsListRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.playbackRate = playbackRate;
+        }
+    }, [playbackRate, videoRef.current]);
+
+    const activeSegment = useMemo(() => {
+        const timeMs = currentTime * 1000;
+        return subtitleSegments.find(s => timeMs >= s.startMs && timeMs <= s.endMs);
+    }, [subtitleSegments, currentTime]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only trigger if not typing in an input/textarea
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevents focused buttons from being clicked
+                togglePlayback();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [togglePlayback]);
 
     const canGenerate = useMemo(() => {
         const status = data?.session?.status;
@@ -73,18 +158,31 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     useEffect(() => {
         setIsVideoLoading(Boolean(data?.videoUrl));
+        setIsPlaying(false);
+        setCurrentTime(0);
     }, [data?.videoUrl]);
 
+    // 1. Unified Duration Logic (Priority: Video Element > Session Data > Content Max)
+    const session = data?.session!;
+    const chapters = data?.chapters ?? [];
+    const stepCandidates = data?.stepCandidates ?? [];
+    
     const durationSec = useMemo(() => {
-        if (!data) return 1;
-        const { session, chapters, stepCandidates } = data;
-        const fromSession = typeof session.videoDurationMs === 'number' && session.videoDurationMs > 0
-            ? session.videoDurationMs / 1000
-            : 0;
-        const fromChapters = chapters.length > 0 ? Math.max(...chapters.map((c) => c.endMs / 1000)) : 0;
-        const fromSteps = stepCandidates.length > 0 ? Math.max(...stepCandidates.map((s) => s.timestampMs / 1000)) : 0;
-        return Math.max(fromSession, fromChapters, fromSteps, 1);
-    }, [data]);
+        // 1. High priority: the actual metadata from the video element
+        if (videoDuration && videoDuration > 0) return videoDuration;
+
+        // 2. Medium priority: the duration stored in the session
+        const sessionDuration = (session?.videoDurationMs || 0) / 1000;
+        if (sessionDuration > 0) return sessionDuration;
+        
+        // 3. Low priority: the max timestamp of content
+        const maxContentSec = Math.max(
+            ...(chapters || []).map((c: any) => (c.endMs || 0) / 1000),
+            ...(stepCandidates || []).map((s: any) => (s.timestampMs || 0) / 1000),
+            0
+        );
+        return maxContentSec || 0.1; // 0.1 to avoid division by zero
+    }, [data, videoDuration, session, chapters, stepCandidates]);
 
     const transcriptSummary = useMemo(() => {
         const raw = data?.session?.processingSummary?.transcript as Record<string, any> | undefined;
@@ -113,6 +211,32 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             reasonLabel,
         };
     }, [data]);
+
+    const extractedSubtitleSegments = useMemo<VideoTextSegment[]>(() => {
+        const raw = data?.session?.processingSummary?.transcript as Record<string, any> | undefined;
+        const segments = Array.isArray(raw?.segments) ? raw.segments as Array<Record<string, any>> : [];
+        return segments
+            .map((segment, index) => {
+                const startMs = Number(segment.startMs ?? segment.start ?? 0);
+                const endMs = Number(segment.endMs ?? segment.end ?? startMs);
+                const text = String(segment.text || '').replace(/\s+/g, ' ').trim();
+                return {
+                    id: `subtitle-segment-${index + 1}`,
+                    order: index + 1,
+                    startMs: Number.isFinite(startMs) ? Math.max(0, startMs) : 0,
+                    endMs: Number.isFinite(endMs) ? Math.max(0, endMs) : 0,
+                    text,
+                    words: Array.isArray(segment.words) ? segment.words : undefined,
+                };
+            })
+            .filter((segment) => segment.text && segment.endMs >= segment.startMs)
+            .sort((a, b) => a.startMs - b.startMs);
+    }, [data]);
+
+    useEffect(() => {
+        setSubtitleSegments(extractedSubtitleSegments);
+        setSelectedSubtitleSegmentId(extractedSubtitleSegments[0]?.id ?? null);
+    }, [extractedSubtitleSegments]);
 
     const transcriptExtracts = useMemo(() => {
         if (!data) return [] as Array<{ id: string; order: number; timestampMs: number; text: string }>;
@@ -182,16 +306,121 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         });
     }, [durationSec]);
 
-    const session = data?.session!;
-    const chapters = data?.chapters ?? [];
-    const stepCandidates = data?.stepCandidates ?? [];
     const isRegenerating = session?.status === 'uploaded' || session?.status === 'processing';
     const showSkeletons = isRegenerating || isFetching;
     const processingSummary = (session?.processingSummary || {}) as Record<string, any>;
+    const actionableExtraction = (processingSummary.actionableExtraction || {}) as Record<string, any>;
+    const actionableActions = useMemo(() => (
+        Array.isArray(actionableExtraction.actions)
+            ? actionableExtraction.actions as Array<Record<string, any>>
+            : []
+    ), [actionableExtraction.actions]);
+    const narratedActionUnits = useMemo(() => (
+        Array.isArray(processingSummary.narratedActionUnits)
+            ? processingSummary.narratedActionUnits as Array<Record<string, any>>
+            : []
+    ), [processingSummary.narratedActionUnits]);
     const transcriptState = (processingSummary.transcript || {}) as Record<string, any>;
     const transcriptStatus = String(transcriptState.status || '').toLowerCase();
     const chapterCount = Number(processingSummary.chapterCount || chapters.length || 0);
     const stepCount = Number(processingSummary.stepCandidatesCount || stepCandidates.length || 0);
+
+    const reviewSteps = useMemo<ReviewTimelineStep[]>(() => {
+        const actions = actionableActions;
+        if (actions.length === 0) {
+            return stepCandidates.map((step) => ({
+                id: step.id,
+                order: step.order,
+                title: step.title,
+                description: step.description,
+                targetSelector: step.targetSelector,
+                timestampMs: step.timestampMs,
+                confidence: step.confidence,
+            }));
+        }
+
+        const normalize = (value: unknown) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return actions.map((action, index) => {
+            const candidateOrders = Array.isArray(action.sourceCandidateOrders)
+                ? action.sourceCandidateOrders.map((value: unknown) => Number(value)).filter(Number.isFinite)
+                : [];
+            const actionText = normalize(`${action.description || ''} ${action.evidence || ''} ${action.title || ''}`);
+            const matchedCandidateByText = stepCandidates.find((candidate) => {
+                const candidateText = normalize(`${candidate.description || ''} ${candidate.title || ''}`);
+                return candidateText && actionText && (actionText.includes(candidateText) || candidateText.includes(normalize(action.description)));
+            });
+            const matchedCandidateByOrder = candidateOrders.length > 0
+                ? stepCandidates.find((candidate) => candidateOrders.includes(Number(candidate.order)))
+                : undefined;
+            const matchedCandidate = matchedCandidateByText || matchedCandidateByOrder;
+            const matchedNarration = narratedActionUnits.find((unit) => {
+                const unitText = normalize(unit.text);
+                return unitText && actionText && (unitText.includes(normalize(action.description)) || actionText.includes(unitText));
+            });
+            const fallbackTimestamp = (durationSec / Math.max(actions.length + 1, 2)) * (index + 1) * 1000;
+            const timestampMs = Number(matchedCandidate?.timestampMs)
+                || Number(matchedNarration?.startMs)
+                || Math.round(fallbackTimestamp);
+
+            return {
+                id: matchedCandidate?.id || `suggested-action-${Number(action.order || index + 1)}`,
+                order: Number(action.order || index + 1),
+                title: String(action.title || matchedCandidate?.title || `Paso ${index + 1}`),
+                description: String(action.description || matchedCandidate?.description || ''),
+                targetSelector: matchedCandidate?.targetSelector || null,
+                timestampMs,
+                confidence: matchedCandidate?.confidence ?? 70,
+            };
+        }).sort((a, b) => a.order - b.order);
+    }, [actionableActions, durationSec, narratedActionUnits, stepCandidates]);
+
+    useEffect(() => {
+        if (!reviewSteps.length) return;
+        const nearest = reviewSteps.reduce<{ id: string; distance: number } | null>((best, step) => {
+            const distance = Math.abs((step.timestampMs / 1000) - currentTime);
+            if (!best || distance < best.distance) return { id: step.id, distance };
+            return best;
+        }, null);
+        if (nearest && nearest.distance <= 1.25) {
+            setActiveStepId(nearest.id);
+        }
+    }, [currentTime, reviewSteps]);
+
+    const activeSubtitleSegment = useMemo(() => {
+        const currentMs = currentTime * 1000;
+        return subtitleSegments.find((segment) => currentMs >= segment.startMs && currentMs <= segment.endMs) ?? null;
+    }, [currentTime, subtitleSegments]);
+
+    // Auto-scroll sidebar when active step changes
+    useEffect(() => {
+        if (activeStepId && stepsListRef.current) {
+            const activeElement = stepsListRef.current.querySelector(`[data-step-id="${activeStepId}"]`);
+            if (activeElement) {
+                activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }, [activeStepId]);
+
+    const selectedSubtitleSegment = useMemo(() => {
+        return subtitleSegments.find((segment) => segment.id === selectedSubtitleSegmentId) ?? null;
+    }, [selectedSubtitleSegmentId, subtitleSegments]);
+
+    const activeSubtitleWords = useMemo(() => {
+        if (!activeSubtitleSegment) return [] as Array<{ word: string; active: boolean }>;
+        const words = activeSubtitleSegment.text.split(/\s+/).filter(Boolean);
+        const duration = Math.max(1, activeSubtitleSegment.endMs - activeSubtitleSegment.startMs);
+        const elapsed = Math.min(duration, Math.max(0, (currentTime * 1000) - activeSubtitleSegment.startMs));
+        const activeWordCount = Math.min(words.length, Math.max(1, Math.ceil((elapsed / duration) * words.length)));
+        return words.map((word, index) => ({ word, active: index < activeWordCount }));
+    }, [activeSubtitleSegment, currentTime]);
+
 
     const processingPhase = useMemo(() => {
         if (!session) return 0;
@@ -325,6 +554,13 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         return processingLogEntries.slice(0, firstNonDone + 1);
     }, [processingLogEntries]);
 
+    const progressPercent = useMemo(() => {
+        if (!durationSec || durationSec === 0) return 0;
+        // Snap to 100% if we are within 100ms of the end or if the video has ended
+        if (currentTime >= durationSec - 0.1) return 100;
+        return Math.min(100, Math.max(0, (currentTime / durationSec) * 100));
+    }, [currentTime, durationSec]);
+
     if (isLoading) {
         return (
             <div className="flex-1 overflow-y-auto bg-background min-w-0">
@@ -388,6 +624,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         if (options?.stepId) setActiveStepId(options.stepId);
 
         const applySeek = () => {
+            setCurrentTime(targetSeconds);
             video.currentTime = targetSeconds;
             if (autoplay) {
                 video.play().catch(() => undefined);
@@ -408,6 +645,78 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         video.addEventListener('loadedmetadata', onLoaded);
     };
 
+
+
+    const handleScrub = (value: number) => {
+        void seekTo(value, { autoplay: isPlaying });
+    };
+
+
+    const updateSubtitleSegment = (id: string, patch: Partial<VideoTextSegment>) => {
+        setSubtitleSegments((segments) => segments.map((segment) => {
+            if (segment.id !== id) return segment;
+            const next = { ...segment, ...patch };
+            const safeStartMs = Math.max(0, Math.min(next.startMs, next.endMs));
+            const safeEndMs = Math.max(safeStartMs, next.endMs);
+            return {
+                ...next,
+                startMs: safeStartMs,
+                endMs: safeEndMs,
+            };
+        }));
+    };
+
+    const resetSubtitleSegments = () => {
+        setSubtitleSegments(extractedSubtitleSegments);
+        setSelectedSubtitleSegmentId(extractedSubtitleSegments[0]?.id ?? null);
+    };
+
+    const handleSplitSegment = (id: string, splitAtMs: number) => {
+        setSubtitleSegments((segments) => {
+            const index = segments.findIndex(s => s.id === id);
+            const segment = segments[index];
+            if (!segment || splitAtMs <= segment.startMs || splitAtMs >= segment.endMs) return segments;
+
+            const seg1: VideoTextSegment = { 
+                ...segment, 
+                id: segment.id,
+                order: segment.order ?? index + 1,
+                startMs: segment.startMs ?? 0,
+                endMs: splitAtMs 
+            };
+            const seg2: VideoTextSegment = { 
+                ...segment, 
+                id: `subtitle-segment-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+                order: (segment.order ?? index + 1) + 1,
+                startMs: splitAtMs,
+                endMs: segment.endMs ?? splitAtMs + 1000
+            };
+            
+            const newSegments = [...segments];
+            newSegments.splice(index, 1, seg1, seg2);
+            
+            // Re-order segments
+            return newSegments.map((s, i) => ({ ...s, order: i + 1 }));
+        });
+    };
+
+    const saveSubtitleSegments = async () => {
+        try {
+            await saveTranscriptSegmentsMutation.mutateAsync({
+                observerSessionId: lumenId,
+                processingSummary,
+                segments: subtitleSegments.map((segment) => ({
+                    startMs: segment.startMs,
+                    endMs: segment.endMs,
+                    text: segment.text,
+                })),
+            });
+            toast.success(t('segmentsSaved'));
+        } catch {
+            toast.error(t('segmentsSaveFailed'));
+        }
+    };
+
     return (
         <div className="flex-1 overflow-y-auto bg-background min-w-0">
             <div className="w-full max-w-5xl px-6 py-5 mx-auto">
@@ -425,9 +734,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <Link href={`/projects/${projectId}/settings`}>
-                        <Button variant="outline" size="sm">{t('backToSettings')}</Button>
-                        </Link>
                         <Button
                             variant="outline"
                             size="sm"
@@ -517,7 +823,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                     )}
                     <div className="rounded-lg border border-border p-3 bg-background-secondary">
                         <p className="text-xs text-foreground-muted">{t('steps')}</p>
-                        {showSkeletons ? <Skeleton className="h-5 w-10 mt-1" /> : <p className="text-sm font-medium text-foreground mt-1">{stepCandidates.length}</p>}
+                        {showSkeletons ? <Skeleton className="h-5 w-10 mt-1" /> : <p className="text-sm font-medium text-foreground mt-1">{reviewSteps.length}</p>}
                     </div>
                 </div>
 
@@ -570,13 +876,21 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                     <div className="px-4 py-3 border-b border-border">
                         <h2 className="text-sm font-semibold text-foreground">{t('videoAndTimeline')}</h2>
                     </div>
-                    <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div className="md:col-span-4 rounded-md border border-border bg-background-secondary">
-                            <div className="px-3 py-2 border-b border-border">
-                                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">{t('stepCandidates')}</h3>
-                            </div>
-                            <div className="divide-y divide-border max-h-[440px] overflow-y-auto">
-                                {showSkeletons && stepCandidates.length === 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-0 items-start">
+                        <div className="md:col-span-4 flex flex-col border-r border-border bg-background-secondary overflow-hidden max-h-[600px] md:sticky md:top-0 h-full">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+                                <div className="px-3 py-2 border-b border-border shrink-0">
+                                    <TabsList className="w-full grid grid-cols-2">
+                                        <TabsTrigger value="steps" className="text-xs">{t('stepCandidates')}</TabsTrigger>
+                                        <TabsTrigger value="subtitles" className="text-xs">Subtitles</TabsTrigger>
+                                    </TabsList>
+                                </div>
+                                <TabsContent value="steps" className="flex-1 overflow-y-auto m-0 data-[state=inactive]:hidden">
+                                    <div 
+                                        ref={stepsListRef}
+                                        className="divide-y divide-border h-full"
+                                    >
+                                {showSkeletons && reviewSteps.length === 0 && (
                                     <div className="px-3 py-3 space-y-3">
                                         {Array.from({ length: 6 }).map((_, i) => (
                                             <div key={`step-candidate-skeleton-${i}`} className="space-y-2">
@@ -587,15 +901,16 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                         ))}
                                     </div>
                                 )}
-                                {stepCandidates.length === 0 && (
+                                {reviewSteps.length === 0 && (
                                     <p className="text-sm text-foreground-muted px-3 py-4">{t('noSteps')}</p>
                                 )}
-                                {stepCandidates.map((step) => (
+                                {reviewSteps.map((step) => (
                                     <button
                                         key={step.id}
+                                        data-step-id={step.id}
                                         type="button"
                                         className={`px-3 py-3 w-full text-left transition-colors ${activeStepId === step.id ? 'bg-accent-blue/10' : 'hover:bg-background'}`}
-                                        onClick={() => seekTo(step.timestampMs / 1000, { autoplay: false, stepId: step.id })}
+                                        onClick={() => seekTo(step.timestampMs / 1000, { autoplay: isPlaying, stepId: step.id })}
                                     >
                                         <div className="flex items-center justify-between gap-3">
                                             <p className="text-sm font-medium text-foreground">{step.order}. {step.title}</p>
@@ -609,10 +924,114 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                         </p>
                                     </button>
                                 ))}
-                            </div>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="subtitles" className="flex-1 overflow-y-auto m-0 p-4 data-[state=inactive]:hidden">
+                                    {!selectedSubtitleSegment ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+                                            <Captions className="h-8 w-8 text-foreground-muted opacity-50" />
+                                            <p className="text-sm text-foreground-muted">Select a subtitle segment on the timeline to edit.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Captions className="h-5 w-5 text-accent-blue" />
+                                                <h3 className="text-sm font-semibold">{t('editSegment')}</h3>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-foreground-muted">{t('segmentStart')}</Label>
+                                                    <div className="flex gap-1">
+                                                        <div className="flex-1 text-sm font-mono bg-background-secondary p-2 rounded border border-border tabular-nums">
+                                                            {formatVideoTime(selectedSubtitleSegment.startMs / 1000)}
+                                                        </div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-9 w-9 shrink-0"
+                                                            title="Sync start with current time"
+                                                            onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { startMs: Math.round(currentTime * 1000) })}
+                                                        >
+                                                            <Magnet className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-foreground-muted">{t('segmentEnd')}</Label>
+                                                    <div className="flex gap-1">
+                                                        <div className="flex-1 text-sm font-mono bg-background-secondary p-2 rounded border border-border tabular-nums">
+                                                            {formatVideoTime(selectedSubtitleSegment.endMs / 1000)}
+                                                        </div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-9 w-9 shrink-0"
+                                                            title="Sync end with current time"
+                                                            onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { endMs: Math.round(currentTime * 1000) })}
+                                                        >
+                                                            <Magnet className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs text-foreground-muted">{t('segmentText')}</Label>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="h-7 text-[10px] text-accent-blue hover:text-accent-blue hover:bg-accent-blue/10"
+                                                        onClick={() => toast.info("AI Correction feature coming soon!")}
+                                                    >
+                                                        <Wand2 className="h-3 w-3 mr-1" />
+                                                        {t('improveWithAI')}
+                                                    </Button>
+                                                </div>
+                                                <textarea
+                                                    value={selectedSubtitleSegment.text}
+                                                    onChange={(e) => updateSubtitleSegment(selectedSubtitleSegment.id, { text: e.target.value })}
+                                                    rows={5}
+                                                    className="w-full bg-background border border-border rounded-md p-3 text-sm focus:border-accent-blue outline-none resize-none"
+                                                    placeholder={t('segmentTextPlaceholder')}
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-2 pt-4">
+                                                <Button
+                                                    variant="secondary"
+                                                    className="w-full justify-start text-xs h-9 bg-accent-blue/10 hover:bg-accent-blue/20 text-accent-blue border border-accent-blue/20"
+                                                    disabled={reprocessMutation.isPending}
+                                                    onClick={() => reprocessMutation.mutate({ observerSessionId: lumenId })}
+                                                >
+                                                    <RotateCcw className={cn("h-3.5 w-3.5 mr-2", reprocessMutation.isPending && "animate-spin")} />
+                                                    {reprocessMutation.isPending ? "Reprocessing with Whisper..." : "Reprocess with Whisper (Sync Fix)"}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start text-xs h-9"
+                                                    disabled={currentTime * 1000 <= selectedSubtitleSegment.startMs || currentTime * 1000 >= selectedSubtitleSegment.endMs}
+                                                    onClick={() => handleSplitSegment(selectedSubtitleSegment.id, currentTime * 1000)}
+                                                >
+                                                    <Scissors className="h-3.5 w-3.5 mr-2" />
+                                                    {t('splitAtPlayhead')}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start text-xs h-9"
+                                                    onClick={() => seekTo(selectedSubtitleSegment.startMs / 1000)}
+                                                >
+                                                    <Play className="h-3.5 w-3.5 mr-2" />
+                                                    {t('previewSegment')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </TabsContent>
+                            </Tabs>
                         </div>
 
-                            <div className="md:col-span-8 space-y-3">
+                        <div className="md:col-span-8 flex flex-col bg-black/5">
                             {showSkeletons && !data.videoUrl ? (
                                 <>
                                     <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border overflow-hidden`}>
@@ -622,97 +1041,107 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     <Skeleton className="h-4 w-full rounded-md" />
                                 </>
                             ) : data.videoUrl ? (
-                                <>
-                                    <div className={`${VIDEO_STAGE_HEIGHT_CLASS} relative w-full rounded-md border border-border bg-black overflow-hidden`}>
-                                        {isVideoLoading && (
-                                            <div className="absolute inset-0 z-10">
-                                                <Skeleton className="h-full w-full rounded-none" />
-                                            </div>
-                                        )}
-                                        <video
-                                            ref={videoRef}
-                                            src={data.videoUrl}
-                                            controls
-                                            className={`h-full w-full object-contain transition-opacity ${isVideoLoading ? 'opacity-0' : 'opacity-100'}`}
-                                            onTimeUpdate={(e) => setCurrentTime((e.currentTarget as HTMLVideoElement).currentTime)}
-                                            onLoadedData={() => setIsVideoLoading(false)}
-                                            onPlaying={() => setIsVideoLoading(false)}
-                                            onWaiting={() => setIsVideoLoading(true)}
+                                <LumenVideoPlayer
+                                    ref={videoRef}
+                                    videoUrl={data.videoUrl}
+                                    isVideoLoading={isVideoLoading}
+                                    isPlaying={isPlaying}
+                                    currentTime={currentTime}
+                                    durationSec={durationSec}
+                                    playbackRate={playbackRate}
+                                    showSubtitles={showSubtitles}
+                                    subtitleSegments={subtitleSegments}
+                                    activeSegment={activeSegment}
+                                    onTogglePlayback={togglePlayback}
+                                    onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                    onPlaybackRateChange={setPlaybackRate}
+                                    onTimeUpdate={setCurrentTime}
+                                    onLoadedMetadata={setVideoDuration}
+                                    onLoadedData={() => setIsVideoLoading(false)}
+                                    onCanPlay={() => setIsVideoLoading(false)}
+                                    onPlay={() => setIsPlaying(true)}
+                                    onPause={() => setIsPlaying(false)}
+                                    onEnded={(finalTime) => {
+                                        setIsPlaying(false);
+                                        // If the video naturally ends earlier than the metadata/session expected, 
+                                        // sync the duration to reality so the progress bar hits 100%.
+                                        if (finalTime > 0) {
+                                            setVideoDuration(finalTime);
+                                        }
+                                    }}
+                                    formatTime={formatVideoTime}
+                                    renderTimeline={() => (
+                                        <LumenTimeline
+                                            durationSec={durationSec}
+                                            currentTime={currentTime}
+                                            progressPercent={progressPercent}
+                                            reviewSteps={reviewSteps}
+                                            activeStepId={activeStepId}
+                                            onSeek={(sec) => seekTo(sec, { autoplay: isPlaying })}
+                                            onScrub={handleScrub}
                                         />
-                                    </div>
-                                        <div className="space-y-2">
-                                            <div className="relative h-9 rounded-full bg-background-secondary border border-border overflow-hidden">
-                                                {chapters.map((chapter) => {
-                                                    const left = (chapter.startMs / 1000 / durationSec) * 100;
-                                                    const width = Math.max(2.5, ((chapter.endMs - chapter.startMs) / 1000 / durationSec) * 100);
-                                                    const active = currentTime >= chapter.startMs / 1000 && currentTime <= chapter.endMs / 1000;
-                                                    return (
-                                                        <button
-                                                            key={chapter.id}
-                                                            type="button"
-                                                            title={`${chapter.title} (${formatVideoTime(chapter.startMs / 1000)})`}
-                                                            className={`absolute top-0 h-full border-r border-background/40 transition-colors ${active ? 'bg-accent-blue/50' : 'bg-accent-blue/25 hover:bg-accent-blue/35'}`}
-                                                            style={{ left: `${left}%`, width: `${width}%` }}
-                                                            onClick={() => seekTo(chapter.startMs / 1000)}
-                                                        >
-                                                        {width > 14 && (
-                                                            <span className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-foreground/90 truncate">
-                                                                {chapter.title}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                            <div
-                                                className="absolute left-0 top-0 h-full bg-accent-blue/10 pointer-events-none"
-                                                style={{ width: `${Math.min(100, Math.max(0, (currentTime / durationSec) * 100))}%` }}
-                                            />
-                                            <div
-                                                className="absolute top-0 h-full w-[2px] bg-white/90 shadow-[0_0_0_1px_rgba(15,23,42,0.35)] pointer-events-none -translate-x-1/2"
-                                                style={{ left: `${Math.min(100, Math.max(0, (currentTime / durationSec) * 100))}%` }}
-                                            />
-                                        </div>
-
-                                        <div className="relative h-4 rounded-md bg-background-secondary/80 border border-border overflow-hidden">
-                                            {stepCandidates.map((step) => {
-                                                const left = (step.timestampMs / 1000 / durationSec) * 100;
-                                                const isActive = activeStepId === step.id || Math.abs((step.timestampMs / 1000) - currentTime) < 0.5;
-                                                return (
-                                                    <button
-                                                        key={step.id}
-                                                        type="button"
-                                                        title={`${step.order}. ${step.title} (${formatVideoTime(step.timestampMs / 1000)})`}
-                                                        className={`absolute top-1/2 -translate-y-1/2 h-2 rounded-full transition-colors ${isActive ? 'bg-amber-300 w-5' : 'bg-amber-500/90 hover:bg-amber-400 w-3'}`}
-                                                        style={{ left: `calc(${left}% - 6px)` }}
-                                                        onClick={() => seekTo(step.timestampMs / 1000, { autoplay: false, stepId: step.id })}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-
-                                        <div className="relative h-5">
-                                            {timelineTicks.map((tick) => (
-                                                <div
-                                                    key={tick.id}
-                                                    className="absolute top-0 -translate-x-1/2 text-[10px] text-foreground-subtle"
-                                                    style={{ left: tick.left }}
-                                                >
-                                                    <div className="mx-auto h-1.5 w-px bg-border mb-0.5" />
-                                                    {tick.label}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
+                                    )}
+                                />
                             ) : (
                                 <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border bg-background-secondary flex items-center justify-center px-4`}>
                                     <p className="text-sm text-foreground-muted">{t('noVideoAvailable')}</p>
                                 </div>
                             )}
+
+                            <div className="rounded-md border border-border bg-background-secondary">
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                        <Captions className="h-4 w-4 text-accent-blue" />
+                                        <h3 className="text-xs font-bold uppercase tracking-wider">Subtitle Editor (Live Sync)</h3>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-7 px-2 text-[10px]"
+                                            onClick={resetSubtitleSegments}
+                                            disabled={saveTranscriptSegmentsMutation.isPending}
+                                        >
+                                            <RotateCcw className="h-3 w-3 mr-1" />
+                                            Reset
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            className="h-7 px-2 text-[10px] bg-accent-blue hover:bg-accent-blue/90" 
+                                            onClick={saveSubtitleSegments}
+                                            disabled={saveTranscriptSegmentsMutation.isPending}
+                                        >
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            {saveTranscriptSegmentsMutation.isPending ? "Saving..." : "Save"}
+                                        </Button>
+                                    </div>
+                                </div>
+                                {subtitleSegments.length === 0 ? (
+                                            <p className="px-3 py-3 text-sm text-foreground-muted">{t('noSubtitleSegments')}</p>
+                                        ) : (
+                                            <div className="py-2">
+                                                <CapcutTimeline
+                                                    durationSec={durationSec}
+                                                    currentTimeSec={currentTime}
+                                                    segments={subtitleSegments}
+                                                    selectedSegmentId={selectedSubtitleSegmentId}
+                                                    onSeek={(sec) => seekTo(sec, { autoplay: false })}
+                                                    onUpdateSegment={updateSubtitleSegment}
+                                                    onSelectSegment={(id) => {
+                                                        setSelectedSubtitleSegmentId(id);
+                                                        setActiveTab('subtitles');
+                                                    }}
+                                                    videoRef={videoRef}
+                                                />
+                                            </div>
+                                        )}
+
+
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                )}
+                    )}
 
                 {!isRegenerating && (
                 <div className="rounded-lg border border-border bg-background mb-4">

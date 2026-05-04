@@ -44,3 +44,17 @@ export const useReprocessLumen = () => {
         },
     });
 };
+
+export const useSaveLumenTranscriptSegments = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ observerSessionId, processingSummary, segments }: { observerSessionId: string; processingSummary: Record<string, any>; segments: any[] }) =>
+            LumensService.saveTranscriptSegments(observerSessionId, { processingSummary, segments }),
+        onSuccess: async (_, { observerSessionId }) => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['lumens'] }),
+                queryClient.invalidateQueries({ queryKey: ['lumens', 'review', observerSessionId] }),
+            ]);
+        },
+    });
+};

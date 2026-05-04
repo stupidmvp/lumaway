@@ -83,4 +83,26 @@ export const LumensService = {
         });
         return data;
     },
+    async saveReview(
+        observerSessionId: string,
+        input: { processingSummary: Record<string, any>; subtitleSegments: any[]; stepCandidates: any[] }
+    ): Promise<any> {
+        const { data } = await httpClient.post('/observer-session-review-save', {
+            observerSessionId,
+            processingSummary: input.processingSummary,
+            subtitleSegments: input.subtitleSegments,
+            stepCandidates: input.stepCandidates,
+        });
+        return data;
+    },
+    async saveTranscriptSegments(
+        observerSessionId: string,
+        input: { processingSummary: Record<string, any>; segments: any[] }
+    ): Promise<any> {
+        return this.saveReview(observerSessionId, {
+            processingSummary: input.processingSummary,
+            subtitleSegments: input.segments,
+            stepCandidates: [],
+        });
+    },
 };
