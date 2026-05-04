@@ -35,11 +35,25 @@ interface ProjectTitleProps {
     createdAt?: string;
     members?: MemberPreview[];
     membersCount?: number;
+    compact?: boolean;
+    showLogo?: boolean;
 }
 
 const MAX_VISIBLE_MEMBERS = 3;
 
-export function ProjectTitle({ projectId, organizationId, initialTitle, logo, status, owner, createdAt, members = [], membersCount }: ProjectTitleProps) {
+export function ProjectTitle({ 
+    projectId, 
+    organizationId, 
+    initialTitle, 
+    logo, 
+    status, 
+    owner, 
+    createdAt, 
+    members = [], 
+    membersCount, 
+    compact = false,
+    showLogo = true
+}: ProjectTitleProps) {
     const [title, setTitle] = useState(initialTitle);
     const updateProjectMutation = useUpdateProject();
     const permissions = usePermissions();
@@ -103,6 +117,92 @@ export function ProjectTitle({ projectId, organizationId, initialTitle, logo, st
     const logoFullUrl = logo
         ? logo.startsWith('http') ? logo : `${ENV.S3_URL_BASE}${logo}`
         : null;
+
+    const [inputWidth, setInputWidth] = useState<number>(0);
+    const measureRef = useRef<HTMLSpanElement>(null);
+
+    useEffect(() => {
+        if (measureRef.current) {
+            setInputWidth(measureRef.current.offsetWidth + 8); // Add small buffer
+        }
+    }, [title]);
+
+    if (compact) {
+        return (
+            <div className="group">
+                <div className="flex items-center gap-3">
+                    {/* Measurement span - invisible but same font as input */}
+                    <span 
+                        ref={measureRef}
+                        className="absolute opacity-0 pointer-events-none whitespace-pre text-xl font-bold capitalize"
+                        aria-hidden="true"
+                    >
+                        {title || ta('projectNamePlaceholder')}
+                    </span>
+
+                    {showLogo && (
+                        /* Project logo - Smaller in compact mode */
+                        <div className="h-9 w-9 rounded-lg bg-accent-blue/10 text-accent-blue flex items-center justify-center border border-accent-blue/20 overflow-hidden shrink-0">
+                            {logoFullUrl ? (
+                                <Image
+                                    src={logoFullUrl}
+                                    alt={initialTitle}
+                                    width={36}
+                                    height={36}
+                                    className="h-full w-full object-contain p-0.5"
+                                    unoptimized
+                                />
+                            ) : (
+                                <div className="h-full w-full bg-accent-blue/10 text-accent-blue flex items-center justify-center">
+                                    <FolderKanban className="h-5 w-5" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="min-w-0 w-fit">
+                        <div className="flex items-center gap-1 w-fit">
+                            <input
+                                ref={inputRef}
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                onBlur={handleTitleBlur}
+                                readOnly={!canEdit}
+                                className={cn(
+                                    "text-xl font-bold bg-transparent border-none outline-none focus:outline-none focus:ring-0 px-0 shadow-none placeholder:text-foreground-muted/50 text-foreground transition-none capitalize shrink-0",
+                                    canEdit ? "cursor-text" : "cursor-default"
+                                )}
+                                placeholder={ta('projectNamePlaceholder')}
+                                style={{ width: inputWidth ? `${inputWidth}px` : 'auto' }}
+                            />
+                            <button
+                                onClick={handleToggleFavorite}
+                                disabled={toggleFavorite.isPending}
+                                className={cn(
+                                    "shrink-0 h-6 w-6 rounded-md flex items-center justify-center transition-all duration-200 cursor-pointer -ml-1",
+                                    isFavorite
+                                        ? "text-amber-400"
+                                        : "text-foreground-subtle/20 hover:text-amber-400"
+                                )}
+                            >
+                                <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
+                            </button>
+                        </div>
+                        {/* Tiny status indicator */}
+                        <div className="flex items-center gap-1 mt-0.5">
+                            <span className={cn(
+                                "h-1 w-1 rounded-full",
+                                status === 'active' ? 'bg-green-500' : 'bg-red-500'
+                            )} />
+                            <span className="text-[8px] font-bold tracking-wider uppercase text-foreground-muted/60">
+                                {status === 'active' ? tc('active') : tc('archived')}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="mb-5">

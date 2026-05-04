@@ -14,7 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertTriangle, Captions, CheckCircle2, Circle, Loader2, Magnet, MousePointer2, Pause, Play, Redo2, RotateCcw, Scissors, Settings2, Undo2, Wand2 } from 'lucide-react';
+import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, Circle, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { LumenVideoPlayer } from '../shared/video/LumenVideoPlayer';
 import { LumenTimeline } from '../shared/video/LumenTimeline';
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { Slider } from '@/components/ui/slider';
 
 interface LumenReviewPanelProps {
     projectId: string;
@@ -94,6 +100,14 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const reprocessMutation = useReprocessLumen();
     const saveTranscriptSegmentsMutation = useSaveLumenTranscriptSegments();
     const saveReviewMutation = useSaveReview();
+
+    // Zoom and Pan State
+    const [zoom, setZoom] = useState(100);
+    const [isPanning, setIsPanning] = useState(false);
+    const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const canvasRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
@@ -139,16 +153,37 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         const handleKeyDown = (e: KeyboardEvent) => {
             // Only trigger if not typing in an input/textarea
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-            
-            if (e.code === 'Space') {
-                e.preventDefault(); // Prevents focused buttons from being clicked
-                togglePlayback();
+
+            if ((e.shiftKey) && !e.ctrlKey && !e.metaKey) {
+                if (e.key === 'F') { e.preventDefault(); setZoom(100); setPanOffset({ x: 0, y: 0 }); }
+                if (e.key === '0') { e.preventDefault(); setZoom(50); }
+                if (e.key === '1') { e.preventDefault(); setZoom(100); }
+                if (e.key === '2') { e.preventDefault(); setZoom(200); }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
     }, [togglePlayback]);
+
+    // Panning logic
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!isPanning) return;
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !isPanning) return;
+        setPanOffset({
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y
+        });
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
 
     const canGenerate = useMemo(() => {
         const status = data?.session?.status;
@@ -174,7 +209,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const session = data?.session!;
     const chapters = data?.chapters ?? [];
     const stepCandidates = data?.stepCandidates ?? [];
-    
+
     const durationSec = useMemo(() => {
         // 1. High priority: the actual metadata from the video element
         if (videoDuration && videoDuration > 0) return videoDuration;
@@ -182,7 +217,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         // 2. Medium priority: the duration stored in the session
         const sessionDuration = (session?.videoDurationMs || 0) / 1000;
         if (sessionDuration > 0) return sessionDuration;
-        
+
         // 3. Low priority: the max timestamp of content
         const maxContentSec = Math.max(
             ...(chapters || []).map((c: any) => (c.endMs || 0) / 1000),
@@ -202,13 +237,13 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             ? 'OPENAI_API_KEY is not configured in API environment.'
             : reason === 'missing_openai_provider_key'
                 ? 'No OpenAI key configured at project/org level (tenant_llm_keys) nor OPENAI_API_KEY fallback.'
-            : reason === 'local_transcription_error'
-                ? (details || 'Local transcription failed. Check ffmpeg/whisper binaries and process env.')
-            : reason === 'missing_video_s3_key'
-                ? 'No uploaded lumen video found in this session.'
-            : reason === 'transcription_error'
-                ? (details || 'Audio transcription failed.')
-                    : null;
+                : reason === 'local_transcription_error'
+                    ? (details || 'Local transcription failed. Check ffmpeg/whisper binaries and process env.')
+                    : reason === 'missing_video_s3_key'
+                        ? 'No uploaded lumen video found in this session.'
+                        : reason === 'transcription_error'
+                            ? (details || 'Audio transcription failed.')
+                            : null;
         return {
             provider: typeof raw.provider === 'string' ? raw.provider : null,
             model: typeof raw.model === 'string' ? raw.model : null,
@@ -270,8 +305,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             const candidateText = typeof spokenRaw === 'string' && spokenRaw.trim()
                 ? spokenRaw.trim()
                 : typeof mappedRaw === 'string' && mappedRaw.trim()
-                ? mappedRaw.trim()
-                : typeof snippetRaw === 'string' ? snippetRaw.trim() : '';
+                    ? mappedRaw.trim()
+                    : typeof snippetRaw === 'string' ? snippetRaw.trim() : '';
             if (!candidateText) continue;
             if (isWeakAudioText(candidateText)) continue;
 
@@ -428,10 +463,10 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const undo = useCallback(() => {
         if (pastSteps.length === 0) return;
-        
+
         const previous = pastSteps[pastSteps.length - 1];
         const newPast = pastSteps.slice(0, pastSteps.length - 1);
-        
+
         setPastSteps(newPast);
         setFutureSteps(future => [presentSteps, ...future]);
         setPresentSteps(previous);
@@ -439,10 +474,10 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const redo = useCallback(() => {
         if (futureSteps.length === 0) return;
-        
+
         const next = futureSteps[0];
         const newFuture = futureSteps.slice(1);
-        
+
         setPastSteps(past => [...past, presentSteps]);
         setFutureSteps(newFuture);
         setPresentSteps(next);
@@ -451,7 +486,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     useEffect(() => {
         const handleHistoryKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-            
+
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 e.preventDefault();
                 if (e.shiftKey) {
@@ -540,20 +575,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             label: t('log.transcription'),
             detail: [transcriptMeta, transcriptExtra].filter(Boolean).join(' · ') || undefined,
             state: transcriptionStepState,
-            at: session.updatedAt,
-        });
-
-        entries.push({
-            id: 'chapters',
-            label: t('log.chapters'),
-            detail: t('log.chaptersCount', { count: chapterCount }),
-            state: session.status === 'failed'
-                ? (chapterCount > 0 ? 'done' : 'error')
-                : processingPhase > 3
-                    ? 'done'
-                    : processingPhase === 3
-                        ? 'running'
-                        : 'pending',
             at: session.updatedAt,
         });
 
@@ -676,24 +697,24 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             const segment = segments[index];
             if (!segment || splitAtMs <= segment.startMs || splitAtMs >= segment.endMs) return segments;
 
-            const seg1: VideoTextSegment = { 
-                ...segment, 
+            const seg1: VideoTextSegment = {
+                ...segment,
                 id: segment.id,
                 order: segment.order ?? index + 1,
                 startMs: segment.startMs ?? 0,
-                endMs: splitAtMs 
+                endMs: splitAtMs
             };
-            const seg2: VideoTextSegment = { 
-                ...segment, 
-                id: `subtitle-segment-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+            const seg2: VideoTextSegment = {
+                ...segment,
+                id: `subtitle-segment-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                 order: (segment.order ?? index + 1) + 1,
                 startMs: splitAtMs,
                 endMs: segment.endMs ?? splitAtMs + 1000
             };
-            
+
             const newSegments = [...segments];
             newSegments.splice(index, 1, seg1, seg2);
-            
+
             return newSegments.map((s, i) => ({ ...s, order: i + 1 }));
         });
     };
@@ -728,7 +749,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 confidence: step.confidence,
                 createdAt: new Date().toISOString(),
             }));
-            
+
             await saveReviewMutation.mutateAsync({
                 observerSessionId: lumenId,
                 processingSummary,
@@ -781,148 +802,160 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const selectedSubtitleSegment = subtitleSegments.find((s) => s.id === selectedSubtitleSegmentId) ?? null;
 
     return (
-        <div className="flex-1 overflow-y-auto bg-background min-w-0">
-            <div className="w-full max-w-5xl px-6 py-5 mx-auto">
-                <div className="mb-4 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-lg font-semibold text-foreground">{t('title')}</h1>
-                        <p className="text-sm text-foreground-muted mt-1">
+        <div className="flex flex-col h-full bg-secondary/5 min-w-0 overflow-hidden">
+            {/* Header / Info Bar */}
+            <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                    <Link
+                        href={`/projects/${projectId}/lumens`}
+                        className="h-8 w-8 rounded-full hover:bg-background-secondary flex items-center justify-center text-foreground-muted hover:text-foreground transition-colors -ml-1"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Link>
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-sm font-bold text-foreground">{t('title')}</h1>
+                        </div>
+                        <p className="text-[11px] text-foreground-muted truncate max-w-md">
                             {session.intent || t('withoutIntent')}
                         </p>
-                        {isRegenerating && (
-                            <p className="text-xs text-amber-400 mt-1 flex items-center gap-1.5">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                {t('reprocessInProgress')}
-                            </p>
-                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={reprocessMutation.isPending || isRegenerating}
-                            onClick={async () => {
-                                try {
-                                    await reprocessMutation.mutateAsync({ observerSessionId: lumenId });
-                                    toast.success(t('reprocessQueued'));
-                                    refetch();
-                                } catch {
-                                    toast.error(t('reprocessFailed'));
-                                }
-                            }}
-                        >
-                            {(reprocessMutation.isPending || isFetching) && isRegenerating ? t('regenerating') : t('regenerate')}
-                        </Button>
-                        <Button
-                            size="sm"
-                            disabled={!canGenerate || generateMutation.isPending || isRegenerating}
-                            onClick={async () => {
-                                try {
-                                    const res = await generateMutation.mutateAsync({
-                                        observerSessionId: lumenId,
-                                        mode: 'single',
-                                    });
-                                    toast.success(t('generated', { count: res.createdWalkthroughs.length }));
-                                    const firstWalkthroughId = res.createdWalkthroughs[0]?.walkthroughId;
-                                    if (firstWalkthroughId) {
-                                        router.push(`/walkthroughs/${firstWalkthroughId}`);
-                                    }
-                                } catch {
-                                    toast.error(t('generateFailed'));
-                                }
-                            }}
-                        >
-                            {t('generateSingle')}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={!canGenerate || generateMutation.isPending || isRegenerating}
-                            onClick={async () => {
-                                try {
-                                    const res = await generateMutation.mutateAsync({
-                                        observerSessionId: lumenId,
-                                        mode: 'perChapter',
-                                    });
-                                    toast.success(t('generated', { count: res.createdWalkthroughs.length }));
-                                    const firstWalkthroughId = res.createdWalkthroughs[0]?.walkthroughId;
-                                    if (firstWalkthroughId) {
-                                        router.push(`/walkthroughs/${firstWalkthroughId}`);
-                                    }
-                                } catch {
-                                    toast.error(t('generateFailed'));
-                                }
-                            }}
-                        >
-                            {t('generatePerChapter')}
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                    <div className="rounded-lg border border-border p-3 bg-background-secondary">
-                        <p className="text-xs text-foreground-muted">{t('status')}</p>
-                        <p className="text-sm font-medium text-foreground mt-1">{session.status}</p>
-                    </div>
-                    <div className="rounded-lg border border-border p-3 bg-background-secondary">
-                        <p className="text-xs text-foreground-muted">{t('source')}</p>
-                        <p className="text-sm font-medium text-foreground mt-1">
-                            {t(`captureSource.${session.captureSource || 'unknown'}`)}
-                        </p>
-                    </div>
-                    {!isRegenerating && (
-                        <div className="rounded-lg border border-border p-3 bg-background-secondary">
-                            <p className="text-xs text-foreground-muted">{t('chapters')}</p>
-                            <p className="text-sm font-medium text-foreground mt-1">{chapters.length}</p>
+                    {isRegenerating && (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 px-2 py-1 rounded">
+                            <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
+                            <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">{t('reprocessInProgress')}</span>
                         </div>
                     )}
-                    <div className="rounded-lg border border-border p-3 bg-background-secondary">
-                        <p className="text-xs text-foreground-muted">{t('steps')}</p>
-                        <p className="text-sm font-medium text-foreground mt-1">{presentSteps.length}</p>
-                    </div>
+                </div>
+                
+                {/* Header Toolbar (Zoom & Pan) */}
+                <div className="flex items-center gap-1 bg-background-secondary/50 border border-border/40 rounded-full px-1 py-1 shadow-sm">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-7 w-7 rounded-full transition-colors", !isPanning ? "bg-background text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}
+                        onClick={() => setIsPanning(false)}
+                    >
+                        <MousePointer2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-7 w-7 rounded-full transition-colors", isPanning ? "bg-background text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}
+                        onClick={() => setIsPanning(true)}
+                    >
+                        <Hand className="h-3.5 w-3.5" />
+                    </Button>
+                    <div className="w-[1px] h-3 bg-border/40 mx-0.5" />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 px-2 rounded-full text-[10px] font-bold gap-1 hover:bg-background">
+                                {zoom}%
+                                <ChevronLeft className="h-2.5 w-2.5 rotate-[-90deg] opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-64 p-3 space-y-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-foreground-muted uppercase tracking-wider">{t('zoomSize')}</span>
+                                    <span className="text-xs font-mono bg-background-secondary px-1.5 py-0.5 rounded">{zoom}%</span>
+                                </div>
+                                <Slider
+                                    value={[zoom]}
+                                    min={25}
+                                    max={400}
+                                    step={1}
+                                    onValueChange={([v]) => setZoom(v)}
+                                />
+                            </div>
+                            <DropdownMenuSeparator />
+                            <div className="space-y-1">
+                                <DropdownMenuItem onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomToFit')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ F</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(50)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo50')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 0</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(100)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo100')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 1</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(200)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo200')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 2</span>
+                                </DropdownMenuItem>
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
-                {(isRegenerating || session.status === 'failed') && (
-                    <div className="rounded-lg border border-border bg-background mb-4">
-                        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                            <h2 className="text-sm font-semibold text-foreground">{t('log.title')}</h2>
-                            <span className="text-[11px] text-foreground-subtle">{t('log.live')}</span>
-                        </div>
-                        <div className="px-4 py-3">
-                            <div className="rounded-md border border-border bg-background-secondary/40 overflow-hidden">
-                                {visibleProcessingLogEntries.map((entry, index) => {
-                                    const at = formatLogTime(entry.at);
-                                    const isLast = index === visibleProcessingLogEntries.length - 1;
-                                    return (
-                                        <div key={entry.id} className={`flex items-start gap-3 px-3 py-2.5 ${!isLast ? 'border-b border-border/70' : ''}`}>
-                                            <div className="mt-0.5 shrink-0">
-                                                {entry.state === 'done' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-                                                {entry.state === 'running' && <Loader2 className="h-4 w-4 text-accent-blue animate-spin" />}
-                                                {entry.state === 'error' && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                                                {entry.state === 'pending' && <Circle className="h-4 w-4 text-foreground-subtle" />}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className="text-xs font-medium text-foreground">{entry.label}</p>
-                                                    {at && <span className="text-[10px] text-foreground-subtle font-mono shrink-0">{at}</span>}
-                                                </div>
-                                                {entry.detail && <p className="text-[11px] text-foreground-muted mt-0.5 break-words">{entry.detail}</p>}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-[11px] font-bold gap-1.5 text-foreground-muted hover:text-foreground hover:bg-background-secondary border-border/60 transition-all shadow-sm px-3"
+                        onClick={() => reprocessMutation.mutate(lumenId)}
+                        disabled={reprocessMutation.isPending}
+                    >
+                        {reprocessMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Wand2 className="h-3.5 w-3.5 opacity-70" />
+                        )}
+                        {t('reprocess')}
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="h-8 text-[11px] bg-accent-blue hover:bg-accent-blue/90 text-white border-none font-bold shadow-sm px-4"
+                        onClick={() => {
+                            saveSubtitleSegments();
+                            handleSaveSteps();
+                        }}
+                        disabled={saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending}
+                    >
+                        {(saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending) ? (
+                            <>
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                {t('saving') || 'Saving...'}
+                            </>
+                        ) : (
+                            <>
+                                <Save className="h-3.5 w-3.5 mr-1.5" />
+                                {t('save') || 'Save'}
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
 
-                {!isRegenerating && (
-                    <div className="rounded-lg border border-border bg-background mb-4">
-                        <div className="px-4 py-3 border-b border-border">
-                            <h2 className="text-sm font-semibold text-foreground">{t('videoAndTimeline')}</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start p-4">
-                            <div className="md:col-span-9 flex flex-col gap-4">
+            {/* Main Editor Area with Resizable Panels */}
+            <div className="flex-1 overflow-hidden">
+                <ResizablePanelGroup direction="vertical">
+                    {/* Top Section: Stage */}
+                    <ResizablePanel defaultSize={75} minSize={30}>
+                        <div 
+                            ref={canvasRef}
+                            className={cn(
+                                "h-full w-full bg-[#f0f0f2] flex items-center justify-center relative overflow-hidden",
+                                isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+                            )}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                        >
+                            {/* Backdrop ambient light for studio feel */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_transparent_70%)] pointer-events-none opacity-40" />
+
+                            {/* Video Stage - Scaling and Panning applied here */}
+                            <div 
+                                className="w-[90%] max-w-6xl aspect-video bg-black shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white/5 z-10 transition-transform duration-200 ease-out will-change-transform"
+                                style={{
+                                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100})`,
+                                }}
+                            >
                                 {data.videoUrl ? (
                                     <LumenVideoPlayer
                                         ref={videoRef}
@@ -952,296 +985,70 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                         hideControls={true}
                                         volume={volume}
                                         onVolumeChange={setVolume}
-                                        renderTimeline={() => (
-                                            <LumenTimeline
-                                                durationSec={durationSec}
-                                                currentTime={currentTime}
-                                                progressPercent={progressPercent}
-                                                reviewSteps={presentSteps}
-                                                activeStepId={activeStepId}
-                                                onSeek={(sec) => seekTo(sec, { autoplay: isPlaying })}
-                                                onScrub={handleScrub}
-                                                onSelectStep={(id) => {
-                                                    const step = presentSteps.find(s => s.id === id);
-                                                    if (step) {
-                                                        seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
-                                                        setActiveStepId(id);
-                                                        setSelectedSubtitleSegmentId(null);
-                                                    }
-                                                }}
-                                            />
-                                        )}
+                                        renderTimeline={() => null}
                                     />
                                 ) : (
-                                    <div className={`${VIDEO_STAGE_HEIGHT_CLASS} w-full rounded-md border border-border bg-background-secondary flex items-center justify-center px-4`}>
-                                        <p className="text-sm text-foreground-muted">{t('noVideoAvailable')}</p>
+                                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-foreground/20">
+                                        <Play className="h-16 w-16 opacity-5" />
+                                        <p className="text-sm font-medium uppercase tracking-widest">{t('noVideoAvailable')}</p>
                                     </div>
                                 )}
-
-                                <div className="rounded-md border border-border bg-background overflow-hidden">
-                                    <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-secondary/50">
-                                        <div className="flex items-center gap-2">
-                                            <Captions className="h-4 w-4 text-[#ff7a00]" />
-                                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-foreground/60">Integrated Timeline Editor</h3>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 text-foreground/40 hover:text-foreground" 
-                                                onClick={undo} 
-                                                disabled={pastSteps.length === 0}
-                                                title="Undo (Ctrl+Z)"
-                                            >
-                                                <Undo2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 text-foreground/40 hover:text-foreground" 
-                                                onClick={redo} 
-                                                disabled={futureSteps.length === 0}
-                                                title="Redo (Ctrl+Shift+Z)"
-                                            >
-                                                <Redo2 className="h-3.5 w-3.5" />
-                                            </Button>
-
-                                            <div className="w-px h-4 bg-border mx-1"></div>
-
-                                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] text-foreground/40 hover:text-foreground" onClick={resetSubtitleSegments} disabled={saveTranscriptSegmentsMutation.isPending}>
-                                                <RotateCcw className="h-3 w-3 mr-1" />
-                                                Reset
-                                            </Button>
-                                            <Button size="sm" className="h-7 px-2 text-[10px] bg-[#ff7a00] hover:bg-[#ff7a00]/90 text-white border-none" onClick={() => {
-                                                saveSubtitleSegments();
-                                                handleSaveSteps();
-                                            }} disabled={saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending}>
-                                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                                {(saveTranscriptSegmentsMutation.isPending || saveReviewMutation.isPending) ? "Saving..." : "Save Changes"}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div className="h-[300px]">
-                                        <CapcutTimeline
-                                            durationSec={durationSec}
-                                            currentTimeSec={currentTime}
-                                            segments={subtitleSegments}
-                                            steps={presentSteps.map(s => ({
-                                                id: s.id,
-                                                order: s.order,
-                                                startMs: s.timestampMs,
-                                                endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + 8000),
-                                                text: s.title,
-                                                description: s.description
-                                            }))}
-                                            selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
-                                            onSeek={(sec) => seekTo(sec, { autoplay: false })}
-                                            onUpdateSegment={updateSubtitleSegment}
-                                            onSelectSegment={(id) => {
-                                                const segment = subtitleSegments.find(s => s.id === id);
-                                                if (segment) {
-                                                    seekTo(segment.startMs / 1000, { autoplay: false });
-                                                }
-                                                setSelectedSubtitleSegmentId(id);
-                                                setActiveStepId(null);
-                                            }}
-                                            onSelectStep={(id) => {
-                                                const step = presentSteps.find(s => s.id === id);
-                                                if (step) {
-                                                    seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
-                                                    setActiveStepId(id);
-                                                    setSelectedSubtitleSegmentId(null);
-                                                }
-                                            }}
-                                            onUpdateStep={(id, patch) => {
-                                                handleUpdateStep(id, { timestampMs: patch.startMs });
-                                            }}
-                                            videoRef={videoRef}
-                                            isPlaying={isPlaying}
-                                            onTogglePlayback={togglePlayback}
-                                            playbackRate={playbackRate}
-                                            onPlaybackRateChange={setPlaybackRate}
-                                            showSubtitles={showSubtitles}
-                                            onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
-                                            volume={volume}
-                                            onVolumeChange={setVolume}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="md:col-span-3 flex flex-col gap-4 md:sticky md:top-4 max-h-[calc(100vh-100px)] overflow-y-auto">
-                                <div className="rounded-lg border border-border bg-background-secondary overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-border bg-background/50">
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/70">Properties</h3>
-                                    </div>
-                                    <div className="p-4">
-                                        {selectedSubtitleSegment ? (
-                                            <div className="space-y-6">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Captions className="h-5 w-5 text-[#ff7a00]" />
-                                                    <h3 className="text-sm font-semibold">Edit Subtitle</h3>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-[10px] uppercase text-foreground-muted">Start</Label>
-                                                        <div className="flex gap-1">
-                                                            <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
-                                                                {formatVideoTime(selectedSubtitleSegment.startMs / 1000)}
-                                                            </div>
-                                                            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { startMs: Math.round(currentTime * 1000) })}>
-                                                                <Magnet className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-[10px] uppercase text-foreground-muted">End</Label>
-                                                        <div className="flex gap-1">
-                                                            <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
-                                                                {formatVideoTime(selectedSubtitleSegment.endMs / 1000)}
-                                                            </div>
-                                                            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateSubtitleSegment(selectedSubtitleSegment.id, { endMs: Math.round(currentTime * 1000) })}>
-                                                                <Magnet className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase text-foreground-muted">Text</Label>
-                                                    <textarea value={selectedSubtitleSegment.text} onChange={(e) => updateSubtitleSegment(selectedSubtitleSegment.id, { text: e.target.value })} rows={4} className="w-full bg-background border border-border rounded-md p-2.5 text-sm focus:border-[#ff7a00] outline-none resize-none" />
-                                                </div>
-                                                <div className="flex flex-col gap-2 pt-2">
-                                                    <Button variant="outline" className="w-full justify-start text-xs h-8" disabled={currentTime * 1000 <= selectedSubtitleSegment.startMs || currentTime * 1000 >= selectedSubtitleSegment.endMs} onClick={() => handleSplitSegment(selectedSubtitleSegment.id, currentTime * 1000)}>
-                                                        <Scissors className="h-3.5 w-3.5 mr-2" />
-                                                        Split at Playhead
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : activeStepId ? (
-                                            <div className="space-y-6">
-                                                {(() => {
-                                                    const step = presentSteps.find(s => s.id === activeStepId);
-                                                    if (!step) return null;
-                                                    return (
-                                                        <>
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <div className="h-5 w-5 rounded bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold">{step.order}</div>
-                                                                <h3 className="text-sm font-semibold">Step Properties</h3>
-                                                            </div>
-                                                            <div className="space-y-1.5">
-                                                                <Label className="text-[10px] uppercase text-foreground-muted">Timestamp</Label>
-                                                                <div className="flex-1 text-xs font-mono bg-background p-1.5 rounded border border-border tabular-nums">
-                                                                    {formatVideoTime(step.timestampMs / 1000)}
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-1.5">
-                                                                <Label className="text-[10px] uppercase text-foreground-muted">Title</Label>
-                                                                <p className="text-sm font-medium text-foreground">{step.title}</p>
-                                                            </div>
-                                                            <div className="space-y-1.5">
-                                                                <Label className="text-[10px] uppercase text-foreground-muted">Description</Label>
-                                                                <p className="text-xs text-foreground-muted leading-relaxed">{step.description}</p>
-                                                            </div>
-                                                            <div className="pt-4">
-                                                                <Button variant="outline" className="w-full text-xs h-8 mb-2" onClick={() => handleUpdateStep(step.id, { timestampMs: Math.round(currentTime * 1000) })}>
-                                                                    <Magnet className="h-3.5 w-3.5 mr-2" />
-                                                                    Sync Timestamp to Playhead
-                                                                </Button>
-                                                                <Button className="w-full text-xs h-8 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => seekTo(step.timestampMs / 1000)}>
-                                                                    <Play className="h-3 w-3 mr-2" />
-                                                                    Go to Moment
-                                                                </Button>
-                                                            </div>
-                                                        </>
-                                                    );
-                                                })()}
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center py-12 text-center space-y-3 opacity-40">
-                                                <MousePointer2 className="h-8 w-8" />
-                                                <p className="text-xs">Select an item on the timeline to see properties</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    </ResizablePanel>
 
-                {!isRegenerating && (
-                    <div className="rounded-lg border border-border bg-background mb-4">
-                        <div className="px-4 py-3 border-b border-border">
-                            <h2 className="text-sm font-semibold text-foreground">{t('chapters')}</h2>
-                        </div>
-                        <div className="divide-y divide-border">
-                            {showSkeletons && chapters.length === 0 && (
-                                <div className="px-4 py-3 space-y-3">
-                                    {Array.from({ length: 3 }).map((_, i) => (
-                                        <div key={`chapters-skeleton-${i}`} className="space-y-2">
-                                            <Skeleton className="h-4 w-1/2" />
-                                            <Skeleton className="h-3 w-4/5" />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {chapters.length === 0 && !showSkeletons && <p className="text-sm text-foreground-muted px-4 py-4">{t('noChapters')}</p>}
-                            {chapters.map((chapter) => (
-                                <button key={chapter.id} type="button" className="px-4 py-3 w-full text-left hover:bg-background-secondary transition-colors" onClick={() => seekTo(chapter.startMs / 1000)}>
-                                    <p className="text-sm font-medium text-foreground">{chapter.title}</p>
-                                    <p className="text-xs text-foreground-muted mt-1">
-                                        {formatVideoTime(chapter.startMs / 1000)} - {formatVideoTime(chapter.endMs / 1000)}
-                                        {chapter.summary ? ` · ${chapter.summary}` : ''}
-                                    </p>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                    <ResizableHandle withHandle />
 
-                <div className="rounded-lg border border-border bg-background mb-4">
-                    <div className="px-4 py-3 border-b border-border">
-                        <h2 className="text-sm font-semibold text-foreground">{t('audioExtracts')}</h2>
-                    </div>
-                    <div className="p-4 space-y-3">
-                        {showSkeletons && transcriptExtracts.length === 0 && (
-                            <div className="rounded-md border border-border p-3 space-y-3">
-                                <Skeleton className="h-3 w-1/2" />
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-5/6" />
-                            </div>
-                        )}
-                        {transcriptSummary && (
-                            <div className="rounded-md border border-border bg-background-secondary p-3">
-                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-muted">
-                                    {transcriptSummary.provider && <span>{t('transcriptProvider')}: {transcriptSummary.provider}</span>}
-                                    {transcriptSummary.model && <span>· {t('transcriptModel')}: {transcriptSummary.model}</span>}
-                                    {typeof transcriptSummary.segmentsCount === 'number' && <span>· {t('transcriptSegments')}: {transcriptSummary.segmentsCount}</span>}
-                                </div>
-                                {transcriptSummary.preview && <p className="text-xs text-foreground mt-2">{transcriptSummary.preview}</p>}
-                            </div>
-                        )}
-                        {transcriptExtracts.length === 0 && !showSkeletons && (
-                            <div className="space-y-1">
-                                <p className="text-sm text-foreground-muted">{t('noAudioExtracts')}</p>
-                                {transcriptSummary?.reasonLabel && <p className="text-xs text-amber-400">{transcriptSummary.reasonLabel}</p>}
-                            </div>
-                        )}
-                        {transcriptExtracts.length > 0 && (
-                            <div className="rounded-md border border-border divide-y divide-border">
-                                {transcriptExtracts.map((item) => (
-                                    <button key={item.id} type="button" className="w-full text-left px-3 py-2.5 hover:bg-background-secondary transition-colors" onClick={() => seekTo(item.timestampMs / 1000, { autoplay: false })}>
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs font-medium text-foreground">Step {item.order}</p>
-                                            <span className="text-[11px] text-foreground-muted">{formatVideoTime(item.timestampMs / 1000)}</span>
-                                        </div>
-                                        <p className="text-sm text-foreground-muted mt-1">{item.text}</p>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                    {/* Bottom Section: Full Width Timeline */}
+                    <ResizablePanel defaultSize={35} minSize={20}>
+                        <div className="h-full bg-background shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] z-50 overflow-hidden">
+                            <CapcutTimeline
+                                durationSec={durationSec}
+                                currentTimeSec={currentTime}
+                                segments={subtitleSegments}
+                                steps={presentSteps.map(s => ({
+                                    id: s.id,
+                                    order: s.order,
+                                    startMs: s.timestampMs,
+                                    endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + 8000),
+                                    text: s.title,
+                                    description: s.description
+                                }))}
+                                selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
+                                onSeek={(sec) => seekTo(sec, { autoplay: false })}
+                                onUpdateSegment={updateSubtitleSegment}
+                                onSelectSegment={(id) => {
+                                    const segment = subtitleSegments.find(s => s.id === id);
+                                    if (segment) {
+                                        seekTo(segment.startMs / 1000, { autoplay: false });
+                                    }
+                                    setSelectedSubtitleSegmentId(id);
+                                    setActiveStepId(null);
+                                }}
+                                onSelectStep={(id) => {
+                                    const step = presentSteps.find(s => s.id === id);
+                                    if (step) {
+                                        seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
+                                        setActiveStepId(id);
+                                        setSelectedSubtitleSegmentId(null);
+                                    }
+                                }}
+                                onUpdateStep={(id, patch) => {
+                                    handleUpdateStep(id, { timestampMs: patch.startMs });
+                                }}
+                                videoRef={videoRef}
+                                isPlaying={isPlaying}
+                                onTogglePlayback={togglePlayback}
+                                playbackRate={playbackRate}
+                                onPlaybackRateChange={setPlaybackRate}
+                                showSubtitles={showSubtitles}
+                                onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                volume={volume}
+                                onVolumeChange={setVolume}
+                            />
+                        </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
             </div>
         </div>
     );

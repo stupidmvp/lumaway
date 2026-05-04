@@ -14,7 +14,18 @@ import {
     Archive,
     UserCog,
     Clapperboard,
+    Settings2,
+    Layers,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { ENV } from '@/lib/env';
 import {
     useProject,
     useProjectComments,
@@ -34,13 +45,14 @@ import { cn } from '@/lib/utils';
 type TabKey = 'walkthroughs' | 'lumens' | 'activity' | 'members' | 'invitations' | 'actors' | 'settings';
 
 interface TabDef {
-    key: TabKey;
+    key: TabKey | string;
     href: string;
     icon: React.ElementType;
     label: string;
     badge?: number;
     badgeColor?: 'blue' | 'amber' | 'muted';
     hidden?: boolean;
+    isContextual?: boolean;
 }
 
 export default function ProjectLayout({
@@ -56,6 +68,7 @@ export default function ProjectLayout({
     const router = useRouter();
 
     const [createOpen, setCreateOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
     const t = useTranslations('ProjectDetail');
     const tc = useTranslations('Common');
@@ -86,6 +99,7 @@ export default function ProjectLayout({
     // ── Active tab from pathname ──────────────────────────────────────
     const activeTab: TabKey = useMemo(() => {
         if (pathname.endsWith('/activity')) return 'activity';
+        if (pathname.includes('/lumens/')) return 'lumens'; // Treat specific lumen as lumens tab active
         if (pathname.includes('/lumens')) return 'lumens';
         if (pathname.endsWith('/members')) return 'members';
         if (pathname.endsWith('/invitations')) return 'invitations';
@@ -93,6 +107,10 @@ export default function ProjectLayout({
         if (pathname.endsWith('/settings')) return 'settings';
         return 'walkthroughs';
     }, [pathname]);
+
+    // Check if we are inside a specific lumen
+    const lumenMatch = pathname.match(/\/lumens\/([^\/]+)/);
+    const activeLumenId = lumenMatch ? lumenMatch[1] : null;
 
     // ── Backward compat: redirect ?tab= to proper routes ─────────────
     useEffect(() => {
@@ -168,6 +186,42 @@ export default function ProjectLayout({
         },
     ], [id, t, tComments, tMembers, tSettings, tActors, commentsCount, membersCount, pendingInvitations.length, canManageProject]);
 
+    // ── Dynamic items for Sub-sidebar ────────────────────────────────
+    const rawNavigationItems = useMemo(() => {
+        const baseItems = tabs.filter(tab => !tab.hidden);
+        
+        if (activeLumenId) {
+            // Find index of lumens to insert after or just push to end of navigation group
+            return [
+                ...baseItems,
+                {
+                    key: 'properties' as any,
+                    href: '#', // Placeholder or state-based
+                    icon: Settings2,
+                    label: t('properties') || 'Properties',
+                    isContextual: true
+                },
+                {
+                    key: 'process' as any,
+                    href: '#', // Placeholder or state-based
+                    icon: Layers,
+                    label: t('process') || 'Process',
+                    isContextual: true
+                }
+            ];
+        }
+        
+        return baseItems;
+    }, [tabs, activeLumenId, t]);
+
+    // Update base items labels to match translation keys if they don't exist in ProjectDetail
+    const navigationItems = useMemo(() => {
+        return rawNavigationItems.map(item => ({
+            ...item,
+            label: t(item.key as any) || item.label
+        }));
+    }, [rawNavigationItems, t]);
+
     // ── Render ────────────────────────────────────────────────────────
 
     if (projectLoading) {
@@ -193,112 +247,211 @@ export default function ProjectLayout({
     };
 
     return (
-        <div className="flex flex-col h-full bg-background transition-colors duration-300">
-            <CreateWalkthroughDialog
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                projectId={id}
-            />
+        <TooltipProvider>
+            <div className="flex h-full bg-background overflow-hidden">
+                <CreateWalkthroughDialog
+                    open={createOpen}
+                    onOpenChange={setCreateOpen}
+                    projectId={id}
+                />
 
-            {/* Headline section: title + actions + tabs */}
-            <div className="px-5 sm:px-6 pt-5 bg-background-secondary dark:bg-background shrink-0">
-                <div className="max-w-6xl mx-auto">
-                    {/* Title row with actions */}
-                    <div className="flex items-start justify-between gap-4">
-                        <ProjectTitle
-                            projectId={id}
-                            organizationId={project.organizationId}
-                            initialTitle={project.name}
-                            logo={project.logo}
-                            status={project.status}
-                            owner={project.owner}
-                            createdAt={project.createdAt}
-                            members={project.members}
-                            membersCount={project.membersCount}
-                        />
+                {/* Sub-Sidebar: Navigation & Contextual Options */}
+                <aside 
+                    className={cn(
+                        "border-r border-border bg-background-secondary/30 flex flex-col shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
+                        isCollapsed ? "w-16" : "w-64"
+                    )}
+                >
+                    {/* Simplified Sidebar Header */}
+                    <div className="h-[72px] flex items-center justify-center border-b border-border/50">
+                        <div className={cn(
+                            "h-10 w-10 rounded-lg flex items-center justify-center border border-border/30 shrink-0 transition-all overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:bg-background-secondary",
+                            isCollapsed ? "scale-90" : "scale-100"
+                        )}>
+                            {project.logo ? (
+                                <img 
+                                    src={project.logo.startsWith('http') ? project.logo : `${ENV.S3_URL_BASE}${project.logo}`} 
+                                    alt={project.name} 
+                                    className="h-full w-full object-contain p-1"
+                                />
+                            ) : (
+                                <div className="h-full w-full bg-accent-blue/10 text-accent-blue flex items-center justify-center">
+                                    <Clapperboard className="h-5 w-5" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-2">
+                        {navigationItems.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.key;
+                            const isContextual = (tab as any).isContextual;
+
+                            const content = (
+                                <Link
+                                    key={tab.key}
+                                    href={tab.href}
+                                    className={cn(
+                                        'group flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 relative',
+                                        isActive
+                                            ? 'bg-background-secondary text-foreground shadow-sm'
+                                            : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary/50',
+                                        isCollapsed ? "justify-center" : "justify-between",
+                                        isContextual && !isCollapsed && "mt-1 border-l-2 border-border/20 ml-2"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Icon className={cn(
+                                            "h-5 w-5 transition-colors shrink-0",
+                                            isActive ? "text-accent-blue" : "text-foreground-muted/60 group-hover:text-foreground/80"
+                                        )} />
+                                        {!isCollapsed && <span className="truncate">{tab.label}</span>}
+                                    </div>
+                                    
+                                    {!isCollapsed && !!tab.badge && tab.badge > 0 && (
+                                        <span
+                                            className={cn(
+                                                'h-4.5 min-w-[18px] px-1.5 text-[9px] font-bold rounded-full flex items-center justify-center transition-colors',
+                                                isActive 
+                                                    ? 'bg-accent-blue text-white' 
+                                                    : badgeColorMap[tab.badgeColor || 'muted'],
+                                            )}
+                                        >
+                                            {tab.badge}
+                                        </span>
+                                    )}
+
+                                    {/* Active indicator for collapsed state - subtle shadow instead of bar */}
+                                    {isCollapsed && isActive && (
+                                        <div className="absolute inset-x-2 inset-y-1.5 bg-background-secondary rounded-md -z-10 shadow-sm" />
+                                    )}
+                                </Link>
+                            );
+
+                            if (isCollapsed) {
+                                return (
+                                    <Tooltip key={tab.key} delayDuration={0}>
+                                        <TooltipTrigger asChild>
+                                            {content}
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5 shadow-xl">
+                                            {tab.label}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                );
+                            }
+
+                            return content;
+                        })}
+                    </div>
+
+                    {/* Sidebar Footer: Toggle Button */}
+                    <div className="p-3 border-t border-border/50 flex justify-center">
+                        <button
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className="h-8 w-8 rounded-md flex items-center justify-center text-foreground-muted hover:text-foreground hover:bg-background-secondary transition-all"
+                        >
+                            {isCollapsed ? (
+                                <ChevronRight className="h-4 w-4" />
+                            ) : (
+                                <ChevronLeft className="h-4 w-4" />
+                            )}
+                        </button>
+                    </div>
+                </aside>
+
+                {/* Main Content Area */}
+                <main className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden relative">
+                    {/* Slim Header Bar */}
+                    <header className="h-14 border-b border-border/40 bg-background/50 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-40">
+                        <div className="flex items-center gap-4 min-w-0">
+                            <ProjectTitle
+                                projectId={id}
+                                organizationId={project.organizationId}
+                                initialTitle={project.name}
+                                logo={project.logo}
+                                status={project.status}
+                                owner={project.owner}
+                                createdAt={project.createdAt}
+                                members={project.members}
+                                membersCount={project.membersCount}
+                                compact={true}
+                                showLogo={false}
+                            />
+                        </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1.5 shrink-0 pt-1">
+                        <div className="flex items-center gap-2 shrink-0">
                             {project.status === 'archived' && (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1 px-1.5 py-0.5 h-5 shrink-0">
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1 px-1.5 py-0.5 h-6 shrink-0 hidden sm:flex">
                                     <Archive className="h-2.5 w-2.5" />
                                     <span className="text-[9px] font-bold uppercase tracking-wider">{tc('archived')}</span>
                                 </Badge>
                             )}
 
-                            {canCreateWalkthroughs && (
-                                <Button
-                                    onClick={() => setCreateOpen(true)}
-                                    disabled={project.status === 'archived'}
-                                    size="sm"
-                                    className={cn(
-                                        "h-8 gap-1.5 text-white shadow-sm cursor-pointer px-2 sm:px-3",
-                                        project.status === 'archived'
-                                            ? "bg-foreground-muted/20 opacity-50 cursor-not-allowed"
-                                            : "bg-accent-blue hover:bg-accent-blue/90"
-                                    )}
-                                    title={project.status === 'archived' ? t('cannotCreateArchived') : undefined}
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                    <span className="text-xs font-medium hidden sm:inline">{t('newWalkthrough')}</span>
-                                </Button>
-                            )}
+                            {(() => {
+                                const sortedTabs = [...tabs].sort((a, b) => b.href.length - a.href.length);
+                                const activeTab = sortedTabs.find(tab => pathname.includes(tab.href)) || tabs[0];
+                                const isWalkthroughsTab = activeTab.key === 'walkthroughs';
+
+                                return canCreateWalkthroughs && isWalkthroughsTab && (
+                                    <Button
+                                        onClick={() => setCreateOpen(true)}
+                                        disabled={project.status === 'archived'}
+                                        size="sm"
+                                        className={cn(
+                                            "h-8 gap-1.5 text-white shadow-sm cursor-pointer px-3 transition-all",
+                                            project.status === 'archived'
+                                                ? "bg-foreground-muted/20 opacity-50 cursor-not-allowed"
+                                                : "bg-accent-blue hover:bg-accent-blue/90"
+                                        )}
+                                        title={project.status === 'archived' ? t('cannotCreateArchived') : undefined}
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        <span className="text-xs font-semibold hidden sm:inline">{t('newWalkthrough')}</span>
+                                    </Button>
+                                );
+                            })()}
 
                             {canManageProject && (
                                 <ProjectActionsMenu
                                     project={{ id, name: project.name, status: project.status }}
                                     onDeleteSuccess={() => router.push('/projects')}
-                                    triggerClassName="h-8 w-8 hover:bg-background-secondary rounded-md flex items-center justify-center cursor-pointer"
+                                    triggerClassName="h-8 w-8 hover:bg-background-secondary border border-border/30 rounded-md flex items-center justify-center cursor-pointer transition-colors"
                                 />
                             )}
                         </div>
-                    </div>
+                    </header>
+                    
+                    {/* Standardized View Header */}
+                    {(() => {
+                        // Sort by length descending to match the most specific path first
+                        const sortedTabs = [...tabs].sort((a, b) => b.href.length - a.href.length);
+                        const activeTab = sortedTabs.find(tab => pathname.includes(tab.href)) || tabs[0];
+                        
+                        // Hide header on Lumen detail views (deeply nested lumen paths)
+                        const isLumenDetail = pathname.match(/\/lumens\/[^\/]+$/);
+                        if (isLumenDetail) return null;
 
-                    {/* Tabs */}
-                    <div className="flex items-center gap-1 border-b border-border mt-3">
-                        {tabs
-                            .filter((tab) => !tab.hidden)
-                            .map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.key;
+                        return (
+                            <div className="pt-8 px-6 pb-2 max-w-6xl mx-auto w-full shrink-0">
+                                <h1 className="text-lg font-bold text-foreground tracking-tight">
+                                    {activeTab.label}
+                                </h1>
+                                <p className="text-xs text-foreground-muted/70 mt-1 max-w-3xl">
+                                    {t(`${activeTab.key}Subtitle`)}
+                                </p>
+                            </div>
+                        );
+                    })()}
 
-                                return (
-                                    <Link
-                                        key={tab.key}
-                                        href={tab.href}
-                                        className={cn(
-                                            'relative px-4 py-2.5 text-sm font-medium transition-colors',
-                                            isActive
-                                                ? 'text-foreground'
-                                                : 'text-foreground-muted hover:text-foreground',
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Icon className="h-4 w-4" />
-                                            {tab.label}
-                                            {!!tab.badge && tab.badge > 0 && (
-                                                <span
-                                                    className={cn(
-                                                        'h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full flex items-center justify-center',
-                                                        badgeColorMap[tab.badgeColor || 'muted'],
-                                                    )}
-                                                >
-                                                    {tab.badge}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {isActive && (
-                                            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-t" />
-                                        )}
-                                    </Link>
-                                );
-                            })}
+                    {/* Actual Tab content — fills space */}
+                    <div className="flex-1 min-h-0 relative flex flex-col h-full">
+                        {children}
                     </div>
-                </div>
+                </main>
             </div>
-
-            {/* Tab content — fills remaining space */}
-            {children}
-        </div>
+        </TooltipProvider>
     );
 }

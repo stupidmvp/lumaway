@@ -101,7 +101,7 @@ export function CapcutTimeline({
 
     const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
     const sidebarWidth = 280;
-    const TIMELINE_PADDING_LEFT = 80;
+    const TIMELINE_PADDING_LEFT = 24;
     // Keyboard Shortcuts for Zoom
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -120,7 +120,7 @@ export function CapcutTimeline({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const timelineWidth = Math.max(800, safeDuration * pixelsPerSecond);
+    const timelineWidth = Math.max(800, (safeDuration * pixelsPerSecond) + TIMELINE_PADDING_LEFT + 200);
 
     const lastManualScrollTime = useRef(0);
 
@@ -220,7 +220,7 @@ export function CapcutTimeline({
     const handleTrackClick = (e: React.MouseEvent) => {
         if (!safeDuration || !trackRef.current) return;
         const rect = trackRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left - sidebarWidth - TIMELINE_PADDING_LEFT;
+        const x = e.clientX - rect.left - TIMELINE_PADDING_LEFT;
         if (x < 0) return; // Clicked in sidebar
         
         const seekSec = x / pixelsPerSecond;
@@ -392,10 +392,10 @@ export function CapcutTimeline({
             <div
                 key={item.id}
                 className={cn(
-                    "absolute h-8 top-1.5 rounded-[3px] cursor-grab active:cursor-grabbing transition-all flex items-center overflow-visible border group",
+                    "absolute h-8 top-1.5 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
                     type === 'step' ? (isSelected ? "bg-[#2980b9]" : "bg-[#2980b9]/60") : (isSelected ? "bg-[#e67e22]" : "bg-[#e67e22]/60"),
                     isSelected 
-                        ? "border-[1.5px] border-white z-20" 
+                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_12px_rgba(0,0,0,0.3)]" 
                         : isActive
                             ? "border-white/20 z-15"
                             : "border-white/10 z-10"
@@ -425,10 +425,12 @@ export function CapcutTimeline({
                     onPointerDown={handleItemResize(item, 'start', onUpdate)}
                 >
                     <div 
-                        className={cn("w-full h-full rounded-l-[1px] flex items-center justify-center")}
-                        style={{ backgroundColor: isSelected ? selectionColor : 'rgba(128,128,128,0.1)' }}
+                        className={cn(
+                            "w-full h-full rounded-l-[2px] flex items-center justify-center border-r border-black/5 shadow-sm transition-colors",
+                            isSelected ? "bg-white" : "bg-white/40"
+                        )}
                     >
-                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-background" : "bg-white/20")} />
+                        <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
                 
@@ -452,10 +454,12 @@ export function CapcutTimeline({
                     onPointerDown={handleItemResize(item, 'end', onUpdate)}
                 >
                     <div 
-                        className={cn("w-full h-full rounded-r-[1px] flex items-center justify-center")}
-                        style={{ backgroundColor: isSelected ? selectionColor : 'rgba(128,128,128,0.1)' }}
+                        className={cn(
+                            "w-full h-full rounded-r-[2px] flex items-center justify-center border-l border-black/5 shadow-sm transition-colors",
+                            isSelected ? "bg-white" : "bg-white/40"
+                        )}
                     >
-                        <div className={cn("w-[1px] h-3 rounded-full", isSelected ? "bg-background" : "bg-white/20")} />
+                        <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
             </div>
@@ -465,167 +469,152 @@ export function CapcutTimeline({
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden border border-border select-none shadow-2xl">
             {/* Toolbar (Capcut Style) */}
-            <div className="h-14 border-b border-border bg-secondary/50 grid grid-cols-[1fr_auto_1fr] items-center px-4 shrink-0 gap-4">
-                {/* Left side: Editing Tools & Zoom */}
-                <div className="flex items-center gap-1 min-w-0">
+            <div className="h-14 border-b border-border bg-white flex items-center px-4 shrink-0 gap-4">
+                {/* Left side: Editing Tools */}
+                <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                    <Button variant="ghost" size="sm" className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50">
+                        <Scissors className="w-3.5 h-3.5" />
+                        Editar plantilla
+                    </Button>
+                    <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
+                    
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-9 w-9 text-foreground/60 hover:text-foreground shrink-0">
-                                    <Scissors className="w-4 h-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Dividir (B)</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-9 w-9 text-foreground/60 hover:text-destructive shrink-0">
-                                    <Trash2 className="w-4 h-4" />
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
+                                    <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px]">Borrar (Del)</TooltipContent>
                         </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px]">Deshacer (Ctrl+Z)</TooltipContent>
+                        </Tooltip>
                     </TooltipProvider>
-
-                    <div className="w-px h-4 bg-border/50 mx-2 shrink-0" />
-
-                    {/* Zoom Control Group (Moved to Left) */}
-                    <div className="flex items-center gap-1 group shrink-0">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button 
-                                        onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))}
-                                        disabled={pixelsPerSecond <= 20}
-                                        className="text-foreground/40 hover:text-foreground transition-colors disabled:opacity-10 p-1"
-                                    >
-                                        <Minus className="w-3.5 h-3.5" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="text-[10px]">Alejar</TooltipContent>
-                            </Tooltip>
-                            
-                            <div className="w-20 sm:w-24 relative flex items-center">
-                                <Slider 
-                                    min={20}
-                                    max={500}
-                                    step={1}
-                                    value={[pixelsPerSecond]}
-                                    onValueChange={(val) => setPixelsPerSecond(val[0])}
-                                    className="cursor-pointer [&_[role=slider]]:bg-white [&_[role=slider]]:border-sky-500 [&_[role=slider]]:ring-offset-0 [&_[role=slider]]:shadow-sm [&_.relative]:bg-sky-500"
-                                />
-                            </div>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button 
-                                        onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))}
-                                        disabled={pixelsPerSecond >= 500}
-                                        className="text-foreground/40 hover:text-foreground transition-colors disabled:opacity-10 p-1"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="text-[10px]">Acercar</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
                 </div>
 
                 {/* Center: Playback Controls */}
-                <div className="flex justify-center min-w-0">
-                    <div className="flex items-center gap-3 bg-background/40 px-3 py-1 rounded-full border border-border/50 shadow-sm backdrop-blur-sm">
+                <div className="flex items-center gap-4 px-6">
+                    <div className="flex items-center gap-3">
                         <button 
                             onClick={onTogglePlayback}
-                            className="w-7 h-7 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 transition-all shadow-md ring-2 ring-sky-500/20 shrink-0"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 transition-all shadow-lg active:scale-95 shrink-0"
                         >
-                            {isPlaying ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
+                            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                         </button>
                         
-                        <div className="flex items-center gap-1.5 font-mono text-[12px] tracking-tight tabular-nums whitespace-nowrap">
+                        <div className="flex items-center gap-1 font-mono text-[11px] tracking-tight tabular-nums whitespace-nowrap bg-secondary/20 px-2 py-0.5 rounded border border-border/50">
                             <span className="text-foreground font-black">
                                 {formatVideoTime(currentTimeSec).split('.')[0]}
                             </span>
-                            <span className="text-foreground/20 font-bold">|</span>
-                            <span className="text-foreground/40 font-bold">
+                            <span className="text-foreground/20 font-bold">/</span>
+                            <span className="text-foreground/40 font-medium">
                                 {formatVideoTime(durationSec).split('.')[0]}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                {/* Right side: Audio & Config */}
-                <div className="flex items-center justify-end gap-3 min-w-0">
-                    {/* Volume Control */}
-                    <div className="flex items-center gap-2">
+                {/* Right side: Zoom & Config */}
+                <div className="flex-1 flex items-center justify-end gap-4 min-w-0">
+                    {/* Zoom Control Group (Right Side per reference) */}
+                    <div className="flex items-center gap-1 group shrink-0">
+                        <button 
+                            onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))}
+                            disabled={pixelsPerSecond <= 20}
+                            className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10"
+                        >
+                            <Minus className="w-3 h-3" />
+                        </button>
+                        <div className="w-20 sm:w-28 relative flex items-center mx-1">
+                            <Slider 
+                                min={20}
+                                max={500}
+                                step={1}
+                                value={[pixelsPerSecond]}
+                                onValueChange={(val) => setPixelsPerSecond(val[0])}
+                                className="cursor-pointer"
+                            />
+                        </div>
+                        <button 
+                            onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))}
+                            disabled={pixelsPerSecond >= 500}
+                            className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10"
+                        >
+                            <Plus className="w-3 h-3" />
+                        </button>
+                    </div>
+
+                    <div className="w-px h-4 bg-border/80 shrink-0" />
+
+                    {/* CC & Volume Buttons */}
+                    <div className="flex items-center gap-1">
                         <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-foreground/40 hover:text-foreground shrink-0"
-                            onClick={() => onVolumeChange?.(volume === 0 ? 1 : 0)}
+                            onClick={onToggleSubtitles}
+                            className={cn(
+                                "h-8 w-8 rounded-md",
+                                showSubtitles ? "text-sky-500 bg-sky-50/50" : "text-foreground/40 hover:text-foreground"
+                            )}
                         >
-                            {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            <Captions className="w-3.5 h-3.5" />
                         </Button>
-                        <div className="w-20 sm:w-24 flex items-center mr-2">
-                            <Slider 
-                                min={0}
-                                max={1}
-                                step={0.01}
-                                value={[volume]}
-                                onValueChange={(val) => onVolumeChange?.(val[0])}
-                                className="w-full cursor-pointer"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-px h-4 bg-border/50 shrink-0" />
-
-                    {/* Speed Selector */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 gap-1 px-2 text-[11px] font-bold text-foreground/60 hover:text-foreground hover:bg-transparent">
-                                {playbackRate}x
-                                <ChevronDown className="w-3 h-3 opacity-50" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-[80px]">
-                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                                <DropdownMenuItem 
-                                    key={rate} 
-                                    className="text-[11px] font-medium flex items-center justify-between"
-                                    onClick={() => onPlaybackRateChange?.(rate)}
-                                >
-                                    {rate}x
-                                    {playbackRate === rate && <Check className="w-3 h-3 text-sky-500" />}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* CC Toggle */}
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={onToggleSubtitles}
-                                    className={cn(
-                                        "h-8 w-8 rounded-md transition-colors",
-                                        showSubtitles ? "text-sky-500 bg-sky-50" : "text-foreground/40 hover:text-foreground"
-                                    )}
-                                >
-                                    <Captions className="w-4 h-4" />
+                        
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/40 hover:text-foreground">
+                                    <Volume2 className="w-3.5 h-3.5" />
                                 </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">
-                                Subtítulos
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="p-3 w-40">
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex justify-between items-center text-[10px] font-bold uppercase text-foreground/40">
+                                        <span>Volumen</span>
+                                        <span className="font-mono">{Math.round(volume * 100)}%</span>
+                                    </div>
+                                    <Slider 
+                                        min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={[volume]}
+                                        onValueChange={(val) => onVolumeChange?.(val[0])}
+                                        className="w-full cursor-pointer"
+                                    />
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 px-2 text-[10px] font-bold text-foreground/60 hover:text-foreground hover:bg-secondary/50">
+                                    {playbackRate}x
+                                    <ChevronDown className="w-3 h-3 opacity-50 ml-0.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[80px]">
+                                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                                    <DropdownMenuItem 
+                                        key={rate} 
+                                        className="text-[11px] font-medium flex items-center justify-between"
+                                        onClick={() => onPlaybackRateChange?.(rate)}
+                                    >
+                                        {rate}x
+                                        {playbackRate === rate && <Check className="w-3 h-3 text-sky-500" />}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </div>
+
 
             {/* Scrollable Area */}
             <div 
@@ -710,12 +699,12 @@ export function CapcutTimeline({
                                     key={tick.sec} 
                                     className={cn(
                                         "absolute top-0 h-full border-l",
-                                        tick.isMajor ? "border-foreground/30 w-[1px]" : "border-foreground/10 h-1/4 mt-7"
+                                        tick.isMajor ? "border-black/20 w-[1.5px]" : "border-black/10 h-1.5 mt-auto"
                                     )}
                                     style={{ left: `${tick.x}px` }}
                                 >
                                     {tick.isMajor && (
-                                        <span className="text-[9px] text-foreground/40 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1 leading-none font-bold tracking-tight">
+                                        <span className="text-[10px] text-foreground/70 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1.5 leading-none font-bold tracking-tight">
                                             {formatVideoTime(tick.sec).split('.')[0]}s
                                         </span>
                                     )}
@@ -759,15 +748,15 @@ export function CapcutTimeline({
                         ref={playheadRef}
                         className="absolute top-0 bottom-0 left-0 w-[1.5px] z-[60] pointer-events-none will-change-transform"
                     >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
                             {/* Lucide Triangle Icon as Head - Pixel Perfect Alignment */}
-                            <div className="relative z-10 top-[2px]">
+                            <div className="relative z-[70] top-0 flex-none">
                                 <Triangle 
-                                    className="w-[14px] h-[14px] fill-foreground text-background stroke-[1px] rotate-180 drop-shadow-md"
+                                    className="w-[12px] h-[12px] fill-black text-black rotate-180 drop-shadow-sm"
                                 />
                             </div>
-                            {/* Vertical Line - Starts exactly from the triangle tip */}
-                            <div className="w-[1.5px] h-[3000px] bg-foreground shadow-[0_0_10px_rgba(var(--foreground),0.3)] -mt-[1px]" />
+                            {/* Vertical Line - Starts exactly from the triangle tip and stretches to bottom */}
+                            <div className="w-[1.5px] flex-1 bg-black/80 shadow-[0_0_8px_rgba(0,0,0,0.15)] -mt-[0.5px]" />
                         </div>
                     </div>
                     </div>
