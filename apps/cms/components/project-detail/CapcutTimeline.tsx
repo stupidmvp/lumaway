@@ -80,6 +80,7 @@ interface CapcutTimelineProps {
     showSubtitles?: boolean;
     onToggleSubtitles?: () => void;
     volume?: number;
+    lastVolume?: number;
     onVolumeChange?: (val: number) => void;
     onSplitStep?: () => void;
     onDeleteStep?: (id: string) => void;
@@ -145,19 +146,22 @@ function SortableStepItem({
             className={cn(
                 "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group",
                 isStepActive 
-                    ? "bg-foreground/[0.07] z-10 border-l-4 border-sky-500" 
+                    ? "bg-sky-600 text-white z-10 shadow-md scale-[1.02] px-2" 
                     : isEven 
-                        ? "bg-background hover:bg-secondary/50 border-l-4 border-transparent"
-                        : "bg-secondary/20 hover:bg-secondary/50 border-l-4 border-transparent",
+                        ? "bg-background hover:bg-secondary/50"
+                        : "bg-secondary/20 hover:bg-secondary/50",
                 isDragging && "opacity-50 grayscale"
             )}
         >
             <div 
                 {...attributes} 
                 {...listeners}
-                className="px-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+                className={cn(
+                    "pl-2 pr-1 cursor-grab active:cursor-grabbing transition-opacity",
+                    isStepActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                )}
             >
-                <GripVertical className="w-3.5 h-3.5 text-foreground/40" />
+                <GripVertical className={cn("w-4 h-4", isStepActive ? "text-white/70" : "text-foreground/40")} />
             </div>
 
             <button 
@@ -173,14 +177,17 @@ function SortableStepItem({
             >
                 <div className="flex justify-between items-center w-full relative z-10">
                     <div className="flex flex-col overflow-hidden items-start">
-                        <span className={cn("text-[10px] font-bold truncate uppercase tracking-[0.1em]", isStepActive ? "text-foreground" : "text-foreground/40")}>
+                        <span className={cn(
+                            "text-[11px] font-black truncate uppercase tracking-[0.15em]", 
+                            isStepActive ? "text-white" : "text-foreground/40"
+                        )}>
                             Step {step.order}
                         </span>
-                        <span className={cn("text-[9px] truncate font-medium", isStepActive ? "text-foreground/70" : "text-foreground/20")}>
+                        <span className={cn("text-[10px] truncate font-bold leading-tight", isStepActive ? "text-sky-50" : "text-foreground/60")}>
                             {step.text}
                         </span>
                     </div>
-                    <span className={cn("text-[10px] font-mono shrink-0 tabular-nums font-bold", isStepActive ? "text-foreground" : "text-foreground/20")}>
+                    <span className={cn("text-[11px] font-mono shrink-0 tabular-nums font-black", isStepActive ? "text-white" : "text-foreground/20")}>
                         {formatVideoTime(step.startMs / 1000)}
                     </span>
                 </div>
@@ -207,6 +214,7 @@ export function CapcutTimeline({
     showSubtitles = true,
     onToggleSubtitles,
     volume = 1,
+    lastVolume = 1,
     onVolumeChange,
     onSplitStep,
     onDeleteStep,
@@ -544,7 +552,7 @@ export function CapcutTimeline({
             <div
                 key={item.id}
                 className={cn(
-                    "absolute h-8 top-1.5 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
+                    "absolute h-8 top-2 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
                     type === 'step' ? (isSelected ? "bg-[#2980b9]" : "bg-[#2980b9]/60") : (isSelected ? "bg-[#e67e22]" : "bg-[#e67e22]/60"),
                     isSelected 
                         ? "border-[1.5px] border-white z-20 shadow-[0_4px_12px_rgba(0,0,0,0.3)] ring-2 ring-white/20 ring-offset-2 ring-offset-black/50 animate-in fade-in zoom-in duration-300" 
@@ -777,29 +785,26 @@ export function CapcutTimeline({
                             <Captions className="w-3.5 h-3.5" />
                         </Button>
                         
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/40 hover:text-foreground">
-                                    <Volume2 className="w-3.5 h-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="p-3 w-40">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex justify-between items-center text-[10px] font-bold uppercase text-foreground/40">
-                                        <span>Volumen</span>
-                                        <span className="font-mono">{Math.round(volume * 100)}%</span>
-                                    </div>
-                                    <Slider 
-                                        min={0}
-                                        max={1}
-                                        step={0.01}
-                                        value={[volume]}
-                                        onValueChange={(val) => onVolumeChange?.(val[0])}
-                                        className="w-full cursor-pointer"
-                                    />
-                                </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center group/volume h-8 px-1">
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-foreground/40 hover:text-foreground shrink-0"
+                                onClick={() => onVolumeChange?.(volume > 0 ? 0 : lastVolume)}
+                            >
+                                {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            </Button>
+                            <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300 ease-in-out flex items-center">
+                                <Slider 
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    value={[volume]}
+                                    onValueChange={(val) => onVolumeChange?.(val[0])}
+                                    className="w-20 ml-2 cursor-pointer"
+                                />
+                            </div>
+                        </div>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -844,7 +849,7 @@ export function CapcutTimeline({
 
                              {/* Subtitles Row Sidebar */}
                              <div className="h-12 flex items-center px-4 shrink-0 bg-secondary/30 border-b border-border/50 relative">
-                                 <span className="text-[11px] font-bold text-foreground/80 truncate uppercase tracking-[0.1em]">Subtitles</span>
+                                 <span className="text-[11px] font-bold text-foreground/80 truncate uppercase tracking-[0.1em]">Transcripción</span>
                              </div>
 
                              {/* Section Divider Sidebar */}

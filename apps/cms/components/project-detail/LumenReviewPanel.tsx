@@ -134,6 +134,12 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [showSubtitles, setShowSubtitles] = useState(true);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [volume, setVolume] = useState(1);
+    const [lastVolume, setLastVolume] = useState(1);
+
+    const handleVolumeChange = useCallback((val: number) => {
+        if (val > 0) setLastVolume(val);
+        setVolume(val);
+    }, []);
     const stepsListRef = useRef<HTMLDivElement>(null);
 
     const [pastSteps, setPastSteps] = useState<ReviewTimelineStep[][]>([]);
@@ -1127,7 +1133,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                         formatTime={formatVideoTime}
                                         hideControls={true}
                                         volume={volume}
-                                        onVolumeChange={setVolume}
+                                        lastVolume={lastVolume}
+                                        onVolumeChange={handleVolumeChange}
                                         renderTimeline={() => null}
                                     />
                                 ) : (
@@ -1244,7 +1251,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 showSubtitles={showSubtitles}
                                 onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
                                 volume={volume}
-                                onVolumeChange={setVolume}
+                                lastVolume={lastVolume}
+                                onVolumeChange={handleVolumeChange}
                                 onDragEnd={commitStepChanges}
                                 onReorderSteps={handleReorderSteps}
                             />

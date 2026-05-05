@@ -22,6 +22,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 
 interface LumenVideoPlayerProps {
     videoUrl: string | null;
@@ -47,6 +48,7 @@ interface LumenVideoPlayerProps {
     formatTime: (seconds: number) => string;
     hideControls?: boolean;
     volume?: number;
+    lastVolume?: number;
     onVolumeChange?: (val: number) => void;
 }
 
@@ -74,6 +76,7 @@ export const LumenVideoPlayer = forwardRef<HTMLVideoElement, LumenVideoPlayerPro
     formatTime,
     hideControls = false,
     volume = 1,
+    lastVolume = 1,
     onVolumeChange
 }, ref) => {
     const [isBuffering, setIsBuffering] = useState(false);
@@ -94,7 +97,7 @@ export const LumenVideoPlayer = forwardRef<HTMLVideoElement, LumenVideoPlayerPro
         if (internalVideoRef.current) {
             internalVideoRef.current.playbackRate = playbackRate;
         }
-    }, [playbackRate]);
+    }, [playbackRate, videoUrl]);
 
     React.useEffect(() => {
         if (internalVideoRef.current) {
@@ -147,6 +150,9 @@ export const LumenVideoPlayer = forwardRef<HTMLVideoElement, LumenVideoPlayerPro
                             onWaiting={() => setIsBuffering(true)}
                             onPlaying={() => {
                                 setIsBuffering(false);
+                                if (internalVideoRef.current) {
+                                    internalVideoRef.current.playbackRate = playbackRate;
+                                }
                                 if (onPlay) onPlay();
                             }}
                             onCanPlay={() => {
@@ -221,25 +227,22 @@ export const LumenVideoPlayer = forwardRef<HTMLVideoElement, LumenVideoPlayerPro
                                                 type="button"
                                                 className="text-foreground hover:text-red-500 transition-colors shrink-0"
                                                 onClick={() => {
-                                                    onVolumeChange?.(volume === 0 ? 1 : 0);
+                                                    onVolumeChange?.(volume === 0 ? lastVolume : 0);
                                                 }}
                                             >
                                                 {volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                                             </button>
                                             <div className={cn(
-                                                "w-0 overflow-hidden transition-all duration-300 ease-in-out opacity-0 flex items-center shrink-0 origin-left",
-                                                isVolumeHovered && "w-16 opacity-100"
+                                                "w-0 overflow-hidden transition-all duration-300 ease-in-out opacity-0 flex items-center shrink-0 origin-left px-0",
+                                                isVolumeHovered && "w-24 opacity-100 px-2"
                                             )}>
-                                                <input
-                                                    type="range"
-                                                    min="0"
-                                                    max="1"
-                                                    step="0.05"
-                                                    value={volume}
-                                                    onChange={(e) => {
-                                                        onVolumeChange?.(parseFloat(e.target.value));
-                                                    }}
-                                                    className="w-full h-1 bg-foreground/30 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:scale-125 transition-all outline-none focus:outline-none"
+                                                <Slider 
+                                                    min={0}
+                                                    max={1}
+                                                    step={0.01}
+                                                    value={[volume]}
+                                                    onValueChange={(val) => onVolumeChange?.(val[0])}
+                                                    className="w-20 cursor-pointer"
                                                 />
                                             </div>
                                         </div>
