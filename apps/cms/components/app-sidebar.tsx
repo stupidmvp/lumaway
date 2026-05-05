@@ -109,26 +109,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Sidebar collapsible="icon" {...props} className="border-r-0">
             <div className="absolute inset-0 bg-background dark:bg-[#0f0f11] -z-10" />
             <SidebarContent className="pt-2">
-                <SidebarGroup>
+                <SidebarGroup className="group-data-[collapsible=icon]:px-0">
                     <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
                         {t('workspace')}
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
-                        <SidebarMenu>
+                        <SidebarMenu className="group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.url;
                                 return (
-                                    <SidebarMenuItem key={item.url}>
+                                    <SidebarMenuItem key={item.url} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                                         <SidebarMenuButton 
                                             asChild 
                                             isActive={isActive} 
                                             tooltip={item.title} 
                                             className={cn(
                                                 "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md gap-2 flex items-center",
-                                                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                                "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                                                isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                                             )}
                                         >
-                                            <Link href={item.url} className="transition-smooth flex items-center gap-2 w-full">
+                                            <Link href={item.url} className="transition-smooth flex items-center gap-2 w-full justify-center">
                                                 <item.icon 
                                                     className={cn(
                                                         "h-5 w-5 shrink-0 transition-all duration-300",
@@ -155,6 +156,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+                <div className="mx-3 my-2 h-[1px] bg-sidebar-border/30 group-data-[collapsible=icon]:mx-2" />
 
                 <CreateApiKeyModal open={apiKeyModalOpen} onOpenChange={setApiKeyModalOpen} />
                 <CreateWalkthroughModal open={walkthroughModalOpen} onOpenChange={setWalkthroughModalOpen} />
@@ -162,7 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 {/* Favorites Section */}
                 {favoriteProjects.length > 0 && (
                     <Collapsible defaultOpen className="group/favorites">
-                        <SidebarGroup className="mt-1">
+                        <SidebarGroup className="mt-1 group-data-[collapsible=icon]:px-0">
                             <div className="flex items-center justify-between px-2 mb-1 group-data-[collapsible=icon]:hidden">
                                 <SidebarGroupLabel asChild className="text-[11px] text-foreground-muted font-medium uppercase tracking-wider p-0 flex-1">
                                     <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors group-data-[collapsible=icon]:hidden w-full">
@@ -174,39 +176,39 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
                             <CollapsibleContent>
                                 <SidebarGroupContent>
-                                    <SidebarMenu>
+                                    <SidebarMenu className="group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1.5">
                                         {favoriteProjects.map((project: any) => {
                                             const isActive = pathname.startsWith(`/projects/${project.id}`);
                                             return (
                                                 <SidebarMenuItem
                                                     key={project.id}
                                                     className={cn(
-                                                        "group/menu-item rounded-md transition-smooth hover:bg-sidebar-accent overflow-hidden",
+                                                        "group/menu-item rounded-md transition-smooth hover:bg-sidebar-accent overflow-hidden group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center",
                                                         isActive && "bg-sidebar-accent"
                                                     )}
                                                 >
                                                     <div className="flex items-center w-full group-data-[collapsible=icon]:justify-center">
                                                         {isActive && (
-                                                            <div className="w-[3px] h-4 rounded-full bg-accent-blue shrink-0 -ml-0.5 mr-0.5 group-data-[collapsible=icon]:hidden" />
+                                                            <div className="w-[3.5px] h-5 rounded-r-full bg-accent-blue shrink-0 absolute left-0 group-data-[collapsible=icon]:block hidden" />
                                                         )}
                                                         <SidebarMenuButton
                                                             asChild
                                                             isActive={isActive}
                                                             tooltip={project.name}
                                                             className={cn(
-                                                                "flex-1 min-w-0 h-8 px-2 hover:bg-transparent transition-none group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center",
+                                                                "flex-1 min-w-0 h-8 px-2 hover:bg-transparent transition-none group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center",
                                                                 isActive && "bg-sidebar-accent"
                                                             )}
                                                         >
-                                                            <Link href={`/projects/${project.id}`} className="flex items-center gap-2.5 w-full overflow-hidden">
+                                                            <Link href={`/projects/${project.id}`} className="flex items-center gap-2.5 w-full justify-center">
                                                                 <div className={cn(
-                                                                    "flex items-center justify-center h-5 w-5 rounded shrink-0 border transition-colors",
+                                                                    "flex items-center justify-center h-6 w-6 rounded-full shrink-0 border transition-all duration-300",
                                                                     isActive
-                                                                        ? "bg-accent-blue/15 border-accent-blue"
-                                                                        : "bg-background-secondary border-border group-hover/menu-item:border-accent-blue/40"
+                                                                        ? "bg-accent-blue/15 border-accent-blue scale-110 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                                                                        : "bg-background-secondary border-border group-hover/menu-item:border-accent-blue/40 group-hover/menu-item:scale-105"
                                                                 )}>
                                                                     <span className={cn(
-                                                                        "text-[10px] font-semibold uppercase leading-none",
+                                                                        "text-[10px] font-bold uppercase leading-none",
                                                                         isActive
                                                                             ? "text-accent-blue"
                                                                             : "text-foreground-muted group-hover/menu-item:text-accent-blue"
@@ -345,19 +347,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <CreateProjectDialog open={createProjectOpen} onOpenChange={setCreateProjectOpen} />
 
                 {/* Setup Guide & Settings */}
-                <SidebarGroup className="mt-1">
+                <div className="mx-3 my-2 h-[1px] bg-sidebar-border/30 group-data-[collapsible=icon]:mx-2" />
+                <SidebarGroup className="mt-1 group-data-[collapsible=icon]:px-0">
                     <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
+                        <SidebarMenu className="group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1">
+                            <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                                 <SidebarMenuButton 
                                     asChild 
                                     tooltip={t('setupGuide')} 
-                                    className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
+                                    className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
                                 >
                                         <Link
                                             href="/onboarding?restart=true"
                                             className={cn(
-                                                "transition-smooth flex items-center gap-2 rounded-md w-full px-2 py-1 h-full",
+                                                "transition-smooth flex items-center gap-2 rounded-md w-full px-2 py-1 h-full justify-center",
                                                 "bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20"
                                             )}
                                         >
@@ -368,17 +371,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            <SidebarMenuItem>
+                            <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                                 <SidebarMenuButton 
                                     asChild 
                                     isActive={pathname === '/settings'} 
                                     tooltip={t('settings')} 
                                     className={cn(
                                         "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                        "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
                                         pathname === '/settings' && "bg-sidebar-accent text-sidebar-accent-foreground"
                                     )}
                                 >
-                                    <Link href="/settings" className="transition-smooth flex items-center gap-2 w-full">
+                                    <Link href="/settings" className="transition-smooth flex items-center gap-2 w-full justify-center">
                                         <Settings 
                                             className={cn(
                                                 "h-5 w-5 shrink-0 transition-all duration-300",
