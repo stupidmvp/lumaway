@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FolderKanban, GitPullRequest, Inbox, Plus, ChevronDown, ChevronLeft, ChevronRight, Key, Settings, Rocket, Shield, Users, Building2 } from 'lucide-react';
+import { Home, FolderKanban, GitPullRequest, Inbox, Plus, ChevronDown, ChevronLeft, ChevronRight, Key, Settings, Rocket, Shield, Users, Building2, LayoutGrid } from 'lucide-react';
 import { useProjects, usePermissions, useProjectFavorites, useUnreadNotificationsCount } from '@luma/infra';
 import { useState, useMemo } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -318,9 +318,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                     })}
 
                                     {projectsList.length > 0 && (
-                                        <SidebarMenuItem>
-                                            <SidebarMenuButton asChild tooltip={t('viewAllProjects')} className="px-2.5 py-2 h-auto group text-accent-blue hover:text-accent-blue/80 justify-center">
-                                                <Link href="/projects" className="transition-smooth flex items-center justify-center w-full">
+                                        <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                            <SidebarMenuButton 
+                                                asChild 
+                                                tooltip={t('viewAllProjects')} 
+                                                className="px-2.5 py-2 h-auto group text-accent-blue hover:text-accent-blue/80 justify-center group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0"
+                                            >
+                                                <Link href="/projects" className="transition-smooth flex items-center justify-center w-full gap-2">
+                                                    <LayoutGrid className="h-4 w-4 shrink-0" strokeWidth={2.5} />
                                                     <span className="text-xs font-semibold truncate group-data-[collapsible=icon]:hidden">{t('viewAllProjects')}</span>
                                                 </Link>
                                             </SidebarMenuButton>
