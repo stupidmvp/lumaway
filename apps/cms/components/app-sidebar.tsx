@@ -404,141 +404,150 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
                 {/* Administration — superadmin only */}
                 {permissions.isSuperAdmin() && (
-                    <SidebarGroup className="mt-1">
-                        <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
-                            {t('administration')}
-                        </SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton 
-                                        asChild 
-                                        isActive={pathname.startsWith('/admin/users')} 
-                                        tooltip={t('usersManagement')} 
-                                        className={cn(
-                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
-                                            pathname.startsWith('/admin/users') && "bg-sidebar-accent text-sidebar-accent-foreground"
-                                        )}
-                                    >
-                                        <Link href="/admin/users" className="transition-smooth flex items-center gap-2 w-full">
-                                            <Users 
-                                                className={cn(
-                                                    "h-5 w-5 shrink-0 transition-all duration-300",
-                                                    pathname.startsWith('/admin/users') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
-                                                )} 
-                                                strokeWidth={pathname.startsWith('/admin/users') ? 2.5 : 2} 
-                                            />
-                                            <span className={cn(
-                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
-                                                pathname.startsWith('/admin/users') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
-                                            )}>
-                                                {t('usersManagement')}
-                                            </span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton 
-                                        asChild 
-                                        isActive={pathname.startsWith('/admin/roles')} 
-                                        tooltip={t('rolesManagement')} 
-                                        className={cn(
-                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
-                                            pathname.startsWith('/admin/roles') && "bg-sidebar-accent text-sidebar-accent-foreground"
-                                        )}
-                                    >
-                                        <Link href="/admin/roles" className="transition-smooth flex items-center gap-2 w-full">
-                                            <Shield 
-                                                className={cn(
-                                                    "h-5 w-5 shrink-0 transition-all duration-300",
-                                                    pathname.startsWith('/admin/roles') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
-                                                )} 
-                                                strokeWidth={pathname.startsWith('/admin/roles') ? 2.5 : 2} 
-                                            />
-                                            <span className={cn(
-                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
-                                                pathname.startsWith('/admin/roles') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
-                                            )}>
-                                                {t('rolesManagement')}
-                                            </span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton 
-                                        asChild 
-                                        isActive={pathname.startsWith('/admin/secrets')} 
-                                        tooltip={t('secretsManagement')} 
-                                        className={cn(
-                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
-                                            pathname.startsWith('/admin/secrets') && "bg-sidebar-accent text-sidebar-accent-foreground"
-                                        )}
-                                    >
-                                        <Link href="/admin/secrets" className="transition-smooth flex items-center gap-2 w-full">
-                                            <Key 
-                                                className={cn(
-                                                    "h-5 w-5 shrink-0 transition-all duration-300",
-                                                    pathname.startsWith('/admin/secrets') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
-                                                )} 
-                                                strokeWidth={pathname.startsWith('/admin/secrets') ? 2.5 : 2} 
-                                            />
-                                            <span className={cn(
-                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
-                                                pathname.startsWith('/admin/secrets') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
-                                            )}>
-                                                {t('secretsManagement')}
-                                            </span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
+                    <>
+                        <div className="mx-3 my-2 h-[1px] bg-sidebar-border/30 group-data-[collapsible=icon]:mx-2" />
+                        <SidebarGroup className="mt-1 group-data-[collapsible=icon]:px-0">
+                            <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
+                                {t('administration')}
+                            </SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu className="group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1">
+                                    <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                        <SidebarMenuButton 
+                                            asChild 
+                                            isActive={pathname.startsWith('/admin/users')} 
+                                            tooltip={t('usersManagement')} 
+                                            className={cn(
+                                                "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                                "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                                                pathname.startsWith('/admin/users') && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                            )}
+                                        >
+                                            <Link href="/admin/users" className="transition-smooth flex items-center gap-2 w-full justify-center">
+                                                <Users 
+                                                    className={cn(
+                                                        "h-5 w-5 shrink-0 transition-all duration-300",
+                                                        pathname.startsWith('/admin/users') ? "scale-110 opacity-100 text-accent-blue" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                    )} 
+                                                    strokeWidth={pathname.startsWith('/admin/users') ? 2.5 : 2} 
+                                                />
+                                                <span className={cn(
+                                                    "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                    pathname.startsWith('/admin/users') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                                )}>
+                                                    {t('usersManagement')}
+                                                </span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                        <SidebarMenuButton 
+                                            asChild 
+                                            isActive={pathname.startsWith('/admin/roles')} 
+                                            tooltip={t('rolesManagement')} 
+                                            className={cn(
+                                                "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                                "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                                                pathname.startsWith('/admin/roles') && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                            )}
+                                        >
+                                            <Link href="/admin/roles" className="transition-smooth flex items-center gap-2 w-full justify-center">
+                                                <Shield 
+                                                    className={cn(
+                                                        "h-5 w-5 shrink-0 transition-all duration-300",
+                                                        pathname.startsWith('/admin/roles') ? "scale-110 opacity-100 text-accent-blue" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                    )} 
+                                                    strokeWidth={pathname.startsWith('/admin/roles') ? 2.5 : 2} 
+                                                />
+                                                <span className={cn(
+                                                    "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                    pathname.startsWith('/admin/roles') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                                )}>
+                                                    {t('rolesManagement')}
+                                                </span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                        <SidebarMenuButton 
+                                            asChild 
+                                            isActive={pathname.startsWith('/admin/secrets')} 
+                                            tooltip={t('secretsManagement')} 
+                                            className={cn(
+                                                "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                                "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                                                pathname.startsWith('/admin/secrets') && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                            )}
+                                        >
+                                            <Link href="/admin/secrets" className="transition-smooth flex items-center gap-2 w-full justify-center">
+                                                <Key 
+                                                    className={cn(
+                                                        "h-5 w-5 shrink-0 transition-all duration-300",
+                                                        pathname.startsWith('/admin/secrets') ? "scale-110 opacity-100 text-accent-blue" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                    )} 
+                                                    strokeWidth={pathname.startsWith('/admin/secrets') ? 2.5 : 2} 
+                                                />
+                                                <span className={cn(
+                                                    "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                    pathname.startsWith('/admin/secrets') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                                )}>
+                                                    {t('secretsManagement')}
+                                                </span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    </>
                 )}
 
                 {/* Quick Actions — only visible if user can create walkthroughs or API keys */}
                 {(permissions.can('create', 'walkthroughs') || permissions.can('create', 'api_keys')) && (
-                    <SidebarGroup className="mt-1">
-                        <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
-                            {t('quickActions')}
-                        </SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                {permissions.can('create', 'api_keys') && (
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => setApiKeyModalOpen(true)}
-                                            tooltip={t('createApiKey')}
-                                            className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
-                                        >
-                                            <div className="transition-smooth flex items-center gap-2 w-full">
-                                                <Key className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
-                                                <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
-                                                    {t('createApiKey')}
-                                                </span>
-                                            </div>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )}
-                                {permissions.can('create', 'walkthroughs') && (
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => setWalkthroughModalOpen(true)}
-                                            tooltip={t('createWalkthrough')}
-                                            className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
-                                        >
-                                            <div className="transition-smooth flex items-center gap-2 w-full">
-                                                <GitPullRequest className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
-                                                <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
-                                                    {t('createWalkthrough')}
-                                                </span>
-                                            </div>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )}
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
+                    <>
+                        <div className="mx-3 my-2 h-[1px] bg-sidebar-border/30 group-data-[collapsible=icon]:mx-2" />
+                        <SidebarGroup className="mt-1 group-data-[collapsible=icon]:px-0">
+                            <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
+                                {t('quickActions')}
+                            </SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu className="group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1">
+                                    {permissions.can('create', 'api_keys') && (
+                                        <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                            <SidebarMenuButton
+                                                onClick={() => setApiKeyModalOpen(true)}
+                                                tooltip={t('createApiKey')}
+                                                className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                                            >
+                                                <div className="transition-smooth flex items-center gap-2 w-full justify-center">
+                                                    <Key className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
+                                                    <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
+                                                        {t('createApiKey')}
+                                                    </span>
+                                                </div>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    )}
+                                    {permissions.can('create', 'walkthroughs') && (
+                                        <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                                            <SidebarMenuButton
+                                                onClick={() => setWalkthroughModalOpen(true)}
+                                                tooltip={t('createWalkthrough')}
+                                                className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                                            >
+                                                <div className="transition-smooth flex items-center gap-2 w-full justify-center">
+                                                    <GitPullRequest className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
+                                                    <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
+                                                        {t('createWalkthrough')}
+                                                    </span>
+                                                </div>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    )}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    </>
                 )}
 
             </SidebarContent>
