@@ -188,9 +188,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                                     )}
                                                 >
                                                     <div className="flex items-center w-full group-data-[collapsible=icon]:justify-center">
-                                                        {isActive && (
-                                                            <div className="w-[3.5px] h-5 rounded-r-full bg-accent-blue shrink-0 absolute left-0 group-data-[collapsible=icon]:block hidden" />
-                                                        )}
                                                         <SidebarMenuButton
                                                             asChild
                                                             isActive={isActive}
@@ -278,9 +275,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                             >
                                                 <div className="flex items-center w-full group-data-[collapsible=icon]:justify-center">
                                                     {/* Active indicator bar */}
-                                                    {isActive && (
-                                                        <div className="w-[3px] h-4 rounded-full bg-accent-blue shrink-0 -ml-0.5 mr-0.5 group-data-[collapsible=icon]:hidden" />
-                                                    )}
                                                     <SidebarMenuButton
                                                         asChild
                                                         isActive={isActive}
