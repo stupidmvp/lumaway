@@ -1273,7 +1273,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         </div>
                     </ResizablePanel>
 
-                    <ResizableHandle withHandle={false} className="relative z-40 w-px bg-[#2d2d30] after:hidden">
+                    <ResizableHandle withHandle={false} className="relative z-[100] w-px bg-[#2d2d30] after:hidden">
                         <div
                             className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-3.0 cursor-pointer items-center justify-center rounded-r-full bg-[#111114] border border-l-0 border-[#2d2d30] shadow-[2px_0_8px_rgba(0,0,0,0.3)] text-white/40 hover:text-white hover:bg-[#1a1a1e] transition-colors"
                             onClick={(e) => {
