@@ -27,7 +27,7 @@ import { CreateProjectDialog } from './shared/CreateProjectDialog';
 import { ProjectActionsMenu } from './shared/ProjectActionsMenu';
 import { useTranslations } from 'next-intl';
 
-export function AppSidebar() {
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const rawPathname = usePathname();
     // Strip locale prefix (e.g. /en/projects -> /projects) for route matching
     const pathname = useMemo(() => {
@@ -106,7 +106,8 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon">
+        <Sidebar collapsible="icon" {...props} className="border-r-0">
+            <div className="absolute inset-0 bg-background dark:bg-[#0f0f11] -z-10" />
             <SidebarContent className="pt-2">
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
@@ -118,12 +119,31 @@ export function AppSidebar() {
                                 const isActive = pathname === item.url;
                                 return (
                                     <SidebarMenuItem key={item.url}>
-                                        <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                            <Link href={item.url} className="transition-smooth flex items-center gap-2.5 w-full">
-                                                <item.icon className="h-4 w-4 opacity-60 shrink-0" />
-                                                <span className="group-data-[collapsible=icon]:hidden flex-1">{item.title}</span>
+                                        <SidebarMenuButton 
+                                            asChild 
+                                            isActive={isActive} 
+                                            tooltip={item.title} 
+                                            className={cn(
+                                                "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md gap-2 flex items-center",
+                                                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                            )}
+                                        >
+                                            <Link href={item.url} className="transition-smooth flex items-center gap-2 w-full">
+                                                <item.icon 
+                                                    className={cn(
+                                                        "h-5 w-5 shrink-0 transition-all duration-300",
+                                                        isActive ? "scale-110 opacity-100 text-accent-blue" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                    )} 
+                                                    strokeWidth={isActive ? 2.5 : 2} 
+                                                />
+                                                <span className={cn(
+                                                    "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                    isActive ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                                )}>
+                                                    {item.title}
+                                                </span>
                                                 {item.badge !== undefined && item.badge > 0 && (
-                                                    <span className="h-4 min-w-[16px] px-1 rounded-full bg-accent-blue text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_6px_rgba(59,130,246,0.3)] leading-none group-data-[collapsible=icon]:hidden">
+                                                    <span className="h-4 min-w-[16px] px-1 rounded-full bg-accent-blue text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(59,130,246,0.5)] leading-none group-data-[collapsible=icon]:hidden">
                                                         {item.badge > 99 ? '99+' : item.badge}
                                                     </span>
                                                 )}
@@ -329,25 +349,49 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip={t('setupGuide')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                    <Link
-                                        href="/onboarding?restart=true"
-                                        className={cn(
-                                            "transition-smooth flex items-center gap-2.5 rounded-md",
-                                            "bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20",
-                                            "group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:justify-center"
-                                        )}
-                                    >
-                                        <Rocket className="h-4 w-4 shrink-0" />
-                                        <span className="group-data-[collapsible=icon]:hidden">{t('setupGuide')}</span>
-                                    </Link>
+                                <SidebarMenuButton 
+                                    asChild 
+                                    tooltip={t('setupGuide')} 
+                                    className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
+                                >
+                                        <Link
+                                            href="/onboarding?restart=true"
+                                            className={cn(
+                                                "transition-smooth flex items-center gap-2 rounded-md w-full px-2 py-1 h-full",
+                                                "bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20"
+                                            )}
+                                        >
+                                            <Rocket className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+                                            <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden">
+                                                {t('setupGuide')}
+                                            </span>
+                                        </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === '/settings'} tooltip={t('settings')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                    <Link href="/settings" className="transition-smooth flex items-center gap-2.5">
-                                        <Settings className="h-4 w-4 opacity-60 shrink-0" />
-                                        <span className="group-data-[collapsible=icon]:hidden">{t('settings')}</span>
+                                <SidebarMenuButton 
+                                    asChild 
+                                    isActive={pathname === '/settings'} 
+                                    tooltip={t('settings')} 
+                                    className={cn(
+                                        "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                        pathname === '/settings' && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                    )}
+                                >
+                                    <Link href="/settings" className="transition-smooth flex items-center gap-2 w-full">
+                                        <Settings 
+                                            className={cn(
+                                                "h-5 w-5 shrink-0 transition-all duration-300",
+                                                pathname === '/settings' ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                            )} 
+                                            strokeWidth={pathname === '/settings' ? 2.5 : 2} 
+                                        />
+                                        <span className={cn(
+                                            "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                            pathname === '/settings' ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                        )}>
+                                            {t('settings')}
+                                        </span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -364,26 +408,83 @@ export function AppSidebar() {
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')} tooltip={t('usersManagement')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                        <Link href="/admin/users" className="transition-smooth flex items-center gap-2.5">
-                                            <Users className="h-4 w-4 opacity-60 shrink-0" />
-                                            <span className="group-data-[collapsible=icon]:hidden">{t('usersManagement')}</span>
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        isActive={pathname.startsWith('/admin/users')} 
+                                        tooltip={t('usersManagement')} 
+                                        className={cn(
+                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                            pathname.startsWith('/admin/users') && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        )}
+                                    >
+                                        <Link href="/admin/users" className="transition-smooth flex items-center gap-2 w-full">
+                                            <Users 
+                                                className={cn(
+                                                    "h-5 w-5 shrink-0 transition-all duration-300",
+                                                    pathname.startsWith('/admin/users') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                )} 
+                                                strokeWidth={pathname.startsWith('/admin/users') ? 2.5 : 2} 
+                                            />
+                                            <span className={cn(
+                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                pathname.startsWith('/admin/users') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                            )}>
+                                                {t('usersManagement')}
+                                            </span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/roles')} tooltip={t('rolesManagement')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                        <Link href="/admin/roles" className="transition-smooth flex items-center gap-2.5">
-                                            <Shield className="h-4 w-4 opacity-60 shrink-0" />
-                                            <span className="group-data-[collapsible=icon]:hidden">{t('rolesManagement')}</span>
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        isActive={pathname.startsWith('/admin/roles')} 
+                                        tooltip={t('rolesManagement')} 
+                                        className={cn(
+                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                            pathname.startsWith('/admin/roles') && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        )}
+                                    >
+                                        <Link href="/admin/roles" className="transition-smooth flex items-center gap-2 w-full">
+                                            <Shield 
+                                                className={cn(
+                                                    "h-5 w-5 shrink-0 transition-all duration-300",
+                                                    pathname.startsWith('/admin/roles') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                )} 
+                                                strokeWidth={pathname.startsWith('/admin/roles') ? 2.5 : 2} 
+                                            />
+                                            <span className={cn(
+                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                pathname.startsWith('/admin/roles') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                            )}>
+                                                {t('rolesManagement')}
+                                            </span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/secrets')} tooltip={t('secretsManagement')} className="px-2.5 py-1.5 h-8 font-medium text-[13px]">
-                                        <Link href="/admin/secrets" className="transition-smooth flex items-center gap-2.5">
-                                            <Key className="h-4 w-4 opacity-60 shrink-0" />
-                                            <span className="group-data-[collapsible=icon]:hidden">{t('secretsManagement')}</span>
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        isActive={pathname.startsWith('/admin/secrets')} 
+                                        tooltip={t('secretsManagement')} 
+                                        className={cn(
+                                            "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center",
+                                            pathname.startsWith('/admin/secrets') && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        )}
+                                    >
+                                        <Link href="/admin/secrets" className="transition-smooth flex items-center gap-2 w-full">
+                                            <Key 
+                                                className={cn(
+                                                    "h-5 w-5 shrink-0 transition-all duration-300",
+                                                    pathname.startsWith('/admin/secrets') ? "scale-110 opacity-100" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                )} 
+                                                strokeWidth={pathname.startsWith('/admin/secrets') ? 2.5 : 2} 
+                                            />
+                                            <span className={cn(
+                                                "truncate flex-1 transition-all group-data-[collapsible=icon]:hidden",
+                                                pathname.startsWith('/admin/secrets') ? "opacity-100 font-bold" : "opacity-50 group-hover:opacity-100"
+                                            )}>
+                                                {t('secretsManagement')}
+                                            </span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -405,11 +506,13 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             onClick={() => setApiKeyModalOpen(true)}
                                             tooltip={t('createApiKey')}
-                                            className="px-2.5 py-1.5 h-8 font-medium text-[13px]"
+                                            className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
                                         >
-                                            <div className="transition-smooth flex items-center gap-2.5">
-                                                <Key className="h-4 w-4 opacity-60 text-accent-blue shrink-0" />
-                                                <span className="group-data-[collapsible=icon]:hidden">{t('createApiKey')}</span>
+                                            <div className="transition-smooth flex items-center gap-2 w-full">
+                                                <Key className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
+                                                <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
+                                                    {t('createApiKey')}
+                                                </span>
                                             </div>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
@@ -419,11 +522,13 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             onClick={() => setWalkthroughModalOpen(true)}
                                             tooltip={t('createWalkthrough')}
-                                            className="px-2.5 py-1.5 h-8 font-medium text-[13px]"
+                                            className="px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md flex items-center"
                                         >
-                                            <div className="transition-smooth flex items-center gap-2.5">
-                                                <GitPullRequest className="h-4 w-4 opacity-60 text-accent-blue shrink-0" />
-                                                <span className="group-data-[collapsible=icon]:hidden">{t('createWalkthrough')}</span>
+                                            <div className="transition-smooth flex items-center gap-2 w-full">
+                                                <GitPullRequest className="h-5 w-5 opacity-60 text-accent-blue shrink-0" strokeWidth={2.5} />
+                                                <span className="truncate flex-1 transition-all group-data-[collapsible=icon]:hidden opacity-70 group-hover:opacity-100">
+                                                    {t('createWalkthrough')}
+                                                </span>
                                             </div>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>

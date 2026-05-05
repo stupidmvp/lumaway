@@ -258,6 +258,7 @@ export function CapcutTimeline({
     const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
     const sidebarWidth = 280;
     const TIMELINE_PADDING_LEFT = 24;
+    
     // Keyboard Shortcuts for Zoom
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -291,16 +292,11 @@ export function CapcutTimeline({
 
     const lastSelectedId = useRef<string | null>(null);
 
-    // Scroll to active item logic ONLY when selection changes, NOT during dragging (when segments/steps update)
     useEffect(() => {
         if (selectedSegmentId && containerRef.current) {
             const allItems = [...segments, ...steps];
             const item = allItems.find(i => i.id === selectedSegmentId);
             if (item) {
-                // If it's a step and we just finished dragging, or if it's a new selection
-                const isNewSelection = selectedSegmentId !== lastSelectedId.current;
-                
-                // Always scroll if it's the active one and we want to focalize
                 const x = (item.startMs / 1000) * pixelsPerSecond;
                 const container = containerRef.current;
                 const targetX = x - ((container.clientWidth - sidebarWidth) / 2);
@@ -328,7 +324,6 @@ export function CapcutTimeline({
         }
     }, [selectedSegmentId, steps.length, pixelsPerSecond]);
 
-    // Hardware-accelerated sync loop for playhead
     useEffect(() => {
         let frameId: number;
 
@@ -338,33 +333,43 @@ export function CapcutTimeline({
             const video = videoRef.current;
 
             if (video && playhead) {
-                // x is relative to trackRef (which starts after sidebar)
                 const x = TIMELINE_PADDING_LEFT + (video.currentTime * pixelsPerSecond);
                 playhead.style.transform = `translate3d(${x}px, 0, 0)`;
                 const absoluteX = x + sidebarWidth;
                 
                 if (container) {
                     const now = Date.now();
-                    const isManualScrolling = now - lastManualScrollTime.current < 5000;
+                    const isManualScrolling = now - lastManualScrollTime.current < 2000;
                     
-                    if (!isManualScrolling) {
-                        const scrollLeft = container.scrollLeft;
-                        const containerWidth = container.clientWidth;
-                        const trackVisibleWidth = containerWidth - sidebarWidth;
-                        const centerScreenX = scrollLeft + sidebarWidth + (trackVisibleWidth / 2);
-                        const isPlaying = video.playbackRate > 0 && !video.paused;
+                    const containerWidth = container.clientWidth;
+                    const trackVisibleWidth = containerWidth - sidebarWidth;
+                    const isPlaying = video.playbackRate > 0 && !video.paused;
+                    
+                    const playheadInTrackX = x;
+                    const visibleTrackLeft = container.scrollLeft;
+                    const visibleTrackRight = visibleTrackLeft + trackVisibleWidth;
+
+                    // "Hard" boundary check: if it's off-screen, follow immediately regardless of manual scroll
+                    const edgeMargin = 60;
+                    const isOffScreen = playheadInTrackX > (visibleTrackRight - edgeMargin) || 
+                                       playheadInTrackX < (visibleTrackLeft + edgeMargin);
+
+                    if (isPlaying || (isOffScreen && !isManualScrolling)) {
+                        // Smoothly center the playhead
+                        // We target the center of the visible track area
+                        const targetScroll = playheadInTrackX - (trackVisibleWidth / 2);
                         
+                        // If playing, we follow strictly. If just off-screen, we jump/scroll to center.
                         if (isPlaying) {
-                            // If playhead crosses the center, push the scroll to keep it perfectly centered
-                            if (absoluteX > centerScreenX) {
-                                const targetScroll = absoluteX - sidebarWidth - (trackVisibleWidth / 2);
-                                container.scrollLeft = Math.max(0, targetScroll);
-                            } 
-                            // If it's completely off-screen left (e.g., video jumped back), center it again
-                            else if (absoluteX < scrollLeft + sidebarWidth) {
-                                const targetScroll = absoluteX - sidebarWidth - (trackVisibleWidth / 2);
-                                container.scrollLeft = Math.max(0, targetScroll);
-                            }
+                            container.scrollLeft = Math.max(0, targetScroll);
+                        } else if (isOffScreen) {
+                            // Non-playing off-screen: smoother jump
+                            container.scrollTo({
+                                left: Math.max(0, targetScroll),
+                                behavior: 'smooth'
+                            });
+                            // Reset cooldown to let the follow take over
+                            lastManualScrollTime.current = 0;
                         }
                     }
                 }
@@ -380,7 +385,7 @@ export function CapcutTimeline({
         if (!safeDuration || !trackRef.current) return;
         const rect = trackRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left - TIMELINE_PADDING_LEFT;
-        if (x < 0) return; // Clicked in sidebar
+        if (x < 0) return;
         
         const seekSec = x / pixelsPerSecond;
         onSeek(Math.max(0, Math.min(safeDuration, seekSec)));
@@ -539,24 +544,17 @@ export function CapcutTimeline({
     const renderTimelineItem = (item: VideoTextSegment, type: 'subtitle' | 'step', onUpdate: (id: string, patch: Partial<VideoTextSegment>) => void, onSelect: (id: string) => void) => {
         const x = TIMELINE_PADDING_LEFT + ((item.startMs / 1000) * pixelsPerSecond);
         const width = ((item.endMs - item.startMs) / 1000) * pixelsPerSecond;
-        // Restoring original Blue/Salmon scheme
         const isSelected = selectedSegmentId === item.id;
         const isActive = (currentTimeSec * 1000) >= item.startMs && (currentTimeSec * 1000) <= item.endMs;
         
-        const baseColor = isSelected 
-            ? (type === 'subtitle' ? '#e67e22' : '#2980b9')
-            : 'rgba(255,255,255,0.05)'; 
-
-        const selectionColor = '#ffffff';
-
         return (
             <div
                 key={item.id}
                 className={cn(
                     "absolute h-8 top-2 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
-                    type === 'step' ? (isSelected ? "bg-[#2980b9]" : "bg-[#2980b9]/60") : (isSelected ? "bg-[#e67e22]" : "bg-[#e67e22]/60"),
+                    type === 'step' ? (isSelected ? "bg-[#6366f1]" : "bg-[#6366f1]/80") : (isSelected ? "bg-[#3a3a3e]" : "bg-[#2a2a2e]"),
                     isSelected 
-                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_12px_rgba(0,0,0,0.3)] ring-2 ring-white/20 ring-offset-2 ring-offset-black/50 animate-in fade-in zoom-in duration-300" 
+                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_15px_rgba(0,0,0,0.5)] ring-2 ring-[#6366f1]/30 ring-offset-2 ring-offset-[#0f0f11] animate-in fade-in zoom-in duration-300" 
                         : isActive
                             ? "border-white/20 z-15"
                             : "border-white/10 z-10"
@@ -575,9 +573,9 @@ export function CapcutTimeline({
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {isSelected && <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/30 rounded-t-[3px]" />}
+                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-white/20 rounded-t-[3px] z-10" />
+                {isSelected && <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/40 rounded-t-[3px] z-20" />}
                 
-                {/* Capcut-style Left Handle */}
                 <div 
                     className={cn(
                         "absolute left-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center transition-all",
@@ -585,12 +583,7 @@ export function CapcutTimeline({
                     )}
                     onPointerDown={handleItemResize(item, 'start', onUpdate)}
                 >
-                    <div 
-                        className={cn(
-                            "w-full h-full rounded-l-[2px] flex items-center justify-center border-r border-black/5 shadow-sm transition-colors",
-                            isSelected ? "bg-white" : "bg-white/40"
-                        )}
-                    >
+                    <div className={cn("w-full h-full rounded-l-[2px] flex items-center justify-center border-r border-black/5 shadow-sm transition-colors", isSelected ? "bg-white" : "bg-white/40")}>
                         <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
@@ -606,7 +599,6 @@ export function CapcutTimeline({
                     )}
                 </div>
 
-                {/* Capcut-style Right Handle */}
                 <div 
                     className={cn(
                         "absolute right-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center transition-all",
@@ -614,12 +606,7 @@ export function CapcutTimeline({
                     )}
                     onPointerDown={handleItemResize(item, 'end', onUpdate)}
                 >
-                    <div 
-                        className={cn(
-                            "w-full h-full rounded-r-[2px] flex items-center justify-center border-l border-black/5 shadow-sm transition-colors",
-                            isSelected ? "bg-white" : "bg-white/40"
-                        )}
-                    >
+                    <div className={cn("w-full h-full rounded-r-[2px] flex items-center justify-center border-l border-black/5 shadow-sm transition-colors", isSelected ? "bg-white" : "bg-white/40")}>
                         <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
@@ -628,89 +615,47 @@ export function CapcutTimeline({
     };
 
     return (
-        <div className="flex flex-col h-full bg-background overflow-hidden border border-border select-none shadow-2xl">
-            {/* Toolbar (Capcut Style) */}
-            <div className="h-14 border-b border-border bg-white flex items-center px-4 shrink-0 gap-4">
-                {/* Left side: Editing Tools */}
+        <div className="flex flex-col h-full bg-[#0f0f11] overflow-hidden border border-[#2a2a2e] select-none shadow-2xl">
+            <div className="h-14 border-b border-[#2a2a2e] bg-[#0f0f11] flex items-center px-4 shrink-0 gap-4">
                 <div className="flex-1 flex items-center gap-1.5 min-w-0">
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50 disabled:opacity-30"
-                                    onClick={() => onSplitStep?.()}
-                                    disabled={selectedStepIds.size !== 1}
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50 disabled:opacity-30" onClick={() => onSplitStep?.()} disabled={selectedStepIds.size !== 1}>
                                     <SquareSplitHorizontal className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px]">
-                                {selectedStepIds.size !== 1 ? t('selectStepToSplit') : t('splitAtPlayhead')}
-                            </TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">{selectedStepIds.size !== 1 ? t('selectStepToSplit') : t('splitAtPlayhead')}</TooltipContent>
                         </Tooltip>
-
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50"
-                                    onClick={() => onMergeSteps?.()}
-                                    disabled={selectedStepIds.size < 2}
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50" onClick={() => onMergeSteps?.()} disabled={selectedStepIds.size < 2}>
                                     <Combine className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px]">Combinar Pasos (IA)</TooltipContent>
                         </Tooltip>
-
                         <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
-                        
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
-                                    onClick={() => {
-                                        if (selectedSegmentId) onDeleteStep?.(selectedSegmentId);
-                                    }}
-                                    disabled={!selectedSegmentId}
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground" onClick={() => { if (selectedSegmentId) onDeleteStep?.(selectedSegmentId); }} disabled={!selectedSegmentId}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px]">Borrar (Del)</TooltipContent>
                         </Tooltip>
-
                         <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
-
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
-                                    onClick={() => onUndo?.()}
-                                    disabled={!canUndo}
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground" onClick={() => onUndo?.()} disabled={!canUndo}>
                                     <Undo2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px]">Deshacer (⌘Z)</TooltipContent>
                         </Tooltip>
-                        
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground"
-                                    onClick={() => onRedo?.()}
-                                    disabled={!canRedo}
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground" onClick={() => onRedo?.()} disabled={!canRedo}>
                                     <Redo2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
@@ -719,112 +664,55 @@ export function CapcutTimeline({
                     </TooltipProvider>
                 </div>
 
-                {/* Center: Playback Controls */}
                 <div className="flex items-center gap-4 px-6">
                     <div className="flex items-center gap-3">
-                        <button 
-                            onClick={onTogglePlayback}
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 transition-all shadow-lg active:scale-95 shrink-0"
-                        >
-                            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+                        <button onClick={onTogglePlayback} className="w-9 h-9 flex items-center justify-center rounded-full bg-[#6366f1] text-white hover:scale-105 transition-all shadow-lg shadow-[#6366f1]/20 active:scale-95 shrink-0">
+                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                         </button>
-                        
                         <div className="flex items-center gap-1 font-mono text-[11px] tabular-nums whitespace-nowrap">
-                            <span className="text-foreground font-semibold">
-                                {formatVideoTime(currentTimeSec).split('.')[0]}
-                            </span>
-                            <span className="text-foreground/30">/</span>
-                            <span className="text-foreground/50">
-                                {formatVideoTime(durationSec).split('.')[0]}
-                            </span>
+                            <span className="text-white font-semibold">{formatVideoTime(currentTimeSec).split('.')[0]}</span>
+                            <span className="text-white/20">/</span>
+                            <span className="text-white/40">{formatVideoTime(durationSec).split('.')[0]}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Right side: Zoom & Config */}
                 <div className="flex-1 flex items-center justify-end gap-4 min-w-0">
-                    {/* Zoom Control Group (Right Side per reference) */}
                     <div className="flex items-center gap-1 group shrink-0">
-                        <button 
-                            onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))}
-                            disabled={pixelsPerSecond <= 20}
-                            className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10"
-                        >
+                        <button onClick={() => setPixelsPerSecond(prev => Math.max(20, prev - 20))} disabled={pixelsPerSecond <= 20} className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10">
                             <Minus className="w-3 h-3" />
                         </button>
                         <div className="w-14 sm:w-20 relative flex items-center mx-1">
-                            <Slider 
-                                min={20}
-                                max={500}
-                                step={1}
-                                value={[pixelsPerSecond]}
-                                onValueChange={(val) => setPixelsPerSecond(val[0])}
-                                className="cursor-pointer"
-                            />
+                            <Slider min={20} max={500} step={1} value={[pixelsPerSecond]} onValueChange={(val) => setPixelsPerSecond(val[0])} className="cursor-pointer" />
                         </div>
-                        <button 
-                            onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))}
-                            disabled={pixelsPerSecond >= 500}
-                            className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10"
-                        >
+                        <button onClick={() => setPixelsPerSecond(prev => Math.min(500, prev + 20))} disabled={pixelsPerSecond >= 500} className="text-foreground/40 hover:text-foreground p-1 transition-opacity disabled:opacity-10">
                             <Plus className="w-3 h-3" />
                         </button>
                     </div>
-
                     <div className="w-px h-4 bg-border/80 shrink-0" />
-
-                    {/* CC & Volume Buttons */}
                     <div className="flex items-center gap-1">
                         <div className="relative flex items-center group/volume h-8">
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-foreground/40 hover:text-foreground shrink-0 rounded-md"
-                                onClick={() => onVolumeChange?.(volume > 0 ? 0 : lastVolume)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/40 hover:text-foreground shrink-0 rounded-md" onClick={() => onVolumeChange?.(volume > 0 ? 0 : lastVolume)}>
                                 {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                             </Button>
-                            
                             <div className="absolute left-full ml-1 top-1/2 -translate-y-1/2 w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300 ease-in-out flex items-center bg-background/95 backdrop-blur rounded-md shadow-sm h-8 px-0 group-hover/volume:px-2 z-50 border border-transparent group-hover/volume:border-border">
-                                <Slider 
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={[volume]}
-                                    onValueChange={(val) => onVolumeChange?.(val[0])}
-                                    className="w-20 cursor-pointer"
-                                />
+                                <Slider min={0} max={1} step={0.01} value={[volume]} onValueChange={(val) => onVolumeChange?.(val[0])} className="w-20 cursor-pointer" />
                             </div>
                         </div>
-
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={onToggleSubtitles}
-                            className={cn(
-                                "h-8 w-8 rounded-md",
-                                showSubtitles ? "text-sky-500 bg-sky-50/50" : "text-foreground/40 hover:text-foreground"
-                            )}
-                        >
+                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-colors shrink-0 rounded-md", showSubtitles ? "text-accent-blue bg-accent-blue/10" : "text-foreground/40 dark:text-white/30 hover:text-foreground dark:hover:text-white")} onClick={onToggleSubtitles}>
                             <Captions className="w-3.5 h-3.5" />
                         </Button>
-                        
+                        <div className="w-px h-4 bg-border/80 dark:bg-white/10 shrink-0" />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 px-2 text-[10px] font-bold text-foreground/60 hover:text-foreground hover:bg-secondary/50">
-                                    {playbackRate}x
-                                    <ChevronDown className="w-3 h-3 opacity-50 ml-0.5" />
+                                <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] font-bold text-foreground/40 dark:text-white/30 hover:text-foreground dark:hover:text-white gap-1 hover:bg-secondary/50">
+                                    {playbackRate}x <ChevronDown className="w-3 h-3" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-[80px]">
+                            <DropdownMenuContent align="end" className="bg-background dark:bg-[#1a1a1a] border-border dark:border-white/10">
                                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                                    <DropdownMenuItem 
-                                        key={rate} 
-                                        className="text-[11px] font-medium flex items-center justify-between"
-                                        onClick={() => onPlaybackRateChange?.(rate)}
-                                    >
-                                        {rate}x
-                                        {playbackRate === rate && <Check className="w-3 h-3 text-sky-500" />}
+                                    <DropdownMenuItem key={rate} onClick={() => onPlaybackRateChange?.(rate)} className="text-[11px] font-medium">
+                                        {rate}x {playbackRate === rate && <Check className="ml-2 w-3 h-3 text-accent-blue" />}
                                     </DropdownMenuItem>
                                 ))}
                             </DropdownMenuContent>
@@ -832,134 +720,69 @@ export function CapcutTimeline({
                     </div>
                 </div>
             </div>
-
-
-            {/* Scrollable Area */}
-            <div 
-                ref={containerRef}
-                className="flex-1 overflow-auto relative custom-scrollbar bg-background"
-                style={{ scrollBehavior: 'auto' }}
-                onScroll={handleScroll}
-            >
-                {/* Main Horizontal Content (Flex + Sticky) */}
+            <div ref={containerRef} className="flex-1 overflow-auto relative custom-scrollbar bg-[#0f0f11]" onScroll={handleScroll}>
                 <div className="flex relative" style={{ width: `${timelineWidth + sidebarWidth}px` }}>
-                    
-                    {/* Sticky Sidebar */}
-                    <div className="sticky left-0 w-[280px] z-[70] bg-background border-r border-border flex flex-col shadow-2xl shrink-0">
+                    <div className="sticky left-0 w-[280px] z-[70] bg-[#0f0f11] border-r border-[#2a2a2e] flex flex-col shadow-2xl shrink-0">
                          <div className="flex flex-col py-0 flex-1 overflow-visible">
-                             {/* Ruler Spacer (Matches Ruler Height) */}
-                             <div className="h-10 shrink-0 border-b border-border bg-secondary/50" />
-
-                             {/* Subtitles Row Sidebar */}
-                             <div className="h-12 flex items-center px-4 shrink-0 bg-secondary/30 border-b border-border/50 relative">
-                                 <span className="text-[11px] font-bold text-foreground/80 truncate uppercase tracking-[0.1em]">Transcripción</span>
+                             <div className="h-10 shrink-0 border-b border-[#2d2d30] bg-[#1a1a1e]" />
+                             <div className="h-12 flex items-center px-4 shrink-0 bg-[#252529] border-b border-[#2d2d30] relative">
+                                 <span className="text-[11px] font-bold text-white truncate uppercase tracking-[0.1em]">Transcripción</span>
                              </div>
-
-                             {/* Section Divider Sidebar */}
-                             <div className="h-8 flex items-center px-4 shrink-0 bg-background border-b border-border/50">
-                                 <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-[0.2em]">Steps</span>
+                             <div className="h-8 flex items-center px-4 shrink-0 bg-[#0f0f11] border-b border-[#2a2a2e]/50">
+                                 <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em]">Steps</span>
                              </div>
-
-                             {/* Step Rows Sidebar */}
-                             <DndContext
-                                 sensors={sensors}
-                                 collisionDetection={closestCenter}
-                                 onDragEnd={handleDragEndSidebar}
-                             >
-                                 <SortableContext
-                                     items={steps.map(s => s.id)}
-                                     strategy={verticalListSortingStrategy}
-                                 >
+                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndSidebar}>
+                                 <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
                                      {steps.map((step, index) => (
-                                         <SortableStepItem
-                                             key={step.id}
-                                             step={step}
-                                             index={index}
-                                             selectedStepIds={selectedStepIds}
-                                             selectedSegmentId={selectedSegmentId}
-                                             videoRef={videoRef}
-                                             onSelectStep={onSelectStep}
-                                         />
+                                         <SortableStepItem key={step.id} step={step} index={index} selectedStepIds={selectedStepIds} selectedSegmentId={selectedSegmentId} videoRef={videoRef} onSelectStep={onSelectStep} />
                                      ))}
                                  </SortableContext>
                              </DndContext>
                          </div>
                     </div>
-
-                    {/* Tracks & Ruler Area */}
-                    <div 
-                        ref={trackRef}
-                        className="flex-1 relative min-h-full"
-                        onClick={handleTrackClick}
-                    >
-                        {/* Ruler */}
-                        <div className="h-10 border-b border-border sticky top-0 bg-secondary/50 backdrop-blur-sm z-40">
-                        <div className="relative h-full">
-                            {ticks.map((tick) => (
-                                <div 
-                                    key={tick.sec} 
-                                    className={cn(
-                                        "absolute top-0 h-full border-l",
-                                        tick.isMajor ? "border-black/20 w-[1.5px]" : "border-black/10 h-1.5 mt-auto"
-                                    )}
-                                    style={{ left: `${tick.x}px` }}
-                                >
-                                    {tick.isMajor && (
-                                        <span className="text-[10px] text-foreground/70 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1.5 leading-none font-bold tracking-tight">
-                                            {formatVideoTime(tick.sec).split('.')[0]}s
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Tracks Container */}
-                    <div className="flex flex-col px-0 relative min-h-[160px]">
-                        {/* Subtitles Track Row */}
-                        <div className="h-12 relative border-b border-border/50 bg-secondary/30 group transition-colors">
-                            {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment, onSelectSegment))}
-                        </div>
-
-                        {/* Section Divider Track Area (Matches Sidebar Height) */}
-                        <div className="h-8 bg-background border-b border-border/50 relative" />
-
-                        {/* Step Track Rows */}
-                        {steps.map((step, index) => {
-                            const isEven = index % 2 === 0;
-                            return (
-                                <div key={`${step.id}-${index}`} className={cn("h-12 relative border-b border-border/50 group hover:bg-foreground/[0.02] transition-colors", isEven ? "bg-background" : "bg-secondary/20")}>
-                                    {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment, onSelectStep || onSelectSegment)}
-                                </div>
-                            );
-                        })}
-
-                        {/* Video Background Tracks Style Capcut */}
-                        <div className="h-20 mt-6 relative bg-foreground/[0.02] border-y border-border flex items-center overflow-hidden">
-                             <div className="flex gap-1 h-full opacity-20">
-                                {Array.from({ length: Math.min(Math.ceil(timelineWidth / 120), 300) }).map((_, i) => (
-                                    <div key={i} className="w-[116px] h-full bg-foreground/5 shrink-0 border-r border-border" />
+                    <div ref={trackRef} className="flex-1 relative min-h-full" onClick={handleTrackClick}>
+                        <div className="h-10 border-b border-[#2d2d30] sticky top-0 bg-[#09090b] backdrop-blur-sm z-40">
+                            <div className="relative h-full">
+                                {ticks.map((tick) => (
+                                    <div key={tick.sec} className={cn("absolute top-0 h-full border-l", tick.isMajor ? "border-white/40 w-[1.5px]" : "border-white/20 h-1.5 mt-auto")} style={{ left: `${tick.x}px` }}>
+                                        {tick.isMajor && (
+                                            <span className="text-[10px] text-white/60 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1.5 leading-none font-bold tracking-tight">
+                                                {formatVideoTime(tick.sec).split('.')[0]}s
+                                            </span>
+                                        )}
+                                    </div>
                                 ))}
-                             </div>
-                        </div>
-                    </div>
-
-                    {/* Playhead (Standard Icon Style) */}
-                    <div 
-                        ref={playheadRef}
-                        className="absolute top-0 bottom-0 left-0 w-[1.5px] z-[60] pointer-events-none will-change-transform"
-                    >
-                        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                            {/* Lucide Triangle Icon as Head - Pixel Perfect Alignment */}
-                            <div className="relative z-[70] top-0 flex-none">
-                                <Triangle 
-                                    className="w-[12px] h-[12px] fill-black text-black rotate-180 drop-shadow-sm"
-                                />
                             </div>
-                            {/* Vertical Line - Starts exactly from the triangle tip and stretches to bottom */}
-                            <div className="w-[1.5px] flex-1 bg-black/80 shadow-[0_0_8px_rgba(0,0,0,0.15)] -mt-[0.5px]" />
                         </div>
-                    </div>
+                        <div className="flex flex-col px-0 relative min-h-[160px]">
+                            <div className="h-12 relative border-b border-[#2d2d30] bg-[#1a1a1e] group transition-colors">
+                                {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment, onSelectSegment))}
+                            </div>
+                            <div className="h-8 bg-[#09090b] border-b border-[#2d2d30] relative" />
+                            {steps.map((step, index) => {
+                                const isEven = index % 2 === 0;
+                                return (
+                                    <div key={`${step.id}-${index}`} className={cn("h-12 relative border-b border-[#2d2d30] group hover:bg-white/[0.04] transition-colors", isEven ? "bg-[#111114]" : "bg-[#1a1a1e]")}>
+                                        {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment, onSelectStep || onSelectSegment)}
+                                    </div>
+                                );
+                            })}
+                            <div className="h-20 mt-6 relative bg-white/[0.02] border-y border-[#2a2a2e] flex items-center overflow-hidden">
+                                 <div className="flex gap-1 h-full opacity-20">
+                                    {Array.from({ length: Math.min(Math.ceil(timelineWidth / 120), 300) }).map((_, i) => (
+                                        <div key={i} className="w-[116px] h-full bg-white/5 shrink-0 border-r border-[#2a2a2e]" />
+                                    ))}
+                                 </div>
+                            </div>
+                        </div>
+                        <div ref={playheadRef} className="absolute top-0 bottom-0 left-0 w-[1.5px] z-[60] pointer-events-none will-change-transform">
+                            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                                <div className="relative z-[70] top-0 flex-none">
+                                    <Triangle className="w-[12px] h-[12px] fill-white text-white rotate-180 drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+                                </div>
+                                <div className="w-[1.5px] flex-1 bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)] -mt-[0.5px]" />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

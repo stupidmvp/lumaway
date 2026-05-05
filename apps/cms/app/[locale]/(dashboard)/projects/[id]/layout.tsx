@@ -68,7 +68,6 @@ export default function ProjectLayout({
     const router = useRouter();
 
     const [createOpen, setCreateOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(true);
 
     const t = useTranslations('ProjectDetail');
     const tc = useTranslations('Common');
@@ -257,17 +256,11 @@ export default function ProjectLayout({
 
                 {/* Sub-Sidebar: Navigation & Contextual Options */}
                 <aside 
-                    className={cn(
-                        "border-r border-border bg-background-secondary/30 flex flex-col shrink-0 overflow-hidden transition-all duration-300 ease-in-out",
-                        isCollapsed ? "w-16" : "w-64"
-                    )}
+                    className="border-r border-border bg-background-secondary/30 flex flex-col shrink-0 overflow-hidden w-16"
                 >
                     {/* Simplified Sidebar Header */}
-                    <div className="h-[72px] flex items-center justify-center border-b border-border/50">
-                        <div className={cn(
-                            "h-10 w-10 rounded-lg flex items-center justify-center border border-border/30 shrink-0 transition-all overflow-hidden bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:bg-background-secondary",
-                            isCollapsed ? "scale-90" : "scale-100"
-                        )}>
+                    <div className="h-14 flex items-center justify-center border-b border-border/40 shrink-0">
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center border border-border/20 shrink-0 transition-all overflow-hidden bg-white shadow-sm dark:bg-background-secondary">
                             {project.logo ? (
                                 <img 
                                     src={project.logo.startsWith('http') ? project.logo : `${ENV.S3_URL_BASE}${project.logo}`} 
@@ -286,79 +279,41 @@ export default function ProjectLayout({
                         {navigationItems.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.key;
-                            const isContextual = (tab as any).isContextual;
 
-                            const content = (
-                                <Link
-                                    key={tab.key}
-                                    href={tab.href}
-                                    className={cn(
-                                        'group flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 relative',
-                                        isActive
-                                            ? 'bg-background-secondary text-foreground shadow-sm'
-                                            : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary/50',
-                                        isCollapsed ? "justify-center" : "justify-between",
-                                        isContextual && !isCollapsed && "mt-1 border-l-2 border-border/20 ml-2"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <Icon className={cn(
-                                            "h-5 w-5 transition-colors shrink-0",
-                                            isActive ? "text-accent-blue" : "text-foreground-muted/60 group-hover:text-foreground/80"
-                                        )} />
-                                        {!isCollapsed && <span className="truncate">{tab.label}</span>}
-                                    </div>
-                                    
-                                    {!isCollapsed && !!tab.badge && tab.badge > 0 && (
-                                        <span
+                            return (
+                                <Tooltip key={tab.key} delayDuration={0}>
+                                    <TooltipTrigger asChild>
+                                        <Link
+                                            href={tab.href}
                                             className={cn(
-                                                'h-4.5 min-w-[18px] px-1.5 text-[9px] font-bold rounded-full flex items-center justify-center transition-colors',
-                                                isActive 
-                                                    ? 'bg-accent-blue text-white' 
-                                                    : badgeColorMap[tab.badgeColor || 'muted'],
+                                                'group flex items-center justify-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 relative',
+                                                isActive
+                                                    ? 'bg-background-secondary text-foreground shadow-sm'
+                                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary/50'
                                             )}
                                         >
-                                            {tab.badge}
-                                        </span>
-                                    )}
+                                            <div className="flex items-center justify-center min-w-0">
+                                                <Icon className={cn(
+                                                    "h-5 w-5 transition-colors shrink-0",
+                                                    isActive ? "text-accent-blue" : "text-foreground-muted/60 group-hover:text-foreground/80"
+                                                )} strokeWidth={isActive ? 2.5 : 2} />
+                                            </div>
 
-                                    {/* Active indicator for collapsed state - subtle shadow instead of bar */}
-                                    {isCollapsed && isActive && (
-                                        <div className="absolute inset-x-2 inset-y-1.5 bg-background-secondary rounded-md -z-10 shadow-sm" />
-                                    )}
-                                </Link>
+                                            {/* Active indicator shadow */}
+                                            {isActive && (
+                                                <div className="absolute inset-x-2 inset-y-1.5 bg-background-secondary rounded-md -z-10 shadow-sm" />
+                                            )}
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5 shadow-xl">
+                                        {tab.label}
+                                    </TooltipContent>
+                                </Tooltip>
                             );
-
-                            if (isCollapsed) {
-                                return (
-                                    <Tooltip key={tab.key} delayDuration={0}>
-                                        <TooltipTrigger asChild>
-                                            {content}
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5 shadow-xl">
-                                            {tab.label}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                );
-                            }
-
-                            return content;
                         })}
                     </div>
 
-                    {/* Sidebar Footer: Toggle Button */}
-                    <div className="p-3 border-t border-border/50 flex justify-center">
-                        <button
-                            onClick={() => setIsCollapsed(!isCollapsed)}
-                            className="h-8 w-8 rounded-md flex items-center justify-center text-foreground-muted hover:text-foreground hover:bg-background-secondary transition-all"
-                        >
-                            {isCollapsed ? (
-                                <ChevronRight className="h-4 w-4" />
-                            ) : (
-                                <ChevronLeft className="h-4 w-4" />
-                            )}
-                        </button>
-                    </div>
+
                 </aside>
 
                 {/* Main Content Area */}

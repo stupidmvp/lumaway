@@ -107,7 +107,7 @@ export function TopBar() {
         : t('user');
 
     return (
-        <header className="flex h-12 shrink-0 items-center border-b border-border bg-background z-50">
+        <header className="flex h-12 shrink-0 items-center border-b border-border dark:border-[#2a2a2e] bg-background dark:bg-[#09090b] z-50">
             {/* Left — Organization Switcher (matches sidebar width) */}
             <div
                 className={cn(
