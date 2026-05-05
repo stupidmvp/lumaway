@@ -926,6 +926,8 @@
     "LumenReview": {
         "title": "Lumen Review",
         "withoutIntent": "Lumen without intent",
+        "properties": "Properties",
+        "selectItemToEdit": "Select a step or subtitle in the timeline to view its properties.",
         "loadFailed": "Failed to load Lumen review data.",
         "back": "Back",
         "options": "Options",

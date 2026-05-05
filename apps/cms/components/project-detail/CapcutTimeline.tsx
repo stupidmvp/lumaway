@@ -637,31 +637,29 @@ export function CapcutTimeline({
                             <TooltipTrigger asChild>
                                 <Button 
                                     variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50"
+                                    size="icon" 
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50"
                                     onClick={() => onSplitStep?.()}
                                 >
                                     <SquareSplitHorizontal className="w-3.5 h-3.5" />
-                                    Dividir
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Dividir (⌘B)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">Dividir (⌘B)</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button 
                                     variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 gap-2 px-3 text-[11px] font-bold text-foreground/70 hover:bg-secondary/50"
+                                    size="icon" 
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50"
                                     onClick={() => onMergeSteps?.()}
                                     disabled={selectedStepIds.size < 2}
                                 >
                                     <Combine className="w-3.5 h-3.5" />
-                                    Combinar
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Combinar Pasos (IA)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">Combinar Pasos (IA)</TooltipContent>
                         </Tooltip>
 
                         <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
@@ -680,7 +678,7 @@ export function CapcutTimeline({
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Borrar (Del)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">Borrar (Del)</TooltipContent>
                         </Tooltip>
 
                         <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
@@ -697,7 +695,7 @@ export function CapcutTimeline({
                                     <RotateCcw className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Deshacer (⌘Z)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">Deshacer (⌘Z)</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -712,7 +710,7 @@ export function CapcutTimeline({
                                     <RotateCw className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px]">Rehacer (⌘⇧Z)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">Rehacer (⌘⇧Z)</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 </div>

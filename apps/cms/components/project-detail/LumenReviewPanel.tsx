@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useGenerateWalkthroughsFromLumen, useLumenReview, useMergeLumenSteps, useReprocessLumen, useSaveLumenTranscriptSegments, useSaveReview } from '@luma/infra';
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,7 +15,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, Circle, Combine, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, ChevronRight, Circle, Combine, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -111,6 +112,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const canvasRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const propertiesPanelRef = useRef<ImperativePanelHandle>(null);
+    const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(true);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
     const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(new Set());
@@ -135,6 +138,14 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const [playbackRate, setPlaybackRate] = useState(1);
     const [volume, setVolume] = useState(1);
     const [lastVolume, setLastVolume] = useState(1);
+
+    // Force collapse on mount
+    useEffect(() => {
+        const panel = propertiesPanelRef.current;
+        if (panel && !panel.isCollapsed()) {
+            panel.collapse();
+        }
+    }, []);
 
     const handleVolumeChange = useCallback((val: number) => {
         if (val > 0) setLastVolume(val);
@@ -278,7 +289,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     useEffect(() => {
         setSubtitleSegments(extractedSubtitleSegments);
-        setSelectedSubtitleSegmentId(extractedSubtitleSegments[0]?.id ?? null);
     }, [extractedSubtitleSegments]);
 
     const transcriptExtracts = useMemo(() => {
@@ -435,7 +445,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     useEffect(() => {
         if (!presentSteps.length || isDraggingTimeline) return;
-        
+
         // Skip auto-selection if we are already at the exact timestamp of the active step
         // to avoid jumping between steps with the same timestamp.
         if (activeStepId) {
@@ -450,7 +460,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             if (!best || distance < best.distance) return { id: step.id, distance };
             return best;
         }, null);
-        
+
         if (nearest && nearest.distance <= 1.25) {
             setActiveStepId(nearest.id);
             setSelectedStepIds(new Set([nearest.id]));
@@ -473,14 +483,14 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         setPresentSteps(current => {
             const sorted = [...current].sort((a, b) => a.timestampMs - b.timestampMs);
             const ordered = sorted.map((s, i) => ({ ...s, order: i + 1 }));
-            
+
             // Only push to history if there are changes compared to the last state in pastSteps
             const lastState = pastSteps[pastSteps.length - 1];
             if (JSON.stringify(lastState) !== JSON.stringify(ordered)) {
                 setPastSteps(past => [...past, current]);
                 setFutureSteps([]);
             }
-            
+
             return ordered;
         });
 
@@ -530,7 +540,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const handleSplitStep = useCallback(() => {
         const currentMs = currentTime * 1000;
-        
+
         // Find the step that encompasses currentTime
         const index = presentSteps.findIndex(s => {
             const duration = s.durationMs ?? 8000;
@@ -587,7 +597,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             const sorted = next.sort((a, b) => a.timestampMs - b.timestampMs);
             return sorted.map((s, i) => ({ ...s, order: i + 1 }));
         });
-        
+
         toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
         setActiveStepId(newStep.id);
         setSelectedStepIds(new Set([newStep.id]));
@@ -834,7 +844,6 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     const resetSubtitleSegments = () => {
         setSubtitleSegments(extractedSubtitleSegments);
-        setSelectedSubtitleSegmentId(extractedSubtitleSegments[0]?.id ?? null);
     };
 
     const handleSplitSegment = (id: string, splitAtMs: number) => {
@@ -973,7 +982,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         </div>
                     )}
                 </div>
-                
+
                 {/* Header Toolbar (Zoom & Pan) */}
                 <div className="flex items-center gap-1 bg-background-secondary/50 border border-border/40 rounded-full px-1 py-1 shadow-sm">
                     <Button
@@ -1014,28 +1023,28 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                     onValueChange={([v]) => setZoom(v)}
                                 />
                             </div>
-                                <DropdownMenuSeparator />
-                                <div className="space-y-1">
-                                    <DropdownMenuItem onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }} className="text-xs font-medium justify-between cursor-pointer">
-                                        {t('zoomToFit')}
-                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ F</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setZoom(50)} className="text-xs font-medium justify-between cursor-pointer">
-                                        {t('zoomTo50')}
-                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 0</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setZoom(75)} className="text-xs font-medium justify-between cursor-pointer">
-                                        {t('zoomTo75')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setZoom(100)} className="text-xs font-medium justify-between cursor-pointer">
-                                        {t('zoomTo100')}
-                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 1</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setZoom(200)} className="text-xs font-medium justify-between cursor-pointer">
-                                        {t('zoomTo200')}
-                                        <span className="text-[10px] text-foreground-muted opacity-60">⇧ 2</span>
-                                    </DropdownMenuItem>
-                                </div>
+                            <DropdownMenuSeparator />
+                            <div className="space-y-1">
+                                <DropdownMenuItem onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomToFit')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ F</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(50)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo50')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 0</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(75)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo75')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(100)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo100')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 1</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setZoom(200)} className="text-xs font-medium justify-between cursor-pointer">
+                                    {t('zoomTo200')}
+                                    <span className="text-[10px] text-foreground-muted opacity-60">⇧ 2</span>
+                                </DropdownMenuItem>
+                            </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -1081,182 +1090,256 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
             {/* Main Editor Area with Resizable Panels */}
             <div className="flex-1 overflow-hidden">
-                <ResizablePanelGroup direction="vertical">
-                    {/* Top Section: Stage */}
-                    <ResizablePanel defaultSize={75} minSize={30}>
-                        <div 
-                            ref={canvasRef}
-                            className={cn(
-                                "h-full w-full bg-[#f0f0f2] flex items-center justify-center relative overflow-hidden",
-                                isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                            )}
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
-                        >
-                            {/* Backdrop ambient light for studio feel */}
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_transparent_70%)] pointer-events-none opacity-40" />
-
-                            {/* Video Stage - Scaling and Panning applied here */}
-                            <div 
-                                className="w-[90%] max-w-6xl aspect-video bg-black shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white/5 z-10 transition-transform duration-200 ease-out will-change-transform"
-                                style={{
-                                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100})`,
-                                }}
-                            >
-                                {data.videoUrl ? (
-                                    <LumenVideoPlayer
-                                        ref={videoRef}
-                                        videoUrl={data.videoUrl}
-                                        isVideoLoading={isVideoLoading}
-                                        isPlaying={isPlaying}
-                                        currentTime={currentTime}
-                                        durationSec={durationSec}
-                                        playbackRate={playbackRate}
-                                        showSubtitles={showSubtitles}
-                                        subtitleSegments={subtitleSegments}
-                                        activeSegment={activeSegment}
-                                        onTogglePlayback={togglePlayback}
-                                        onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
-                                        onPlaybackRateChange={setPlaybackRate}
-                                        onTimeUpdate={setCurrentTime}
-                                        onLoadedMetadata={setVideoDuration}
-                                        onLoadedData={() => setIsVideoLoading(false)}
-                                        onCanPlay={() => setIsVideoLoading(false)}
-                                        onPlay={() => setIsPlaying(true)}
-                                        onPause={() => setIsPlaying(false)}
-                                        onEnded={(finalTime) => {
-                                            setIsPlaying(false);
-                                            if (finalTime > 0) setVideoDuration(finalTime);
-                                        }}
-                                        formatTime={formatVideoTime}
-                                        hideControls={true}
-                                        volume={volume}
-                                        lastVolume={lastVolume}
-                                        onVolumeChange={handleVolumeChange}
-                                        renderTimeline={() => null}
-                                    />
+                <ResizablePanelGroup direction="horizontal">
+                    {/* Left Section: Properties Panel */}
+                    <ResizablePanel
+                        ref={propertiesPanelRef}
+                        defaultSize={0}
+                        minSize={25}
+                        collapsible={true}
+                        collapsedSize={0}
+                        onCollapse={() => setIsPropertiesCollapsed(true)}
+                        onExpand={() => setIsPropertiesCollapsed(false)}
+                        className={cn(
+                            "transition-all duration-300 ease-in-out",
+                            isPropertiesCollapsed ? "min-w-[0px]" : ""
+                        )}
+                    >
+                        <div className="h-full bg-background border-r border-border overflow-y-auto flex flex-col z-10 relative shadow-sm">
+                            <div className="p-4 border-b border-border shrink-0">
+                                <h2 className="text-sm font-bold">{t('properties') || 'Propiedades'}</h2>
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col gap-4">
+                                {activeStepId ? (
+                                    <div className="space-y-4">
+                                        <div className="text-sm font-semibold text-foreground">Paso Seleccionado</div>
+                                        <div className="text-xs text-foreground-muted">ID: {activeStepId}</div>
+                                        {/* TODO: Add Step editing form here */}
+                                    </div>
+                                ) : selectedSubtitleSegmentId ? (
+                                    <div className="space-y-4">
+                                        <div className="text-sm font-semibold text-foreground">Subtítulo Seleccionado</div>
+                                        <div className="text-xs text-foreground-muted">ID: {selectedSubtitleSegmentId}</div>
+                                        {/* TODO: Add Subtitle editing form here */}
+                                    </div>
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-foreground/20">
-                                        <Play className="h-16 w-16 opacity-5" />
-                                        <p className="text-sm font-medium uppercase tracking-widest">{t('noVideoAvailable')}</p>
+                                    <div className="h-full flex items-center justify-center text-center">
+                                        <p className="text-sm text-foreground-muted">
+                                            {t('selectItemToEdit') || 'Selecciona un paso o subtítulo en la línea de tiempo para ver sus propiedades.'}
+                                        </p>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </ResizablePanel>
 
-                    <ResizableHandle withHandle />
-
-                    {/* Bottom Section: Full Width Timeline */}
-                    <ResizablePanel defaultSize={35} minSize={20}>
-                        <div className="h-full bg-background shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] z-50 overflow-hidden">
-                            <CapcutTimeline
-                                durationSec={durationSec}
-                                currentTimeSec={currentTime}
-                                segments={subtitleSegments}
-                                steps={presentSteps
-                                    .filter((s, i, arr) => arr.findIndex(t => t.id === s.id) === i)
-                                    .map(s => ({
-                                        id: s.id,
-                                        order: s.order,
-                                        startMs: s.timestampMs,
-                                        endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + (s.durationMs ?? 8000)),
-                                        text: s.title,
-                                        description: s.description
-                                    }))}
-                                selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
-                                onSeek={(sec) => seekTo(sec, { autoplay: false })}
-                                onUpdateSegment={updateSubtitleSegment}
-                                onSelectSegment={(id) => {
-                                    const segment = subtitleSegments.find(s => s.id === id);
-                                    if (segment) {
-                                        seekTo(segment.startMs / 1000, { autoplay: false });
+                    <ResizableHandle withHandle={false} className="relative z-[999] w-px bg-border after:hidden">
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-3.0 cursor-pointer items-center justify-center rounded-r-full bg-background border border-l-0 border-border shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-foreground/50 hover:text-foreground hover:bg-accent transition-colors"
+                            style={{ zIndex: 9999 }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const panel = propertiesPanelRef.current;
+                                if (panel) {
+                                    if (panel.isCollapsed()) {
+                                        panel.expand();
+                                    } else {
+                                        panel.collapse();
                                     }
-                                    setSelectedSubtitleSegmentId(id);
-                                    setActiveStepId(null);
-                                }}
-                                onSelectStep={(id, multi) => {
-                                    const step = presentSteps.find(s => s.id === id);
-                                    if (step) {
-                                        seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
-                                        setActiveStepId(id);
-                                        setSelectedSubtitleSegmentId(null);
-                                        
-                                        if (multi) {
-                                            setSelectedStepIds(prev => {
-                                                const next = new Set(prev);
-                                                if (next.has(id)) next.delete(id);
-                                                else next.add(id);
-                                                return next;
-                                            });
-                                        } else {
-                                            setSelectedStepIds(new Set([id]));
-                                        }
-                                    }
-                                }}
-                                onUpdateStep={(id, patch) => {
-                                    handleUpdateStep(id, { 
-                                        timestampMs: patch.startMs,
-                                        durationMs: patch.endMs ? patch.endMs - patch.startMs : undefined 
-                                    });
-                                }}
-                                onDeleteStep={handleDeleteStep}
-                                onSplitStep={handleSplitStep}
-                                onMergeSteps={async () => {
-                                    if (selectedStepIds.size < 2) return;
-                                    
-                                    const stepIds = Array.from(selectedStepIds);
-                                    const sortedIds = presentSteps
-                                        .filter(s => selectedStepIds.has(s.id))
-                                        .map(s => s.id);
-
-                                    const loadingToast = toast.loading('Merging steps with AI...');
-                                    const idsToMerge = [...sortedIds];
-                                    setSelectedStepIds(new Set());
-                                    try {
-                                        const result = await mergeStepsMutation.mutateAsync({
-                                            observerSessionId: lumenId,
-                                            stepIds: idsToMerge
-                                        });
-
-                                        setPastSteps(prev => [...prev, presentSteps]);
-                                        setFutureSteps([]);
-                                        
-                                        setPresentSteps(prev => {
-                                            const filtered = prev.filter(s => !idsToMerge.includes(s.id));
-                                            const firstIndex = prev.findIndex(s => s.id === idsToMerge[0]);
-                                            const next = [...filtered];
-                                            next.splice(firstIndex, 0, result);
-                                            return next.map((s, i) => ({ ...s, order: i + 1 }));
-                                        });
-                                        
-                                        setActiveStepId(result.id);
-                                        toast.success('Steps merged and refined successfully', { id: loadingToast });
-                                    } catch (error) {
-                                        toast.error('Failed to merge steps', { id: loadingToast });
-                                    }
-                                }}
-                                selectedStepIds={selectedStepIds}
-                                onUndo={undo}
-                                onRedo={redo}
-                                canUndo={pastSteps.length > 0}
-                                canRedo={futureSteps.length > 0}
-                                videoRef={videoRef}
-                                isPlaying={isPlaying}
-                                onTogglePlayback={togglePlayback}
-                                playbackRate={playbackRate}
-                                onPlaybackRateChange={setPlaybackRate}
-                                showSubtitles={showSubtitles}
-                                onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
-                                volume={volume}
-                                lastVolume={lastVolume}
-                                onVolumeChange={handleVolumeChange}
-                                onDragEnd={commitStepChanges}
-                                onReorderSteps={handleReorderSteps}
-                            />
+                                }
+                            }}
+                        >
+                            {isPropertiesCollapsed ? (
+                                <ChevronRight className="h-3 w-3 opacity-80 -ml-0.5" />
+                            ) : (
+                                <ChevronLeft className="h-3 w-3 opacity-80 -ml-0.5" />
+                            )}
                         </div>
+                    </ResizableHandle>
+
+                    {/* Right Section: Video and Timeline */}
+                    <ResizablePanel defaultSize={75}>
+                        <ResizablePanelGroup direction="vertical">
+                            {/* Top Section: Stage */}
+                            <ResizablePanel defaultSize={75} minSize={30}>
+                                <div
+                                    ref={canvasRef}
+                                    className={cn(
+                                        "h-full w-full bg-[#f0f0f2] flex items-center justify-center relative overflow-hidden",
+                                        isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+                                    )}
+                                    onMouseDown={handleMouseDown}
+                                    onMouseMove={handleMouseMove}
+                                    onMouseUp={handleMouseUp}
+                                    onMouseLeave={handleMouseUp}
+                                >
+                                    {/* Backdrop ambient light for studio feel */}
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_transparent_70%)] pointer-events-none opacity-40" />
+
+                                    {/* Video Stage - Scaling and Panning applied here */}
+                                    <div
+                                        className="w-[90%] max-w-6xl aspect-video bg-black shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white/5 z-10 transition-transform duration-200 ease-out will-change-transform"
+                                        style={{
+                                            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100})`,
+                                        }}
+                                    >
+                                        {data.videoUrl ? (
+                                            <LumenVideoPlayer
+                                                ref={videoRef}
+                                                videoUrl={data.videoUrl}
+                                                isVideoLoading={isVideoLoading}
+                                                isPlaying={isPlaying}
+                                                currentTime={currentTime}
+                                                durationSec={durationSec}
+                                                playbackRate={playbackRate}
+                                                showSubtitles={showSubtitles}
+                                                subtitleSegments={subtitleSegments}
+                                                activeSegment={activeSegment}
+                                                onTogglePlayback={togglePlayback}
+                                                onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                                onPlaybackRateChange={setPlaybackRate}
+                                                onTimeUpdate={setCurrentTime}
+                                                onLoadedMetadata={setVideoDuration}
+                                                onLoadedData={() => setIsVideoLoading(false)}
+                                                onCanPlay={() => setIsVideoLoading(false)}
+                                                onPlay={() => setIsPlaying(true)}
+                                                onPause={() => setIsPlaying(false)}
+                                                onEnded={(finalTime) => {
+                                                    setIsPlaying(false);
+                                                    if (finalTime > 0) setVideoDuration(finalTime);
+                                                }}
+                                                formatTime={formatVideoTime}
+                                                hideControls={true}
+                                                volume={volume}
+                                                lastVolume={lastVolume}
+                                                onVolumeChange={handleVolumeChange}
+                                                renderTimeline={() => null}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-foreground/20">
+                                                <Play className="h-16 w-16 opacity-5" />
+                                                <p className="text-sm font-medium uppercase tracking-widest">{t('noVideoAvailable')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </ResizablePanel>
+
+                            <ResizableHandle withHandle />
+
+                            {/* Bottom Section: Full Width Timeline */}
+                            <ResizablePanel defaultSize={35} minSize={20}>
+                                <div className="h-full bg-background shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] z-50 overflow-hidden">
+                                    <CapcutTimeline
+                                        durationSec={durationSec}
+                                        currentTimeSec={currentTime}
+                                        segments={subtitleSegments}
+                                        steps={presentSteps
+                                            .filter((s, i, arr) => arr.findIndex(t => t.id === s.id) === i)
+                                            .map(s => ({
+                                                id: s.id,
+                                                order: s.order,
+                                                startMs: s.timestampMs,
+                                                endMs: Math.min((durationSec || 10) * 1000, s.timestampMs + (s.durationMs ?? 8000)),
+                                                text: s.title,
+                                                description: s.description
+                                            }))}
+                                        selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
+                                        onSeek={(sec) => seekTo(sec, { autoplay: false })}
+                                        onUpdateSegment={updateSubtitleSegment}
+                                        onSelectSegment={(id) => {
+                                            const segment = subtitleSegments.find(s => s.id === id);
+                                            if (segment) {
+                                                seekTo(segment.startMs / 1000, { autoplay: false });
+                                            }
+                                            setSelectedSubtitleSegmentId(id);
+                                            setActiveStepId(null);
+                                            propertiesPanelRef.current?.expand();
+                                        }}
+                                        onSelectStep={(id, multi) => {
+                                            const step = presentSteps.find(s => s.id === id);
+                                            if (step) {
+                                                seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
+                                                setActiveStepId(id);
+                                                setSelectedSubtitleSegmentId(null);
+                                                propertiesPanelRef.current?.expand();
+
+                                                if (multi) {
+                                                    setSelectedStepIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(id)) next.delete(id);
+                                                        else next.add(id);
+                                                        return next;
+                                                    });
+                                                } else {
+                                                    setSelectedStepIds(new Set([id]));
+                                                }
+                                            }
+                                        }}
+                                        onUpdateStep={(id, patch) => {
+                                            handleUpdateStep(id, {
+                                                timestampMs: patch.startMs,
+                                                durationMs: patch.endMs ? patch.endMs - patch.startMs : undefined
+                                            });
+                                        }}
+                                        onDeleteStep={handleDeleteStep}
+                                        onSplitStep={handleSplitStep}
+                                        onMergeSteps={async () => {
+                                            if (selectedStepIds.size < 2) return;
+
+                                            const stepIds = Array.from(selectedStepIds);
+                                            const sortedIds = presentSteps
+                                                .filter(s => selectedStepIds.has(s.id))
+                                                .map(s => s.id);
+
+                                            const loadingToast = toast.loading('Merging steps with AI...');
+                                            const idsToMerge = [...sortedIds];
+                                            setSelectedStepIds(new Set());
+                                            try {
+                                                const result = await mergeStepsMutation.mutateAsync({
+                                                    observerSessionId: lumenId,
+                                                    stepIds: idsToMerge
+                                                });
+
+                                                setPastSteps(prev => [...prev, presentSteps]);
+                                                setFutureSteps([]);
+
+                                                setPresentSteps(prev => {
+                                                    const filtered = prev.filter(s => !idsToMerge.includes(s.id));
+                                                    const firstIndex = prev.findIndex(s => s.id === idsToMerge[0]);
+                                                    const next = [...filtered];
+                                                    next.splice(firstIndex, 0, result);
+                                                    return next.map((s, i) => ({ ...s, order: i + 1 }));
+                                                });
+
+                                                setActiveStepId(result.id);
+                                                toast.success('Steps merged and refined successfully', { id: loadingToast });
+                                            } catch (error) {
+                                                toast.error('Failed to merge steps', { id: loadingToast });
+                                            }
+                                        }}
+                                        selectedStepIds={selectedStepIds}
+                                        onUndo={undo}
+                                        onRedo={redo}
+                                        canUndo={pastSteps.length > 0}
+                                        canRedo={futureSteps.length > 0}
+                                        videoRef={videoRef}
+                                        isPlaying={isPlaying}
+                                        onTogglePlayback={togglePlayback}
+                                        playbackRate={playbackRate}
+                                        onPlaybackRateChange={setPlaybackRate}
+                                        showSubtitles={showSubtitles}
+                                        onToggleSubtitles={() => setShowSubtitles(!showSubtitles)}
+                                        volume={volume}
+                                        lastVolume={lastVolume}
+                                        onVolumeChange={handleVolumeChange}
+                                        onDragEnd={commitStepChanges}
+                                        onReorderSteps={handleReorderSteps}
+                                    />
+                                </div>
+                            </ResizablePanel>
+                        </ResizablePanelGroup>
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </div>

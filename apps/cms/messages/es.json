@@ -926,6 +926,8 @@
     "LumenReview": {
         "title": "Revisión de Lumen",
         "withoutIntent": "Lumen sin intención",
+        "properties": "Propiedades",
+        "selectItemToEdit": "Selecciona un paso o subtítulo en la línea de tiempo para ver sus propiedades.",
         "loadFailed": "No se pudo cargar la revisión del Lumen.",
         "back": "Volver",
         "options": "Opciones",
