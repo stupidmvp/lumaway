@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import { CapcutTimeline } from './CapcutTimeline';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { LumenVideoPlayer } from '../shared/video/LumenVideoPlayer';
 import { LumenTimeline } from '../shared/video/LumenTimeline';
 import {
@@ -446,11 +448,22 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     useEffect(() => {
         if (!presentSteps.length || isDraggingTimeline) return;
 
-        // Skip auto-selection if we are already at the exact timestamp of the active step
-        // to avoid jumping between steps with the same timestamp.
+        // 1. If a subtitle is manually selected, don't jump to a step if we are still near/in that subtitle
+        if (selectedSubtitleSegmentId) {
+            const currentSub = subtitleSegments.find(s => s.id === selectedSubtitleSegmentId);
+            if (currentSub) {
+                const startSec = currentSub.startMs / 1000;
+                const endSec = currentSub.endMs / 1000;
+                if (currentTime >= startSec - 0.2 && currentTime <= endSec + 0.2) {
+                    return;
+                }
+            }
+        }
+
+        // 2. Skip auto-selection if we are already at the exact timestamp of the active step
         if (activeStepId) {
             const currentActive = presentSteps.find(s => s.id === activeStepId);
-            if (currentActive && Math.abs((currentActive.timestampMs / 1000) - currentTime) < 0.05) {
+            if (currentActive && Math.abs((currentActive.timestampMs / 1000) - currentTime) < 0.5) {
                 return;
             }
         }
@@ -461,11 +474,12 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             return best;
         }, null);
 
-        if (nearest && nearest.distance <= 1.25) {
+        if (nearest && nearest.distance <= 1.0) {
             setActiveStepId(nearest.id);
             setSelectedStepIds(new Set([nearest.id]));
+            setSelectedSubtitleSegmentId(null); // Clear subtitle if we auto-select a step
         }
-    }, [currentTime, presentSteps, activeStepId]);
+    }, [currentTime, presentSteps, activeStepId, selectedSubtitleSegmentId, subtitleSegments]);
 
     const handleUpdateStep = useCallback((id: string, patch: Partial<ReviewTimelineStep>) => {
         setIsDraggingTimeline(true);
@@ -539,38 +553,19 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     }, [activeStepId]);
 
     const handleSplitStep = useCallback(() => {
+        if (!activeStepId) return;
+
+        const stepToSplit = presentSteps.find(s => s.id === activeStepId);
+        if (!stepToSplit) return;
+
         const currentMs = currentTime * 1000;
+        const originalDuration = stepToSplit.durationMs ?? 8000;
 
-        // Find the step that encompasses currentTime
-        const index = presentSteps.findIndex(s => {
-            const duration = s.durationMs ?? 8000;
-            return currentMs > s.timestampMs && currentMs < s.timestampMs + duration;
-        });
-
-        if (index === -1) {
-            // If no step covers current time, maybe create a new one at current time
-            const newStep: ReviewTimelineStep = {
-                id: `step-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                order: presentSteps.length + 1,
-                title: t('newStep') || 'Nuevo Paso',
-                description: '',
-                timestampMs: currentMs,
-                durationMs: 8000,
-                confidence: 100
-            };
-            setPresentSteps(current => {
-                setPastSteps(past => [...past, current]);
-                setFutureSteps([]);
-                const next = [...current, newStep].sort((a, b) => a.timestampMs - b.timestampMs);
-                return next.map((s, i) => ({ ...s, order: i + 1 }));
-            });
-            setActiveStepId(newStep.id);
-            setSelectedStepIds(new Set([newStep.id]));
+        // Requirement: Playhead must be inside the selected step
+        if (currentMs <= stepToSplit.timestampMs || currentMs >= stepToSplit.timestampMs + originalDuration) {
             return;
         }
 
-        const stepToSplit = presentSteps[index];
-        const originalDuration = stepToSplit.durationMs ?? 8000;
         const firstPartDuration = currentMs - stepToSplit.timestampMs;
         const secondPartDuration = Math.max(500, originalDuration - firstPartDuration);
 
@@ -911,9 +906,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 subtitleSegments,
                 stepCandidates,
             });
-            toast.success("Cambios guardados exitosamente");
+            toast.success(t('changesSaved'));
         } catch {
-            toast.error("Error al guardar los cambios");
+            toast.error(t('changesSaveFailed'));
         }
     };
 
@@ -1105,38 +1100,188 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                             isPropertiesCollapsed ? "min-w-[0px]" : ""
                         )}
                     >
-                        <div className="h-full bg-background border-r border-border overflow-y-auto flex flex-col z-10 relative shadow-sm">
-                            <div className="p-4 border-b border-border shrink-0">
+                        <div className="h-full bg-background border-r border-border overflow-hidden flex flex-col z-10 relative shadow-sm">
+                            <div className="p-4 border-b border-border shrink-0 flex items-center justify-between">
                                 <h2 className="text-sm font-bold">{t('properties') || 'Propiedades'}</h2>
                             </div>
-                            <div className="p-4 flex-1 flex flex-col gap-4">
-                                {activeStepId ? (
-                                    <div className="space-y-4">
-                                        <div className="text-sm font-semibold text-foreground">Paso Seleccionado</div>
-                                        <div className="text-xs text-foreground-muted">ID: {activeStepId}</div>
-                                        {/* TODO: Add Step editing form here */}
-                                    </div>
-                                ) : selectedSubtitleSegmentId ? (
-                                    <div className="space-y-4">
-                                        <div className="text-sm font-semibold text-foreground">Subtítulo Seleccionado</div>
-                                        <div className="text-xs text-foreground-muted">ID: {selectedSubtitleSegmentId}</div>
-                                        {/* TODO: Add Subtitle editing form here */}
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-center">
-                                        <p className="text-sm text-foreground-muted">
-                                            {t('selectItemToEdit') || 'Selecciona un paso o subtítulo en la línea de tiempo para ver sus propiedades.'}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                                <div className="px-4 pt-4 shrink-0">
+                                    <TabsList className="grid w-full grid-cols-2 h-9">
+                                        <TabsTrigger value="steps" className="text-xs font-semibold">{t('steps') || 'Pasos'}</TabsTrigger>
+                                        <TabsTrigger value="subtitles" className="text-xs font-semibold">{t('transcriptSegments') || 'Subtítulos'}</TabsTrigger>
+                                    </TabsList>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4">
+                                    <TabsContent value="steps" className="mt-0 space-y-4 focus-visible:outline-none focus-visible:ring-0">
+                                        {activeStepId ? (() => {
+                                            const step = presentSteps.find(s => s.id === activeStepId);
+                                            if (!step) return null;
+                                            return (
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-sm font-semibold text-foreground">{t('selectedStep')}</div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-foreground/70">{t('stepTitle') || 'Título'}</Label>
+                                                        <Input 
+                                                            value={step.title}
+                                                            onChange={(e) => handleUpdateStep(activeStepId, { title: e.target.value })}
+                                                            placeholder={t('stepTitle') || 'Título del paso'}
+                                                            className="h-8 text-sm"
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-foreground/70">{t('startTime')} ({t('milliseconds')})</Label>
+                                                            <Input 
+                                                                type="number"
+                                                                value={step.timestampMs}
+                                                                onChange={(e) => handleUpdateStep(activeStepId, { timestampMs: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-sm font-mono"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-foreground/70">{t('duration')} ({t('milliseconds')})</Label>
+                                                            <Input 
+                                                                type="number"
+                                                                value={step.durationMs || 8000}
+                                                                onChange={(e) => handleUpdateStep(activeStepId, { durationMs: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-sm font-mono"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-foreground/70">{t('stepDescription') || 'Descripción'}</Label>
+                                                        <Textarea 
+                                                            value={step.description}
+                                                            onChange={(e) => handleUpdateStep(activeStepId, { description: e.target.value })}
+                                                            placeholder={t('stepDescription') || 'Descripción del paso'}
+                                                            className="resize-none h-32 text-sm"
+                                                        />
+                                                    </div>
+
+                                                    <div className="pt-4 mt-4 border-t border-border flex items-center gap-2">
+                                                        <Button 
+                                                            size="sm" 
+                                                            className="flex-1 text-xs bg-accent-blue hover:bg-accent-blue/90 text-white h-8 gap-2"
+                                                            onClick={() => {
+                                                                handleSaveSteps();
+                                                                saveSubtitleSegments();
+                                                            }}
+                                                            disabled={saveReviewMutation.isPending || saveTranscriptSegmentsMutation.isPending}
+                                                        >
+                                                            {saveReviewMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                                            {t('save') || 'Guardar'}
+                                                        </Button>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className="px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
+                                                            onClick={() => handleDeleteStep(activeStepId)}
+                                                        >
+                                                            <RotateCcw className="h-3 w-3 rotate-45" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })() : (
+                                            <div className="h-40 flex items-center justify-center text-center">
+                                                <p className="text-xs text-foreground-muted italic">
+                                                    {t('selectStepInTimeline')}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </TabsContent>
+
+                                    <TabsContent value="subtitles" className="mt-0 space-y-4 focus-visible:outline-none focus-visible:ring-0">
+                                        {selectedSubtitleSegmentId ? (() => {
+                                            const subtitle = subtitleSegments.find(s => s.id === selectedSubtitleSegmentId);
+                                            if (!subtitle) return null;
+                                            return (
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-sm font-semibold text-foreground">{t('selectedSubtitle')}</div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-foreground/70">{t('startTime')} ({t('milliseconds')})</Label>
+                                                            <Input 
+                                                                type="number"
+                                                                value={subtitle.startMs}
+                                                                onChange={(e) => updateSubtitleSegment(selectedSubtitleSegmentId, { startMs: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-sm font-mono"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-foreground/70">{t('endTime')} ({t('milliseconds')})</Label>
+                                                            <Input 
+                                                                type="number"
+                                                                value={subtitle.endMs}
+                                                                onChange={(e) => updateSubtitleSegment(selectedSubtitleSegmentId, { endMs: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-sm font-mono"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-foreground/70">{t('subtitleText') || 'Texto'}</Label>
+                                                        <Textarea 
+                                                            value={subtitle.text}
+                                                            onChange={(e) => updateSubtitleSegment(selectedSubtitleSegmentId, { text: e.target.value })}
+                                                            placeholder={t('subtitleText') || 'Texto del subtítulo'}
+                                                            className="resize-none h-32 text-sm leading-relaxed"
+                                                        />
+                                                    </div>
+
+                                                    <div className="pt-4 mt-4 border-t border-border flex items-center gap-2">
+                                                        <Button 
+                                                            size="sm" 
+                                                            className="flex-1 text-xs bg-accent-blue hover:bg-accent-blue/90 text-white h-8 gap-2"
+                                                            onClick={() => {
+                                                                handleSaveSteps();
+                                                                saveSubtitleSegments();
+                                                            }}
+                                                            disabled={saveReviewMutation.isPending || saveTranscriptSegmentsMutation.isPending}
+                                                        >
+                                                            {saveReviewMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                                            {t('save') || 'Guardar'}
+                                                        </Button>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className="px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
+                                                            onClick={() => {
+                                                                setSubtitleSegments(prev => prev.filter(s => s.id !== selectedSubtitleSegmentId));
+                                                                setSelectedSubtitleSegmentId(null);
+                                                            }}
+                                                        >
+                                                            <RotateCcw className="h-3 w-3 rotate-45" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })() : (
+                                            <div className="h-40 flex items-center justify-center text-center">
+                                                <p className="text-xs text-foreground-muted italic">
+                                                    {t('selectSubtitleInTimeline')}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </TabsContent>
+                                </div>
+                            </Tabs>
                         </div>
                     </ResizablePanel>
 
-                    <ResizableHandle withHandle={false} className="relative z-[999] w-px bg-border after:hidden">
+                    <ResizableHandle withHandle={false} className="relative z-40 w-px bg-border after:hidden">
                         <div
                             className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-3.0 cursor-pointer items-center justify-center rounded-r-full bg-background border border-l-0 border-border shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-foreground/50 hover:text-foreground hover:bg-accent transition-colors"
-                            style={{ zIndex: 9999 }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1226,7 +1371,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 </div>
                             </ResizablePanel>
 
-                            <ResizableHandle withHandle />
+                            <ResizableHandle />
 
                             {/* Bottom Section: Full Width Timeline */}
                             <ResizablePanel defaultSize={35} minSize={20}>
@@ -1255,6 +1400,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             }
                                             setSelectedSubtitleSegmentId(id);
                                             setActiveStepId(null);
+                                            setSelectedStepIds(new Set());
+                                            setActiveTab('subtitles');
                                             propertiesPanelRef.current?.expand();
                                         }}
                                         onSelectStep={(id, multi) => {
@@ -1263,6 +1410,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                 seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
                                                 setActiveStepId(id);
                                                 setSelectedSubtitleSegmentId(null);
+                                                setActiveTab('steps');
                                                 propertiesPanelRef.current?.expand();
 
                                                 if (multi) {
@@ -1336,6 +1484,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                         onVolumeChange={handleVolumeChange}
                                         onDragEnd={commitStepChanges}
                                         onReorderSteps={handleReorderSteps}
+                                        t={t}
                                     />
                                 </div>
                             </ResizablePanel>

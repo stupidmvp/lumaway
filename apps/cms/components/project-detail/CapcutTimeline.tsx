@@ -37,8 +37,8 @@ import {
     Check,
     Languages,
     Trash2,
-    RotateCcw,
-    RotateCw,
+    Undo2,
+    Redo2,
     Download,
     Volume2,
     VolumeX,
@@ -93,6 +93,7 @@ interface CapcutTimelineProps {
     onSelectStep?: (id: string, multi?: boolean) => void;
     onMergeSteps?: () => void;
     selectedStepIds?: Set<string>;
+    t?: (k: string) => string;
 }
 
 function formatVideoTime(seconds: number) {
@@ -144,7 +145,7 @@ function SortableStepItem({
             ref={setNodeRef}
             style={style}
             className={cn(
-                "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group",
+                "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none",
                 isStepActive 
                     ? "bg-sky-600 text-white z-10 shadow-md scale-[1.02] px-2" 
                     : isEven 
@@ -157,7 +158,7 @@ function SortableStepItem({
                 {...attributes} 
                 {...listeners}
                 className={cn(
-                    "pl-2 pr-1 cursor-grab active:cursor-grabbing transition-opacity",
+                    "pl-2 pr-1 cursor-grab active:cursor-grabbing transition-opacity outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none",
                     isStepActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}
             >
@@ -165,7 +166,7 @@ function SortableStepItem({
             </div>
 
             <button 
-                className="flex-1 h-full flex flex-col justify-center pr-4 overflow-hidden text-left"
+                className="flex-1 h-full flex flex-col justify-center pr-4 overflow-hidden text-left outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none"
                 onPointerDown={(e) => {
                     e.stopPropagation();
                     if (videoRef.current) {
@@ -227,6 +228,7 @@ export function CapcutTimeline({
     onSelectStep,
     onMergeSteps,
     selectedStepIds = new Set(),
+    t = (k: string) => k,
 }: CapcutTimelineProps) {
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -339,6 +341,7 @@ export function CapcutTimeline({
                 // x is relative to trackRef (which starts after sidebar)
                 const x = TIMELINE_PADDING_LEFT + (video.currentTime * pixelsPerSecond);
                 playhead.style.transform = `translate3d(${x}px, 0, 0)`;
+                const absoluteX = x + sidebarWidth;
                 
                 if (container) {
                     const now = Date.now();
@@ -347,22 +350,20 @@ export function CapcutTimeline({
                     if (!isManualScrolling) {
                         const scrollLeft = container.scrollLeft;
                         const containerWidth = container.clientWidth;
-                        const padding = 100; 
+                        const trackVisibleWidth = containerWidth - sidebarWidth;
+                        const centerScreenX = scrollLeft + sidebarWidth + (trackVisibleWidth / 2);
+                        const isPlaying = video.playbackRate > 0 && !video.paused;
                         
-                        // absoluteX includes the sidebar for scroll boundary checks
-                        const absoluteX = x + sidebarWidth;
-                        const isNearRightEdge = absoluteX > (scrollLeft + containerWidth - padding);
-                        const isNearLeftEdge = absoluteX < (scrollLeft + padding + sidebarWidth);
-                        
-                        if (isNearRightEdge || isNearLeftEdge) {
-                            const isPlaying = video.playbackRate > 0 && !video.paused;
-                            if (isPlaying) {
-                                // Scroll to center the playhead in the available track space
-                                const targetScroll = absoluteX - ((containerWidth - sidebarWidth) / 2) - sidebarWidth;
-                                container.scrollTo({
-                                    left: Math.max(0, targetScroll),
-                                    behavior: 'auto'
-                                });
+                        if (isPlaying) {
+                            // If playhead crosses the center, push the scroll to keep it perfectly centered
+                            if (absoluteX > centerScreenX) {
+                                const targetScroll = absoluteX - sidebarWidth - (trackVisibleWidth / 2);
+                                container.scrollLeft = Math.max(0, targetScroll);
+                            } 
+                            // If it's completely off-screen left (e.g., video jumped back), center it again
+                            else if (absoluteX < scrollLeft + sidebarWidth) {
+                                const targetScroll = absoluteX - sidebarWidth - (trackVisibleWidth / 2);
+                                container.scrollLeft = Math.max(0, targetScroll);
                             }
                         }
                     }
@@ -638,13 +639,16 @@ export function CapcutTimeline({
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50"
+                                    className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50 disabled:opacity-30"
                                     onClick={() => onSplitStep?.()}
+                                    disabled={selectedStepIds.size !== 1}
                                 >
                                     <SquareSplitHorizontal className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px]">Dividir (⌘B)</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px]">
+                                {selectedStepIds.size !== 1 ? t('selectStepToSplit') : t('splitAtPlayhead')}
+                            </TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -692,12 +696,12 @@ export function CapcutTimeline({
                                     onClick={() => onUndo?.()}
                                     disabled={!canUndo}
                                 >
-                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <Undo2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px]">Deshacer (⌘Z)</TooltipContent>
                         </Tooltip>
-
+                        
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button 
@@ -707,7 +711,7 @@ export function CapcutTimeline({
                                     onClick={() => onRedo?.()}
                                     disabled={!canRedo}
                                 >
-                                    <RotateCw className="w-3.5 h-3.5" />
+                                    <Redo2 className="w-3.5 h-3.5" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px]">Rehacer (⌘⇧Z)</TooltipContent>
@@ -725,12 +729,12 @@ export function CapcutTimeline({
                             {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                         </button>
                         
-                        <div className="flex items-center gap-1 font-mono text-[11px] tracking-tight tabular-nums whitespace-nowrap bg-secondary/20 px-2 py-0.5 rounded border border-border/50">
-                            <span className="text-foreground font-black">
+                        <div className="flex items-center gap-1 font-mono text-[11px] tabular-nums whitespace-nowrap">
+                            <span className="text-foreground font-semibold">
                                 {formatVideoTime(currentTimeSec).split('.')[0]}
                             </span>
-                            <span className="text-foreground/20 font-bold">/</span>
-                            <span className="text-foreground/40 font-medium">
+                            <span className="text-foreground/30">/</span>
+                            <span className="text-foreground/50">
                                 {formatVideoTime(durationSec).split('.')[0]}
                             </span>
                         </div>
@@ -748,7 +752,7 @@ export function CapcutTimeline({
                         >
                             <Minus className="w-3 h-3" />
                         </button>
-                        <div className="w-20 sm:w-28 relative flex items-center mx-1">
+                        <div className="w-14 sm:w-20 relative flex items-center mx-1">
                             <Slider 
                                 min={20}
                                 max={500}
@@ -771,6 +775,28 @@ export function CapcutTimeline({
 
                     {/* CC & Volume Buttons */}
                     <div className="flex items-center gap-1">
+                        <div className="relative flex items-center group/volume h-8">
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-foreground/40 hover:text-foreground shrink-0 rounded-md"
+                                onClick={() => onVolumeChange?.(volume > 0 ? 0 : lastVolume)}
+                            >
+                                {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            </Button>
+                            
+                            <div className="absolute left-full ml-1 top-1/2 -translate-y-1/2 w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300 ease-in-out flex items-center bg-background/95 backdrop-blur rounded-md shadow-sm h-8 px-0 group-hover/volume:px-2 z-50 border border-transparent group-hover/volume:border-border">
+                                <Slider 
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    value={[volume]}
+                                    onValueChange={(val) => onVolumeChange?.(val[0])}
+                                    className="w-20 cursor-pointer"
+                                />
+                            </div>
+                        </div>
+
                         <Button 
                             variant="ghost" 
                             size="icon" 
@@ -783,27 +809,6 @@ export function CapcutTimeline({
                             <Captions className="w-3.5 h-3.5" />
                         </Button>
                         
-                        <div className="flex items-center group/volume h-8 px-1">
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 text-foreground/40 hover:text-foreground shrink-0"
-                                onClick={() => onVolumeChange?.(volume > 0 ? 0 : lastVolume)}
-                            >
-                                {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                            </Button>
-                            <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300 ease-in-out flex items-center">
-                                <Slider 
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={[volume]}
-                                    onValueChange={(val) => onVolumeChange?.(val[0])}
-                                    className="w-20 ml-2 cursor-pointer"
-                                />
-                            </div>
-                        </div>
-
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 px-2 text-[10px] font-bold text-foreground/60 hover:text-foreground hover:bg-secondary/50">
