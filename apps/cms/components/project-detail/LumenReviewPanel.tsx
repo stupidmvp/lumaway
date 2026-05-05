@@ -115,6 +115,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const canvasRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const propertiesPanelRef = useRef<ImperativePanelHandle>(null);
+    const lastManualSelectionTime = useRef<number>(0);
     const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(true);
     const [currentTime, setCurrentTime] = useState(0);
     const [activeStepId, setActiveStepId] = useState<string | null>(null);
@@ -425,7 +426,8 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 || Math.round(fallbackTimestamp);
 
             return {
-                id: matchedCandidate?.id || `suggested-action-${Number(action.order || index + 1)}`,
+                // CRITICAL: Avoid using 'index' in the ID. Use content or stable properties.
+                id: matchedCandidate?.id || `action-${action.order || 'v1'}-${(action.description || '').substring(0, 10).replace(/\s/g, '-')}`,
                 order: Number(action.order || index + 1),
                 title: String(action.title || matchedCandidate?.title || `Paso ${index + 1}`),
                 description: String(action.description || matchedCandidate?.description || ''),
@@ -447,6 +449,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
     useEffect(() => {
         if (!presentSteps.length || isDraggingTimeline) return;
+        
+        // Skip auto-selection if a manual click occurred recently
+        if (Date.now() - lastManualSelectionTime.current < 1000) return;
 
         // 1. If a subtitle is manually selected, don't jump to a step if we are still near/in that subtitle
         if (selectedSubtitleSegmentId) {
@@ -474,7 +479,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             return best;
         }, null);
 
-        if (nearest && nearest.distance <= 1.0) {
+        if (nearest && nearest.distance <= 1.0 && nearest.id !== activeStepId) {
             setActiveStepId(nearest.id);
             setSelectedStepIds(new Set([nearest.id]));
             setSelectedSubtitleSegmentId(null); // Clear subtitle if we auto-select a step
@@ -587,6 +592,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
             setPastSteps(past => [...past, current]);
             setFutureSteps([]);
             const next = [...current];
+            const index = next.findIndex(s => s.id === activeStepId);
             next[index] = updatedStep;
             next.push(newStep);
             const sorted = next.sort((a, b) => a.timestampMs - b.timestampMs);
@@ -596,7 +602,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
         toast.info(t('splitAt', { time: formatVideoTime(currentTime) }) || `Dividiendo en ${formatVideoTime(currentTime)}`);
         setActiveStepId(newStep.id);
         setSelectedStepIds(new Set([newStep.id]));
-    }, [currentTime, presentSteps, t]);
+    }, [currentTime, presentSteps, t, activeStepId]);
 
     const undo = useCallback(() => {
         if (pastSteps.length === 0) return;
@@ -1385,9 +1391,11 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                 description: s.description
                                             }))}
                                         selectedSegmentId={selectedSubtitleSegmentId || activeStepId}
+                                        selectedStepIds={selectedStepIds}
                                         onSeek={(sec) => seekTo(sec, { autoplay: false })}
                                         onUpdateSegment={updateSubtitleSegment}
                                         onSelectSegment={(id) => {
+                                            lastManualSelectionTime.current = Date.now();
                                             const segment = subtitleSegments.find(s => s.id === id);
                                             if (segment) {
                                                 seekTo(segment.startMs / 1000, { autoplay: false });
@@ -1396,33 +1404,52 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             setActiveStepId(null);
                                             setSelectedStepIds(new Set());
                                             setActiveTab('subtitles');
-                                            propertiesPanelRef.current?.expand();
+                                            propertiesPanelRef.current?.expand(); // Only expand on timeline click
                                         }}
-                                        onSelectStep={(id, multi) => {
+                                        onSelectStep={(id, multi, fromTimeline) => {
+                                            lastManualSelectionTime.current = Date.now();
+                                            
+                                            // 1. Force immediate UI state change
+                                            setActiveTab('steps');
+                                            setActiveStepId(id);
+                                            setSelectedSubtitleSegmentId(null);
+                                            
+                                            // 2. Expand panel BEFORE other logic
+                                            if (fromTimeline) {
+                                                propertiesPanelRef.current?.expand();
+                                            }
+
+                                            // 3. Update Selection Set
+                                            if (multi) {
+                                                setSelectedStepIds(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(id)) next.delete(id);
+                                                    else next.add(id);
+                                                    return next;
+                                                });
+                                            } else {
+                                                setSelectedStepIds(new Set([id]));
+                                            }
+
+                                            // 4. Conditional Seek
                                             const step = presentSteps.find(s => s.id === id);
                                             if (step) {
-                                                seekTo(step.timestampMs / 1000, { autoplay: false, stepId: id });
-                                                setActiveStepId(id);
-                                                setSelectedSubtitleSegmentId(null);
-                                                setActiveTab('steps');
-                                                propertiesPanelRef.current?.expand();
-
-                                                if (multi) {
-                                                    setSelectedStepIds(prev => {
-                                                        const next = new Set(prev);
-                                                        if (next.has(id)) next.delete(id);
-                                                        else next.add(id);
-                                                        return next;
-                                                    });
-                                                } else {
-                                                    setSelectedStepIds(new Set([id]));
+                                                const targetSec = step.timestampMs / 1000;
+                                                if (Math.abs(currentTime - targetSec) > 0.1) {
+                                                    seekTo(targetSec, { autoplay: false, stepId: id });
                                                 }
                                             }
                                         }}
                                         onUpdateStep={(id, patch) => {
-                                            handleUpdateStep(id, {
-                                                timestampMs: patch.startMs,
-                                                durationMs: patch.endMs ? patch.endMs - patch.startMs : undefined
+                                            setPresentSteps(prev => {
+                                                const next = prev.map(s => s.id === id ? { 
+                                                    ...s, 
+                                                    timestampMs: patch.startMs ?? s.timestampMs,
+                                                    durationMs: patch.endMs ? patch.endMs - (patch.startMs ?? s.timestampMs) : s.durationMs
+                                                } : s);
+                                                
+                                                // Auto-sort steps by timestamp when updated from timeline
+                                                return [...next].sort((a, b) => a.timestampMs - b.timestampMs);
                                             });
                                         }}
                                         onDeleteStep={handleDeleteStep}

@@ -19,6 +19,7 @@ import {
     useSensors,
     DragEndEvent,
 } from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
     arrayMove,
     SortableContext,
@@ -70,7 +71,7 @@ interface CapcutTimelineProps {
     selectedSegmentId: string | null;
     onSeek: (sec: number) => void;
     onUpdateSegment: (id: string, patch: Partial<VideoTextSegment>) => void;
-    onSelectSegment: (id: string) => void;
+    onSelectSegment: (id: string, fromTimeline?: boolean) => void;
     onUpdateStep?: (id: string, patch: Partial<VideoTextSegment>) => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
     isPlaying?: boolean;
@@ -90,7 +91,7 @@ interface CapcutTimelineProps {
     canRedo?: boolean;
     onDragEnd?: () => void;
     onReorderSteps?: (newSteps: any[]) => void;
-    onSelectStep?: (id: string, multi?: boolean) => void;
+    onSelectStep?: (id: string, multi?: boolean, fromTimeline?: boolean) => void;
     onMergeSteps?: () => void;
     selectedStepIds?: Set<string>;
     t?: (k: string) => string;
@@ -131,7 +132,7 @@ function SortableStepItem({
     } = useSortable({ id: step.id });
 
     const style = {
-        transform: CSS.Transform.toString(transform),
+        transform: transform ? `translate3d(0px, ${Math.round(transform.y)}px, 0)` : undefined,
         transition,
         zIndex: isDragging ? 100 : undefined,
     };
@@ -248,13 +249,34 @@ export function CapcutTimeline({
             const newIndex = steps.findIndex((s) => s.id === over.id);
             const newSteps = arrayMove(steps, oldIndex, newIndex);
             if (onReorderSteps) onReorderSteps(newSteps);
+            
+            // Delay selection to allow the timeline to settle
+            setTimeout(() => {
+                const id = String(active.id);
+                if (onSelectStep) onSelectStep(id, false, true);
+                focusOnSegment(id);
+            }, 200);
         }
     };
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const playheadRef = useRef<HTMLDivElement>(null);
     const [pixelsPerSecond, setPixelsPerSecond] = useState(100); 
+    const [draggedItem, setDraggedItem] = useState<{ id: string; startMs: number; endMs: number } | null>(null);
+    const isDraggingItemRef = useRef(false);
+    const [localSelectedId, setLocalSelectedId] = useState<string | null>(selectedSegmentId);
+    const lastPropSelectedId = useRef<string | null>(selectedSegmentId);
+    
+    // Sync local selection with prop only when prop actually changes from outside
+    useEffect(() => {
+        if (selectedSegmentId !== lastPropSelectedId.current) {
+            setLocalSelectedId(selectedSegmentId);
+            lastPropSelectedId.current = selectedSegmentId;
+        }
+    }, [selectedSegmentId]);
 
+    const lastPlayheadX = useRef<number>(0);
+    const lastManualFocusTime = useRef<number>(0);
     const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
     const sidebarWidth = 280;
     const TIMELINE_PADDING_LEFT = 24;
@@ -292,37 +314,84 @@ export function CapcutTimeline({
 
     const lastSelectedId = useRef<string | null>(null);
 
-    useEffect(() => {
-        if (selectedSegmentId && containerRef.current) {
-            const allItems = [...segments, ...steps];
-            const item = allItems.find(i => i.id === selectedSegmentId);
-            if (item) {
-                const x = (item.startMs / 1000) * pixelsPerSecond;
-                const container = containerRef.current;
-                const targetX = x - ((container.clientWidth - sidebarWidth) / 2);
-                
-                let targetY = 0;
-                const stepIndex = steps.findIndex(s => s.id === selectedSegmentId);
-                if (stepIndex !== -1) {
-                    const itemY = 16 + 44 + (stepIndex * 44);
-                    targetY = itemY - (container.clientHeight / 2) + 22;
-                } else {
-                    const isSubtitle = segments.some(s => s.id === selectedSegmentId);
-                    if (isSubtitle) {
-                        targetY = 16 - (container.clientHeight / 2) + 22;
-                    }
+    const focusOnSegment = (id: string) => {
+        if (!containerRef.current) return;
+        const allItems = [...segments, ...steps];
+        const item = allItems.find(i => i.id === id);
+        
+        if (item) {
+            const isNewSelection = id !== lastSelectedId.current;
+            lastSelectedId.current = id;
+            
+            // 1. Playhead Jump - Always jump if new selection, otherwise check tolerance
+            let shouldJumpPlayhead = isNewSelection;
+            if (videoRef.current && !shouldJumpPlayhead) {
+                const targetTime = item.startMs / 1000;
+                if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) {
+                    shouldJumpPlayhead = true;
                 }
-                
+            }
+            
+            if (shouldJumpPlayhead && videoRef.current) {
+                videoRef.current.currentTime = item.startMs / 1000;
+                lastPlayheadX.current = TIMELINE_PADDING_LEFT + (item.startMs / 1000 * pixelsPerSecond);
+            }
+
+            const x = TIMELINE_PADDING_LEFT + ((item.startMs / 1000) * pixelsPerSecond);
+            const container = containerRef.current;
+            const targetX = x - 100;
+            
+            // 2. Scroll Logic
+            const scrollLeft = container.scrollLeft;
+            const viewportWidth = container.clientWidth - sidebarWidth;
+            const isVisibleHorizontally = x >= scrollLeft + 50 && x <= (scrollLeft + viewportWidth - 150);
+
+            let targetY = 0;
+            const stepIndex = steps.findIndex(s => s.id === id);
+            if (stepIndex !== -1) {
+                const itemY = 16 + 44 + (stepIndex * 44);
+                targetY = itemY - (container.clientHeight / 2) + 22;
+            } else {
+                const isSubtitle = segments.some(s => s.id === id);
+                if (isSubtitle) {
+                    targetY = 16 - (container.clientHeight / 2) + 22;
+                }
+            }
+            
+            const scrollTop = container.scrollTop;
+            const isVisibleVertically = Math.abs(targetY - scrollTop) < 50;
+
+            // Only scroll if it's a new selection OR it's truly off-screen
+            const shouldScroll = isNewSelection || !isVisibleHorizontally || !isVisibleVertically;
+
+            if (shouldScroll) {
                 container.scrollTo({
-                    left: Math.max(0, targetX),
-                    top: Math.max(0, targetY),
+                    left: isNewSelection ? Math.max(0, targetX) : (isVisibleHorizontally ? scrollLeft : Math.max(0, targetX)),
+                    top: isNewSelection ? Math.max(0, targetY) : (isVisibleVertically ? scrollTop : Math.max(0, targetY)),
                     behavior: 'smooth'
                 });
-                
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (selectedSegmentId && containerRef.current) {
+            const video = videoRef.current;
+            const isPlaying = video && !video.paused && video.playbackRate > 0;
+            
+            // Skip auto-focus if playing, but still update the lastSelectedId
+            if (isPlaying) {
+                lastSelectedId.current = selectedSegmentId;
+                return;
+            }
+            
+            // If the ID changed, trigger focus
+            if (selectedSegmentId !== lastSelectedId.current) {
+                focusOnSegment(selectedSegmentId);
                 lastSelectedId.current = selectedSegmentId;
             }
         }
-    }, [selectedSegmentId, steps.length, pixelsPerSecond]);
+    }, [selectedSegmentId, steps, segments, pixelsPerSecond]);
 
     useEffect(() => {
         let frameId: number;
@@ -346,32 +415,36 @@ export function CapcutTimeline({
                     const isPlaying = video.playbackRate > 0 && !video.paused;
                     
                     const playheadInTrackX = x;
-                    const visibleTrackLeft = container.scrollLeft;
+                    const scrollLeft = container.scrollLeft;
+                    const visibleTrackLeft = scrollLeft;
                     const visibleTrackRight = visibleTrackLeft + trackVisibleWidth;
+ 
+                    // CRITICAL: Use the REF to check dragging state inside the sync loop closure
+                    if (!isDraggingItemRef.current) {
+                        const hasPlayheadMoved = Math.abs(playheadInTrackX - lastPlayheadX.current) > 0.1;
+                        const isRecentlyFocused = Date.now() - lastManualFocusTime.current < 500;
 
-                    // "Hard" boundary check: if it's off-screen, follow immediately regardless of manual scroll
-                    const edgeMargin = 60;
-                    const isOffScreen = playheadInTrackX > (visibleTrackRight - edgeMargin) || 
-                                       playheadInTrackX < (visibleTrackLeft + edgeMargin);
-
-                    if (isPlaying || (isOffScreen && !isManualScrolling)) {
-                        // Smoothly center the playhead
-                        // We target the center of the visible track area
-                        const targetScroll = playheadInTrackX - (trackVisibleWidth / 2);
-                        
-                        // If playing, we follow strictly. If just off-screen, we jump/scroll to center.
-                        if (isPlaying) {
-                            container.scrollLeft = Math.max(0, targetScroll);
-                        } else if (isOffScreen) {
-                            // Non-playing off-screen: smoother jump
-                            container.scrollTo({
-                                left: Math.max(0, targetScroll),
-                                behavior: 'smooth'
-                            });
-                            // Reset cooldown to let the follow take over
-                            lastManualScrollTime.current = 0;
+                        // If playing, we only follow when hitting the right edge (e.g., 90% of visible area)
+                        if (isPlaying && !isManualScrolling && !isRecentlyFocused) {
+                            const rightThreshold = visibleTrackRight - 100;
+                            if (playheadInTrackX > rightThreshold) {
+                                // Page forward smoothly
+                                const targetScroll = playheadInTrackX - 100;
+                                container.scrollTo({
+                                    left: Math.max(0, targetScroll),
+                                    behavior: 'smooth'
+                                });
+                            }
+                        } else if (!isPlaying && hasPlayheadMoved && !isRecentlyFocused) {
+                            // ONLY jump if the playhead itself moved (scrubbing), not if the container just scrolled
+                            const margin = 40;
+                            if (playheadInTrackX > visibleTrackRight - margin || playheadInTrackX < visibleTrackLeft + margin) {
+                                const targetScroll = playheadInTrackX - (trackVisibleWidth / 2);
+                                container.scrollLeft = Math.max(0, targetScroll);
+                            }
                         }
                     }
+                    lastPlayheadX.current = playheadInTrackX;
                 }
             }
             frameId = requestAnimationFrame(sync);
@@ -402,8 +475,14 @@ export function CapcutTimeline({
         const initialEndMs = item.endMs;
         const durationMs = initialEndMs - initialStartMs;
         
+        // Pause playback when dragging starts
+        if (videoRef.current) videoRef.current.pause();
+
+        // Delay state update until threshold is crossed
         let currentMouseX = e.clientX;
         let animationFrameId: number;
+        let hasMovedBeyondThreshold = false;
+        const THRESHOLD = 5;
         
         const updatePosition = () => {
             const currentScrollLeft = container.scrollLeft;
@@ -423,18 +502,37 @@ export function CapcutTimeline({
                 newStartMs = newEndMs - durationMs;
             }
             
-            onUpdate(item.id, { 
-                startMs: Math.round(newStartMs), 
-                endMs: Math.round(newEndMs) 
+            setDraggedItem({
+                id: item.id,
+                startMs: Math.round(newStartMs),
+                endMs: Math.round(newEndMs)
             });
         };
 
         const handlePointerMove = (moveEvent: PointerEvent) => {
-            currentMouseX = moveEvent.clientX;
-            updatePosition();
+            const deltaX = Math.abs(moveEvent.clientX - startX);
+            if (!hasMovedBeyondThreshold && deltaX > THRESHOLD) {
+                hasMovedBeyondThreshold = true;
+                isDraggingItemRef.current = true;
+                setDraggedItem({
+                    id: item.id,
+                    startMs: Math.round(initialStartMs),
+                    endMs: Math.round(initialEndMs)
+                });
+                document.body.style.cursor = 'grabbing';
+            }
+            
+            if (hasMovedBeyondThreshold) {
+                currentMouseX = moveEvent.clientX;
+                updatePosition();
+            }
         };
 
         const autoScrollTick = () => {
+            if (!hasMovedBeyondThreshold) {
+                animationFrameId = requestAnimationFrame(autoScrollTick);
+                return;
+            }
             const rect = container.getBoundingClientRect();
             const EDGE = 60;
             const SPEED = 15;
@@ -450,11 +548,46 @@ export function CapcutTimeline({
             animationFrameId = requestAnimationFrame(autoScrollTick);
         };
 
-        const handlePointerUp = () => {
+        const handlePointerUp = (upEvent: PointerEvent) => {
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
             cancelAnimationFrame(animationFrameId);
             document.body.style.cursor = 'default';
+            
+            const currentScrollLeft = container.scrollLeft;
+            const scrollDelta = currentScrollLeft - startScrollLeft;
+            const finalDeltaX = (upEvent.clientX - startX) + scrollDelta;
+            const finalDeltaMs = (finalDeltaX / pixelsPerSecond) * 1000;
+            
+            let finalStartMs = initialStartMs + finalDeltaMs;
+            let finalEndMs = initialEndMs + finalDeltaMs;
+
+            if (finalStartMs < 0) {
+                finalStartMs = 0;
+                finalEndMs = durationMs;
+            }
+            if (finalEndMs > safeDuration * 1000) {
+                finalEndMs = safeDuration * 1000;
+                finalStartMs = finalEndMs - durationMs;
+            }
+            // Only trigger data update and re-focus if we actually moved
+            if (hasMovedBeyondThreshold) {
+                onUpdate(item.id, { 
+                    startMs: Math.round(finalStartMs), 
+                    endMs: Math.round(finalEndMs) 
+                });
+                
+                // Delay selection to allow the timeline to settle after drag
+                setTimeout(() => {
+                    if (onSelectStep) {
+                        onSelectStep(item.id, false, true);
+                    }
+                    focusOnSegment(item.id);
+                }, 200);
+            }
+
+            setDraggedItem(null);
+            isDraggingItemRef.current = false;
             if (onDragEnd) onDragEnd();
         };
 
@@ -467,6 +600,11 @@ export function CapcutTimeline({
 
     const handleItemResize = (item: VideoTextSegment, type: 'start' | 'end', onUpdate: (id: string, patch: Partial<VideoTextSegment>) => void) => (e: React.PointerEvent) => {
         e.stopPropagation();
+        
+        // Ensure item is selected even when clicking resizers
+        setLocalSelectedId(item.id);
+        if (onSelectStep) onSelectStep(item.id, e.shiftKey || e.metaKey, true);
+
         if (!containerRef.current) return;
         
         const container = containerRef.current;
@@ -474,8 +612,15 @@ export function CapcutTimeline({
         const startScrollLeft = container.scrollLeft;
         const startValueMs = type === 'start' ? item.startMs : item.endMs;
         
+        // Pause playback when resizing starts
+        if (videoRef.current) videoRef.current.pause();
+
+        // We don't set isDraggingItemRef.current = true yet
+        // We wait for the threshold in handlePointerMove
         let currentMouseX = e.clientX;
         let animationFrameId: number;
+        let hasMovedBeyondThreshold = false;
+        const THRESHOLD = 5;
         
         const updatePosition = () => {
             const currentScrollLeft = container.scrollLeft;
@@ -486,22 +631,37 @@ export function CapcutTimeline({
             const newValueMs = Math.max(0, Math.min(safeDuration * 1000, startValueMs + deltaMs));
             
             if (type === 'start') {
-                if (newValueMs < item.endMs - 100) {
-                    onUpdate(item.id, { startMs: Math.round(newValueMs) });
+                const newStart = Math.round(newValueMs);
+                if (newStart < item.endMs - 100) {
+                    setDraggedItem({ id: item.id, startMs: newStart, endMs: item.endMs });
                 }
             } else {
-                if (newValueMs > item.startMs + 100) {
-                    onUpdate(item.id, { endMs: Math.round(newValueMs) });
+                const newEnd = Math.round(newValueMs);
+                if (newEnd > item.startMs + 100) {
+                    setDraggedItem({ id: item.id, startMs: item.startMs, endMs: newEnd });
                 }
             }
         };
 
         const handlePointerMove = (moveEvent: PointerEvent) => {
-            currentMouseX = moveEvent.clientX;
-            updatePosition();
+            const deltaX = Math.abs(moveEvent.clientX - startX);
+            if (!hasMovedBeyondThreshold && deltaX > THRESHOLD) {
+                hasMovedBeyondThreshold = true;
+                isDraggingItemRef.current = true;
+                document.body.style.cursor = 'ew-resize';
+            }
+            
+            if (hasMovedBeyondThreshold) {
+                currentMouseX = moveEvent.clientX;
+                updatePosition();
+            }
         };
 
         const autoScrollTick = () => {
+            if (!hasMovedBeyondThreshold) {
+                animationFrameId = requestAnimationFrame(autoScrollTick);
+                return;
+            }
             const rect = container.getBoundingClientRect();
             const EDGE = 60;
             const SPEED = 15;
@@ -517,10 +677,37 @@ export function CapcutTimeline({
             animationFrameId = requestAnimationFrame(autoScrollTick);
         };
 
-        const handlePointerUp = () => {
+        const handlePointerUp = (upEvent: PointerEvent) => {
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
             cancelAnimationFrame(animationFrameId);
+            
+            const currentScrollLeft = container.scrollLeft;
+            const scrollDelta = currentScrollLeft - startScrollLeft;
+            const finalDeltaX = (upEvent.clientX - startX) + scrollDelta;
+            const finalDeltaMs = (finalDeltaX / pixelsPerSecond) * 1000;
+            const finalValueMs = Math.max(0, Math.min(safeDuration * 1000, startValueMs + finalDeltaMs));
+
+            if (hasMovedBeyondThreshold) {
+                if (type === 'start') {
+                    if (finalValueMs < item.endMs - 100) {
+                        onUpdate(item.id, { startMs: Math.round(finalValueMs) });
+                    }
+                } else {
+                    if (finalValueMs > item.startMs + 100) {
+                        onUpdate(item.id, { endMs: Math.round(finalValueMs) });
+                    }
+                }
+                setTimeout(() => {
+                    if (onSelectStep) {
+                        onSelectStep(item.id, false, true);
+                    }
+                    focusOnSegment(item.id);
+                }, 200);
+            }
+
+            setDraggedItem(null);
+            isDraggingItemRef.current = false;
             if (onDragEnd) onDragEnd();
         };
 
@@ -541,23 +728,28 @@ export function CapcutTimeline({
         }));
     }, [safeDuration, pixelsPerSecond]);
 
-    const renderTimelineItem = (item: VideoTextSegment, type: 'subtitle' | 'step', onUpdate: (id: string, patch: Partial<VideoTextSegment>) => void, onSelect: (id: string) => void) => {
-        const x = TIMELINE_PADDING_LEFT + ((item.startMs / 1000) * pixelsPerSecond);
-        const width = ((item.endMs - item.startMs) / 1000) * pixelsPerSecond;
-        const isSelected = selectedSegmentId === item.id;
-        const isActive = (currentTimeSec * 1000) >= item.startMs && (currentTimeSec * 1000) <= item.endMs;
+    const renderTimelineItem = (item: VideoTextSegment, type: 'subtitle' | 'step', onUpdate: (id: string, patch: Partial<VideoTextSegment>) => void) => {
+        const isCurrentlyDragged = draggedItem?.id === item.id;
+        const currentStartMs = isCurrentlyDragged ? draggedItem.startMs : item.startMs;
+        const currentEndMs = isCurrentlyDragged ? draggedItem.endMs : item.endMs;
+
+        const x = TIMELINE_PADDING_LEFT + ((currentStartMs / 1000) * pixelsPerSecond);
+        const width = ((currentEndMs - currentStartMs) / 1000) * pixelsPerSecond;
+        // Direct and simple selection check - using local state for instant feedback
+        const isSelected = item.id === localSelectedId || (selectedStepIds instanceof Set && selectedStepIds.has(item.id));
+        const isActive = (currentTimeSec * 1000) >= currentStartMs && (currentTimeSec * 1000) <= currentEndMs;
         
         return (
             <div
                 key={item.id}
                 className={cn(
-                    "absolute h-8 top-2 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group",
+                    "absolute h-8 top-2 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group pointer-events-auto",
                     type === 'step' ? (isSelected ? "bg-[#6366f1]" : "bg-[#6366f1]/80") : (isSelected ? "bg-[#3a3a3e]" : "bg-[#2a2a2e]"),
                     isSelected 
-                        ? "border-[1.5px] border-white z-20 shadow-[0_4px_15px_rgba(0,0,0,0.5)] ring-2 ring-[#6366f1]/30 ring-offset-2 ring-offset-[#0f0f11] animate-in fade-in zoom-in duration-300" 
+                        ? "border-[2px] border-white z-[60] shadow-xl ring-2 ring-white/30" 
                         : isActive
-                            ? "border-white/20 z-15"
-                            : "border-white/10 z-10"
+                            ? "border-white/20 z-40"
+                            : "border-white/10 z-30"
                 )}
                 style={{ 
                     left: `${x}px`, 
@@ -565,25 +757,47 @@ export function CapcutTimeline({
                 }}
                 onPointerDown={(e) => {
                     e.stopPropagation();
-                    if (videoRef.current) {
-                        videoRef.current.currentTime = item.startMs / 1000;
+                    
+                    // 1. Immediate Visual & Global Selection
+                    if (localSelectedId !== item.id) {
+                        setLocalSelectedId(item.id);
+                        if (type === 'step' && onSelectStep) {
+                            onSelectStep(item.id, e.shiftKey || e.metaKey, true);
+                        } else if (onSelectSegment) {
+                            onSelectSegment(item.id, true);
+                        }
                     }
-                    onSelect(item.id);
+
+                    // 2. Playback control
+                    if (videoRef.current) videoRef.current.pause();
+                    
+                    // 3. Prepare Movement (but don't capture pointer yet)
                     handleItemMove(item, onUpdate)(e);
                 }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    // Final fallback to ensure selection happens on click completion
+                    if (localSelectedId !== item.id) {
+                        setLocalSelectedId(item.id);
+                        if (type === 'step' && onSelectStep) {
+                            onSelectStep(item.id, e.shiftKey || e.metaKey, true);
+                        } else if (onSelectSegment) {
+                            onSelectSegment(item.id, true);
+                        }
+                    }
+                }}
             >
                 <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-white/20 rounded-t-[3px] z-10" />
                 {isSelected && <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/40 rounded-t-[3px] z-20" />}
                 
                 <div 
                     className={cn(
-                        "absolute left-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center transition-all",
+                        "absolute left-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                     )}
                     onPointerDown={handleItemResize(item, 'start', onUpdate)}
                 >
-                    <div className={cn("w-full h-full rounded-l-[2px] flex items-center justify-center border-r border-black/5 shadow-sm transition-colors", isSelected ? "bg-white" : "bg-white/40")}>
+                    <div className={cn("w-full h-full rounded-l-[2px] flex items-center justify-center border-r border-black/5 shadow-sm", isSelected ? "bg-white" : "bg-white/40")}>
                         <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
@@ -601,12 +815,12 @@ export function CapcutTimeline({
 
                 <div 
                     className={cn(
-                        "absolute right-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center transition-all",
+                        "absolute right-[-2px] inset-y-[-2px] w-3 cursor-ew-resize z-30 flex items-center justify-center",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                     )}
                     onPointerDown={handleItemResize(item, 'end', onUpdate)}
                 >
-                    <div className={cn("w-full h-full rounded-r-[2px] flex items-center justify-center border-l border-black/5 shadow-sm transition-colors", isSelected ? "bg-white" : "bg-white/40")}>
+                    <div className={cn("w-full h-full rounded-r-[2px] flex items-center justify-center border-l border-black/5 shadow-sm", isSelected ? "bg-white" : "bg-white/40")}>
                         <div className={cn("w-[1.5px] h-3 rounded-full", isSelected ? "bg-black/40" : "bg-black/20")} />
                     </div>
                 </div>
@@ -616,6 +830,16 @@ export function CapcutTimeline({
 
     return (
         <div className="flex flex-col h-full bg-[#0f0f11] overflow-hidden border border-[#2a2a2e] select-none shadow-2xl">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes ring-pulse {
+                    0% { ring-offset-color: #0f0f11; ring-color: rgba(99, 102, 241, 0.2); }
+                    50% { ring-offset-color: #0f0f11; ring-color: rgba(99, 102, 241, 0.7); }
+                    100% { ring-offset-color: #0f0f11; ring-color: rgba(99, 102, 241, 0.2); }
+                }
+                .ring-pulse {
+                    animation: ring-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+            `}} />
             <div className="h-14 border-b border-[#2a2a2e] bg-[#0f0f11] flex items-center px-4 shrink-0 gap-4">
                 <div className="flex-1 flex items-center gap-1.5 min-w-0">
                     <TooltipProvider>
@@ -731,7 +955,15 @@ export function CapcutTimeline({
                              <div className="h-8 flex items-center px-4 shrink-0 bg-[#0f0f11] border-b border-[#2a2a2e]/50">
                                  <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em]">Steps</span>
                              </div>
-                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndSidebar}>
+                             <DndContext 
+                                 sensors={sensors} 
+                                 collisionDetection={closestCenter} 
+                                 onDragStart={() => {
+                                     if (videoRef.current) videoRef.current.pause();
+                                 }}
+                                 onDragEnd={handleDragEndSidebar} 
+                                 modifiers={[restrictToVerticalAxis]}
+                             >
                                  <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
                                      {steps.map((step, index) => (
                                          <SortableStepItem key={step.id} step={step} index={index} selectedStepIds={selectedStepIds} selectedSegmentId={selectedSegmentId} videoRef={videoRef} onSelectStep={onSelectStep} />
@@ -756,14 +988,13 @@ export function CapcutTimeline({
                         </div>
                         <div className="flex flex-col px-0 relative min-h-[160px]">
                             <div className="h-12 relative border-b border-[#2d2d30] bg-[#1a1a1e] group transition-colors">
-                                {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment, onSelectSegment))}
+                                {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment))}
                             </div>
                             <div className="h-8 bg-[#09090b] border-b border-[#2d2d30] relative" />
-                            {steps.map((step, index) => {
-                                const isEven = index % 2 === 0;
+                            {steps.map((step) => {
                                 return (
-                                    <div key={`${step.id}-${index}`} className={cn("h-12 relative border-b border-[#2d2d30] group hover:bg-white/[0.04] transition-colors", isEven ? "bg-[#111114]" : "bg-[#1a1a1e]")}>
-                                        {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment, onSelectStep || onSelectSegment)}
+                                    <div key={step.id} className={cn("h-12 relative border-b border-[#2d2d30] group hover:bg-white/[0.04] transition-colors z-20", steps.findIndex(s => s.id === step.id) % 2 === 0 ? "bg-[#111114]" : "bg-[#1a1a1e]")}>
+                                        {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment)}
                                     </div>
                                 );
                             })}
