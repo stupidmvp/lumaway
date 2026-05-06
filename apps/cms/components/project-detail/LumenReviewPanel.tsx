@@ -1071,9 +1071,14 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                             className="h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white border-none font-bold shadow-sm px-4"
                             onClick={() => {
                                 generateMutation.mutate({ observerSessionId: lumenId }, {
-                                    onSuccess: () => {
+                                    onSuccess: (data) => {
                                         toast.success(t('generateSuccess') || 'Walkthrough generated successfully');
-                                        router.push(`/projects/${projectId}`);
+                                        const walkthroughId = data?.createdWalkthroughs?.[0]?.walkthroughId;
+                                        if (walkthroughId) {
+                                            router.push(`/walkthroughs/${walkthroughId}`);
+                                        } else {
+                                            router.push(`/projects/${projectId}`);
+                                        }
                                     },
                                     onError: () => {
                                         toast.error(t('generateFailed') || 'Failed to generate Walkthrough');
