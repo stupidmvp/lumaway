@@ -250,11 +250,6 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                         >
                                             <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-white" : "text-foreground-muted group-hover:text-foreground")} />
                                             
-                                            {/* Active indicator bar */}
-                                            {isActive && (
-                                                <div className="absolute -left-2 w-1 h-4 bg-accent-blue rounded-r-full" />
-                                            )}
-
                                             {/* Badge */}
                                             {!!tab.badge && tab.badge > 0 && (
                                                 <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-background shadow-sm">
