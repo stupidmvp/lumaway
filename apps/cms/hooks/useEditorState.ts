@@ -185,7 +185,7 @@ export function useEditorState(id: string) {
         }
     }, [localWalkthrough, updateMutation, t]);
 
-    const addStep = useCallback(() => {
+    const addStep = useCallback((atIndex?: number) => {
         if (!localWalkthrough) return;
         const newStep: Step = {
             id: Math.random().toString(36).substr(2, 9),
@@ -194,9 +194,13 @@ export function useEditorState(id: string) {
             placement: prefs.defaultStepPlacement as any,
             target: ''
         };
-        const newSteps = [...localWalkthrough.steps, newStep];
+        
+        const newSteps = [...localWalkthrough.steps];
+        const insertIndex = typeof atIndex === 'number' ? atIndex : newSteps.length;
+        newSteps.splice(insertIndex, 0, newStep);
+        
         setLocalWalkthrough({ ...localWalkthrough, steps: newSteps });
-        setSelectedStepIndex(newSteps.length - 1);
+        setSelectedStepIndex(insertIndex);
     }, [localWalkthrough, prefs.defaultStepPlacement]);
 
     const updateStep = useCallback((index: number, field: keyof Step, value: any) => {

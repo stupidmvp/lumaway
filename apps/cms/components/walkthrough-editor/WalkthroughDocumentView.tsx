@@ -40,7 +40,7 @@ interface WalkthroughDocumentViewProps {
     steps: Step[];
     canEdit: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
-    onAddStep: () => void;
+    onAddStep: (index?: number) => void;
     onRemoveStep: (index: number) => void;
     onDragEnd: (event: DragEndEvent) => void;
     sensors: SensorDescriptor<SensorOptions>[];
@@ -51,11 +51,12 @@ interface SortableStepBlockProps {
     index: number;
     canEdit: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
+    onAddStep: (index?: number) => void;
     onRemoveStep: (index: number) => void;
     t: any;
 }
 
-function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t }: SortableStepBlockProps) {
+function SortableStepBlock({ step, index, canEdit, onUpdateStep, onAddStep, onRemoveStep, t }: SortableStepBlockProps) {
     const {
         attributes,
         listeners,
@@ -80,17 +81,27 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t
                 isDragging ? "opacity-50 z-50 bg-background shadow-lg ring-1 ring-border" : "opacity-100"
             )}
         >
-            {/* Notion-style Block Drag Handle */}
-            <div 
-                ref={setActivatorNodeRef}
-                {...attributes}
-                {...listeners}
-                className={cn(
-                    "absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex cursor-grab active:cursor-grabbing items-center justify-center text-foreground-muted/30 hover:text-foreground-muted p-1 rounded",
-                    !canEdit && "pointer-events-none"
+            {/* Notion-style Block Drag Handle & Add Button */}
+            <div className="absolute -left-[54px] top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                {canEdit && (
+                    <button
+                        onClick={() => onAddStep(index + 1)}
+                        className="p-1 rounded hover:bg-background-tertiary text-foreground-muted/30 hover:text-foreground-muted transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                    </button>
                 )}
-            >
-                <GripVertical className="h-4 w-4" />
+                <div 
+                    ref={setActivatorNodeRef}
+                    {...attributes}
+                    {...listeners}
+                    className={cn(
+                        "flex cursor-grab active:cursor-grabbing items-center justify-center text-foreground-muted/30 hover:text-foreground-muted p-1 rounded",
+                        !canEdit && "pointer-events-none"
+                    )}
+                >
+                    <GripVertical className="h-4 w-4" />
+                </div>
             </div>
 
             {/* Step Title (H3 style in Notion) */}
@@ -210,6 +221,7 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
                                 index={index}
                                 canEdit={canEdit}
                                 onUpdateStep={onUpdateStep}
+                                onAddStep={onAddStep}
                                 onRemoveStep={onRemoveStep}
                                 t={t}
                             />
