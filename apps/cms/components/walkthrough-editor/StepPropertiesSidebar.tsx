@@ -300,25 +300,22 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
     return (
         <div className="p-0 flex flex-col min-h-full divide-y divide-border/40 bg-background custom-scrollbar overflow-y-auto">
             {/* 1. Intent & Context Section */}
-            <section className="p-6 space-y-6">
+            <section className="p-5 space-y-5">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-foreground/80">
-                        <Sparkles className="h-3.5 w-3.5 text-accent-blue" />
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('intentSection')}</h3>
+                    <div className="flex items-center gap-2 text-foreground-muted">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.12em]">{t('intentSection')}</h3>
                     </div>
                     {metadata.confidence && (
-                        <div className={cn(
-                            "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
-                            metadata.confidence > 0.8 ? "bg-accent-green/10 text-accent-green" : "bg-accent-orange/10 text-accent-orange"
-                        )}>
+                        <div className="px-1.5 py-0.5 rounded-md bg-muted text-foreground-muted text-[9px] font-bold uppercase tracking-wider">
                             {Math.round(metadata.confidence * 100)}% Match
                         </div>
                     )}
                 </div>
                 
-                <div className="space-y-4 px-1">
+                <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[11px] font-semibold text-foreground-muted flex items-center gap-1.5">
+                        <Label className="text-[11px] font-medium text-foreground-muted/70 flex items-center gap-1.5">
                             <MessageSquare className="h-3 w-3" />
                             {t('spokenIntent')}
                         </Label>
@@ -327,38 +324,38 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('spokenExtract', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('spokenIntentPlaceholder')}
-                            className="min-h-[80px] text-[13px] bg-muted/20 border-border/50 resize-none focus:ring-1 focus:ring-accent-blue/20 placeholder:text-foreground-muted/20"
+                            className="min-h-[90px] text-[13px] bg-muted/20 border-border/40 rounded-lg resize-none focus:ring-0 focus:border-border/60 placeholder:text-foreground-muted/20"
                         />
                     </div>
                 </div>
             </section>
 
             {/* 2. Interactive Delivery Section */}
-            <section className="p-6 space-y-6">
-                <div className="flex items-center gap-2 text-foreground/80">
-                    <Zap className="h-3.5 w-3.5 text-accent-pink" />
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('deliverySection')}</h3>
+            <section className="p-5 space-y-5">
+                <div className="flex items-center gap-2 text-foreground-muted">
+                    <Zap className="h-3.5 w-3.5" />
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.12em]">{t('deliverySection')}</h3>
                 </div>
-                <div className="space-y-5 px-1">
+                <div className="space-y-5">
                     {/* Delivery Mode Selection */}
-                    <div className="space-y-3">
-                        <Label className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{t('deliveryMode')}</Label>
+                    <div className="space-y-2.5">
+                        <Label className="text-[10px] font-bold text-foreground-muted/60 uppercase tracking-wider">{t('deliveryMode')}</Label>
                         <Tabs 
                             value={runtime.deliveryMode === 'chat-guided' ? 'chat' : 'interactive'} 
                             onValueChange={(val) => canEdit && updateMetadata('runtime.deliveryMode', val === 'chat' ? 'chat-guided' : 'interactive')}
                             className="w-full"
                         >
-                            <TabsList className="grid w-full grid-cols-2 bg-muted/20 border border-border/40 h-11 p-1.5 rounded-xl">
+                            <TabsList className="grid w-full grid-cols-2 bg-muted/30 border border-border/40 h-9 p-1 rounded-lg">
                                 <TabsTrigger 
                                     value="interactive" 
-                                    className="rounded-lg text-[11px] font-bold gap-2 data-[state=active]:bg-white/10 data-[state=active]:text-accent-blue data-[state=active]:ring-1 data-[state=active]:ring-accent-blue/30 data-[state=active]:shadow-md transition-all duration-200"
+                                    className="rounded-md text-[11px] font-semibold gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
                                 >
                                     <Target className="h-3.5 w-3.5" />
                                     {t('modeInteractive')}
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="chat" 
-                                    className="rounded-lg text-[11px] font-bold gap-2 data-[state=active]:bg-white/10 data-[state=active]:text-accent-blue data-[state=active]:ring-1 data-[state=active]:ring-accent-blue/30 data-[state=active]:shadow-md transition-all duration-200"
+                                    className="rounded-md text-[11px] font-semibold gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
                                 >
                                     <Bot className="h-3.5 w-3.5" />
                                     {t('modeChat')}
@@ -405,9 +402,9 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                     </div>
 
                     {runtime.fallbackReason && (
-                        <div className="p-3 rounded-lg bg-accent-orange/5 border border-accent-orange/10 flex items-start gap-2">
-                            <Info className="h-3.5 w-3.5 text-accent-orange shrink-0 mt-0.5" />
-                            <p className="text-[10.5px] text-accent-orange/80 leading-relaxed">
+                        <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex items-start gap-2">
+                            <Info className="h-3.5 w-3.5 text-foreground-muted/60 shrink-0 mt-0.5" />
+                            <p className="text-[10.5px] text-foreground-muted/80 leading-relaxed">
                                 {runtime.fallbackReason === 'missing-selector' 
                                     ? "Luma no pudo detectar un selector confiable. Se usará guía por chat."
                                     : "El selector detectado es débil. Se recomienda revisarlo manualmente."}
@@ -416,40 +413,39 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                     )}
                 </div>
             </section>
-
             {/* 3. Guidance Details Section */}
-            <section className="p-6 space-y-6">
-                <div className="flex items-center gap-2 text-foreground/80">
-                    <Bot className="h-3.5 w-3.5 text-accent-purple" />
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('guidanceSection')}</h3>
+            <section className="p-5 space-y-5">
+                <div className="flex items-center gap-2 text-foreground-muted">
+                    <Bot className="h-3.5 w-3.5" />
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.12em]">{t('guidanceSection')}</h3>
                 </div>
                 
-                <div className="space-y-5 px-1">
+                <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[11px] font-semibold text-foreground-muted">{t('specificAction')}</Label>
+                        <Label className="text-[11px] font-medium text-foreground-muted/70">{t('specificAction')}</Label>
                         <Input
                             value={guidance.specificAction || ''}
                             onChange={(e) => updateMetadata('guidance.specificAction', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('specificActionPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/50"
+                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
                         />
                     </div>
                     
                     <div className="space-y-2">
-                        <Label className="text-[11px] font-semibold text-foreground-muted">{t('expectedResult')}</Label>
+                        <Label className="text-[11px] font-medium text-foreground-muted/70">{t('expectedResult')}</Label>
                         <Input
                             value={guidance.expectedResult || ''}
                             onChange={(e) => updateMetadata('guidance.expectedResult', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('expectedResultPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/50"
+                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
                         />
                     </div>
-
+ 
                     <div className="space-y-2">
-                        <Label className="text-[11px] font-semibold text-foreground-muted flex items-center gap-1.5">
-                            <CheckCircle2 className="h-3 w-3 text-accent-green" />
+                        <Label className="text-[11px] font-medium text-foreground-muted/70 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3 w-3" />
                             {t('verification')}
                         </Label>
                         <Input
@@ -457,7 +453,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('guidance.verification', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('verificationPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/50"
+                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
                         />
                     </div>
                 </div>
