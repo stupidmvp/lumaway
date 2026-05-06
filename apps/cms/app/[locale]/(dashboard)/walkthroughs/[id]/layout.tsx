@@ -259,7 +259,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
 
     return (
         <TooltipProvider delayDuration={0}>
-            <div className="flex h-full bg-background font-sans transition-colors duration-300">
+            <div className="flex h-full bg-background dark:bg-[#191919] font-sans transition-colors duration-300">
                 {/* Slim Icon Sidebar — Left */}
                 <aside className="w-[68px] border-r border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 py-4 gap-2 items-center z-50">
                     {/* App Logo */}
