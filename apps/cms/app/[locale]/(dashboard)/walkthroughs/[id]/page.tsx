@@ -36,6 +36,8 @@ export default function WalkthroughGeneralPage() {
                 {localWalkthrough.steps && localWalkthrough.steps.length > 0 && (
                     <div className="mt-4">
                         <WalkthroughDocumentView 
+                            projectId={localWalkthrough.projectId}
+                            walkthroughId={id}
                             title={localWalkthrough.title}
                             description={localWalkthrough.description ?? null}
                             steps={localWalkthrough.steps} 

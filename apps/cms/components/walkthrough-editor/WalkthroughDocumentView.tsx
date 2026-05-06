@@ -3,8 +3,9 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Hash, Plus, GripVertical, MoreVertical, Trash2, Smile, Image as ImageIcon } from 'lucide-react';
+import { Hash, Plus, GripVertical, MoreVertical, Trash2, Smile, Image as ImageIcon, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CommentsPanel } from '@/components/comments/CommentsPanel';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,8 +36,9 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
 interface WalkthroughDocumentViewProps {
+    projectId: string;
+    walkthroughId: string;
     title: string;
     description: string | null;
     steps: Step[];
@@ -51,8 +53,9 @@ interface WalkthroughDocumentViewProps {
     selectedStepIndex: number;
     onSelectStep: (index: number) => void;
 }
-
 interface SortableStepBlockProps {
+    projectId: string;
+    walkthroughId: string;
     step: Step;
     index: number;
     canEdit: boolean;
@@ -64,8 +67,21 @@ interface SortableStepBlockProps {
     t: any;
 }
 
-function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAddStep, onRemoveStep, onSelectStep, t }: SortableStepBlockProps) {
+function SortableStepBlock({ 
+    projectId,
+    walkthroughId,
+    step, 
+    index, 
+    canEdit, 
+    isFocused, 
+    onUpdateStep, 
+    onAddStep, 
+    onRemoveStep, 
+    onSelectStep, 
+    t 
+}: SortableStepBlockProps) {
     const inputRef = React.useRef<HTMLInputElement>(null);
+    const [isCommentsExpanded, setIsCommentsExpanded] = React.useState(true);
 
     React.useEffect(() => {
         if (isFocused && inputRef.current && !step.title) {
@@ -184,6 +200,40 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                 </div>
             </div>
 
+            {/* Discussion Section (Notion style, collapsible) */}
+            {isFocused && (
+                <div className="mt-4 pt-4 border-t border-border/30">
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCommentsExpanded(!isCommentsExpanded);
+                        }}
+                        className="flex items-center gap-2 mb-4 text-foreground-muted hover:text-foreground transition-colors group/disc"
+                    >
+                        {isCommentsExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
+                        ) : (
+                            <ChevronRight className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
+                        )}
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span className="text-[11px] font-bold uppercase tracking-[0.1em]">{t('discussion')}</span>
+                    </button>
+
+                    {isCommentsExpanded && (
+                        <div className="pl-4 border-l-2 border-border/20 ml-1.5 pb-2">
+                            <CommentsPanel 
+                                projectId={projectId}
+                                walkthroughId={walkthroughId}
+                                stepId={step.id}
+                                showHeader={false}
+                                className="bg-transparent"
+                                canComment={canEdit}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Actions Menu */}
             {canEdit && (
                 <div className={cn(
@@ -232,6 +282,8 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
 }
 
 export function WalkthroughDocumentView({ 
+    projectId,
+    walkthroughId,
     title, 
     description, 
     steps, 
@@ -324,6 +376,8 @@ export function WalkthroughDocumentView({
                         {steps.map((step, index) => (
                             <SortableStepBlock
                                 key={step.id}
+                                projectId={projectId}
+                                walkthroughId={walkthroughId}
                                 step={step}
                                 index={index}
                                 canEdit={canEdit}
