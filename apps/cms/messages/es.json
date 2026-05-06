@@ -395,6 +395,8 @@
         "documentView": "Vista de Documento",
         "noDescription": "No hay descripción disponible.",
         "noMetadata": "Sin metadatos disponibles.",
+        "addIcon": "Agregar ícono",
+        "addCover": "Agregar portada",
         "untitledStep": "Paso sin título",
         "deleteStepConfirmTitle": "¿Eliminar paso?",
         "deleteStepConfirmDescription": "Esta acción no se puede deshacer. Este paso se eliminará permanentemente del recorrido.",

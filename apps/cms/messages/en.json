@@ -395,6 +395,8 @@
         "documentView": "Document View",
         "noDescription": "No description provided.",
         "noMetadata": "No metadata available.",
+        "addIcon": "Add icon",
+        "addCover": "Add cover",
         "untitledStep": "Untitled Step",
         "deleteStepConfirmTitle": "Delete Step?",
         "deleteStepConfirmDescription": "This action cannot be undone. This step will be permanently removed from the walkthrough.",
