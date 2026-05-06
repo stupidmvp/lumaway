@@ -16,6 +16,8 @@ export default function WalkthroughGeneralPage() {
         handleParentChange,
         handlePreviousChange,
         handleNextChange,
+        addStep,
+        updateStep,
     } = useEditorContext();
 
     if (!localWalkthrough) return null;
@@ -52,7 +54,12 @@ export default function WalkthroughGeneralPage() {
                 {/* Notion-style Document View */}
                 {localWalkthrough.steps && localWalkthrough.steps.length > 0 && (
                     <div className="mt-4">
-                        <WalkthroughDocumentView steps={localWalkthrough.steps} />
+                        <WalkthroughDocumentView 
+                            steps={localWalkthrough.steps} 
+                            canEdit={canEdit}
+                            onUpdateStep={updateStep}
+                            onAddStep={addStep}
+                        />
                     </div>
                 )}
 
