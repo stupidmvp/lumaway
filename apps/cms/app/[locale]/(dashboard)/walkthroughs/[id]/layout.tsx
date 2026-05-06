@@ -64,15 +64,6 @@ function MetadataBar() {
         selectedStepIndex,
     } = useEditorContext();
 
-    const [activeTab, setActiveTab] = useState('configuration');
-
-    // Auto-switch to "step" tab when a step is selected
-    useEffect(() => {
-        if (selectedStepIndex >= 0) {
-            setActiveTab('step');
-        }
-    }, [selectedStepIndex]);
-
     const tc = useTranslations('Common');
     const tm = useTranslations('Members');
     const locale = useLocale();
@@ -203,11 +194,20 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
     const currentUserId = user?.id;
 
     // ── Active tab from pathname ──
-    const activeTab: TabKey = useMemo(() => {
+    const activePageTab: TabKey = useMemo(() => {
         if (pathname.endsWith('/steps')) return 'steps';
         if (pathname.endsWith('/activity')) return 'activity';
         return 'general';
     }, [pathname]);
+
+    const [activePropertiesTab, setActivePropertiesTab] = useState('configuration');
+
+    // Auto-switch to "step" tab when a step is selected
+    React.useEffect(() => {
+        if (selectedStepIndex >= 0) {
+            setActivePropertiesTab('step');
+        }
+    }, [selectedStepIndex]);
 
     // ── Tab definitions ──
     const tabs: TabDef[] = useMemo(() => [
@@ -396,7 +396,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 )}
                             >
                                 <aside className="h-full bg-background flex flex-col overflow-hidden z-40">
-                                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                                    <Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab} className="flex-1 flex-col overflow-hidden">
                                         <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-background shrink-0">
                                             <TabsList className="bg-muted/50 p-1 h-9 rounded-lg border border-border">
                                                 <TabsTrigger 

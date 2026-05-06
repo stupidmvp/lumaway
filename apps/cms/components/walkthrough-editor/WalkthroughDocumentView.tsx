@@ -94,7 +94,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             style={style}
             onClick={() => onSelectStep(index)}
             className={cn(
-                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200 cursor-pointer",
+                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200 cursor-pointer outline-none focus:outline-none",
                 isFocused 
                     ? "bg-accent-blue/[0.03] dark:bg-accent-blue/[0.05]" 
                     : "hover:bg-background-secondary/30",
@@ -243,7 +243,8 @@ export function WalkthroughDocumentView({
     onRemoveStep, 
     onDragEnd, 
     sensors, 
-    selectedStepIndex 
+    selectedStepIndex,
+    onSelectStep
 }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
     const titleRef = React.useRef<HTMLTextAreaElement>(null);
