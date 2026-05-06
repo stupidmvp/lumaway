@@ -93,8 +93,8 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             className={cn(
                 "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200",
                 isFocused 
-                    ? "bg-accent-blue/[0.03] dark:bg-accent-blue/[0.05]" 
-                    : "hover:bg-background-secondary/30",
+                    ? "bg-accent-blue/[0.05] dark:bg-accent-blue/[0.08]" 
+                    : "hover:bg-background-secondary/40",
                 isDragging ? "opacity-50 z-50 bg-background border border-border shadow-md" : "opacity-100"
             )}
         >
@@ -137,8 +137,8 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                         readOnly={!canEdit}
                         placeholder={t('untitledStep')}
                         className={cn(
-                            "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[17px] font-bold tracking-tight transition-all placeholder:text-foreground-muted/10",
-                            isFocused ? "text-foreground" : "text-foreground/80",
+                            "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[17px] font-bold tracking-tight transition-all placeholder:text-foreground-muted/30",
+                            isFocused ? "text-foreground" : "text-foreground/90",
                             canEdit ? "cursor-text" : "cursor-default"
                         )}
                     />
@@ -163,7 +163,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                         placeholder={t('noDescription')}
                         rows={1}
                         className={cn(
-                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15.5px] text-foreground-subtle/80 leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/10",
+                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15.5px] text-foreground/70 dark:text-foreground-subtle/90 leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/20",
                             canEdit ? "cursor-text" : "cursor-default"
                         )}
                     />
@@ -171,7 +171,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                     {/* Technical Target */}
                     {step.target && (
                         <div className={cn(
-                            "mt-2 inline-flex items-center gap-1.5 px-0 text-foreground-muted/40 transition-opacity duration-200",
+                            "mt-2 inline-flex items-center gap-1.5 px-0 text-foreground-muted/60 transition-opacity duration-200",
                             isFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                         )}>
                             <Hash className="h-3 w-3" />
@@ -289,7 +289,7 @@ export function WalkthroughDocumentView({
                     }}
                     placeholder={t('walkthroughTitlePlaceholder') || 'Untitled Walkthrough'}
                     rows={1}
-                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/10 mb-2"
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-2"
                 />
 
                 {/* Walkthrough Description */}
@@ -303,7 +303,7 @@ export function WalkthroughDocumentView({
                     }}
                     placeholder={t('descriptionPlaceholder') || 'Add a description...'}
                     rows={1}
-                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/10"
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] text-foreground/80 dark:text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/20"
                 />
             </div>
 
