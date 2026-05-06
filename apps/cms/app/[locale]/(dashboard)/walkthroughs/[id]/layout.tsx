@@ -3,14 +3,15 @@
 import { use, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import {
-    Loader2,
-    Info,
-    Route,
-    MessageCircle,
-} from 'lucide-react';
+import { Loader2, Info, Route, MessageCircle, Settings, Layers, PanelRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { EditorProvider, useEditorContext } from '@/contexts/EditorContext';
 import { EditorHeader } from '@/components/walkthrough-editor/EditorHeader';
 import { WalkthroughTitleBlock } from '@/components/walkthrough-editor/WalkthroughTitleBlock';

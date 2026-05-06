@@ -106,8 +106,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ];
 
     return (
-        <Sidebar collapsible="icon" {...props} className="border-r-0">
-            <div className="absolute inset-0 bg-background dark:bg-[#0f0f11] -z-10" />
+        <Sidebar collapsible="icon" {...props} className="border-r-0 shadow-xl dark:shadow-none transition-shadow duration-500">
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xl dark:bg-[#0f0f11] -z-10" />
             <SidebarContent className="pt-2">
                 <SidebarGroup className="group-data-[collapsible=icon]:px-0">
                     <SidebarGroupLabel className="text-[11px] text-foreground-muted font-medium px-2 uppercase tracking-wider mb-0.5 group-data-[collapsible=icon]:hidden">
@@ -126,14 +126,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                             className={cn(
                                                 "px-2 h-9 font-medium text-[13px] transition-all duration-300 rounded-md gap-2 flex items-center",
                                                 "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-                                                isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                                isActive && "bg-sidebar-accent/60 text-sidebar-accent-foreground shadow-sm dark:shadow-none ring-1 ring-sidebar-border/5"
                                             )}
                                         >
                                             <Link href={item.url} className="transition-smooth flex items-center gap-2 w-full justify-center">
                                                 <item.icon 
                                                     className={cn(
                                                         "h-5 w-5 shrink-0 transition-all duration-300",
-                                                        isActive ? "scale-110 opacity-100 text-accent-blue" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                                        isActive ? "scale-110 opacity-100 text-accent-blue drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"
                                                     )} 
                                                     strokeWidth={isActive ? 2.5 : 2} 
                                                 />
@@ -201,8 +201,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                                                 <div className={cn(
                                                                     "flex items-center justify-center h-6 w-6 rounded-full shrink-0 border transition-all duration-300",
                                                                     isActive
-                                                                        ? "bg-accent-blue/15 border-accent-blue scale-110 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
-                                                                        : "bg-background-secondary border-border group-hover/menu-item:border-accent-blue/40 group-hover/menu-item:scale-105"
+                                                                        ? "bg-accent-blue/15 border-accent-blue scale-110 shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                                                                        : "bg-background-secondary border-border group-hover/menu-item:border-accent-blue/40 group-hover/menu-item:scale-105 shadow-sm dark:shadow-none"
                                                                 )}>
                                                                     <span className={cn(
                                                                         "text-[10px] font-bold uppercase leading-none",

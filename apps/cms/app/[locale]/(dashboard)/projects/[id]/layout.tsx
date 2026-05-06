@@ -256,11 +256,11 @@ export default function ProjectLayout({
 
                 {/* Sub-Sidebar: Navigation & Contextual Options */}
                 <aside 
-                    className="border-r border-border bg-background-secondary/30 flex flex-col shrink-0 overflow-hidden w-16"
+                    className="border-r border-border/40 bg-white/40 backdrop-blur-lg dark:bg-[#0f0f11]/30 flex flex-col shrink-0 overflow-hidden w-16"
                 >
                     {/* Simplified Sidebar Header */}
-                    <div className="h-14 flex items-center justify-center border-b border-border/40 shrink-0">
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center border border-border/20 shrink-0 transition-all overflow-hidden bg-white shadow-sm dark:bg-background-secondary">
+                    <div className="h-14 flex items-center justify-center border-b border-border/20 shrink-0">
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center border border-border/10 shrink-0 transition-all overflow-hidden bg-white shadow-[0_2px_8px_rgba(0,0,0,0.05)] dark:bg-background-secondary dark:shadow-none">
                             {project.logo ? (
                                 <img 
                                     src={project.logo.startsWith('http') ? project.logo : `${ENV.S3_URL_BASE}${project.logo}`} 
@@ -286,22 +286,22 @@ export default function ProjectLayout({
                                         <Link
                                             href={tab.href}
                                             className={cn(
-                                                'group flex items-center justify-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 relative',
+                                                'group flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 relative',
                                                 isActive
-                                                    ? 'bg-background-secondary text-foreground shadow-sm'
-                                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary/50'
+                                                    ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] dark:bg-background-secondary text-foreground'
+                                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary/40'
                                             )}
                                         >
-                                            <div className="flex items-center justify-center min-w-0">
+                                            <div className="flex items-center justify-center min-w-0 z-10">
                                                 <Icon className={cn(
-                                                    "h-5 w-5 transition-colors shrink-0",
-                                                    isActive ? "text-accent-blue" : "text-foreground-muted/60 group-hover:text-foreground/80"
+                                                    "h-5 w-5 transition-all duration-300 shrink-0",
+                                                    isActive ? "text-accent-blue scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.2)]" : "text-foreground-muted/60 group-hover:text-foreground/80 group-hover:scale-105"
                                                 )} strokeWidth={isActive ? 2.5 : 2} />
                                             </div>
 
-                                            {/* Active indicator shadow */}
+                                            {/* Active indicator dot - subtle alternative to bar */}
                                             {isActive && (
-                                                <div className="absolute inset-x-2 inset-y-1.5 bg-background-secondary rounded-md -z-10 shadow-sm" />
+                                                <div className="absolute left-0 w-1 h-4 bg-accent-blue rounded-r-full group-data-[collapsible=icon]:block hidden" />
                                             )}
                                         </Link>
                                     </TooltipTrigger>
@@ -317,9 +317,9 @@ export default function ProjectLayout({
                 </aside>
 
                 {/* Main Content Area */}
-                <main className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden relative">
+                <main className="flex-1 flex flex-col h-full min-w-0 bg-background/95 dark:bg-background overflow-hidden relative">
                     {/* Slim Header Bar */}
-                    <header className="h-14 border-b border-border/40 bg-background/50 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-40">
+                    <header className="h-14 border-b border-border/10 bg-white/60 dark:bg-[#0f0f11]/60 backdrop-blur-xl flex items-center justify-between px-6 shrink-0 z-40 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-4 min-w-0">
                             <ProjectTitle
                                 projectId={id}
