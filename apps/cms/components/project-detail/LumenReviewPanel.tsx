@@ -1055,7 +1055,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         variant="outline"
                         size="sm"
                         className="h-8 text-[11px] font-bold gap-1.5 text-foreground-muted hover:text-foreground hover:bg-background-secondary border-border dark:text-white/50 dark:hover:text-white dark:hover:bg-[#2a2a2e] dark:border-[#2a2a2e] transition-all shadow-sm px-3"
-                        onClick={() => reprocessMutation.mutate(lumenId)}
+                        onClick={() => reprocessMutation.mutate({ observerSessionId: lumenId })}
                         disabled={reprocessMutation.isPending}
                     >
                         {reprocessMutation.isPending ? (
@@ -1070,7 +1070,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                             size="sm"
                             className="h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white border-none font-bold shadow-sm px-4"
                             onClick={() => {
-                                generateMutation.mutate(lumenId, {
+                                generateMutation.mutate({ observerSessionId: lumenId }, {
                                     onSuccess: () => {
                                         toast.success(t('generateSuccess') || 'Walkthrough generated successfully');
                                         router.push(`/projects/${projectId}/walkthroughs`);
