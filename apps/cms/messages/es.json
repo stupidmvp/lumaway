@@ -392,6 +392,8 @@
         "deleteKey": "Eliminar clave"
     },
     "Editor": {
+        "documentView": "Vista de Documento",
+        "noDescription": "No hay descripción disponible.",
         "versionHistory": "Historial de versiones",
         "saveChanges": "Guardar cambios",
         "publish": "Publicar",

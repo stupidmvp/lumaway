@@ -392,6 +392,8 @@
         "deleteKey": "Delete Key"
     },
     "Editor": {
+        "documentView": "Document View",
+        "noDescription": "No description provided.",
         "versionHistory": "Version History",
         "saveChanges": "Save Changes",
         "publish": "Publish",

@@ -5,6 +5,7 @@ import { WalkthroughProperties } from '@/components/walkthrough-editor/Walkthrou
 import { WalkthroughFlowSection } from '@/components/walkthrough-editor/WalkthroughFlowSection';
 import { ActorAssignment } from '@/components/walkthrough-editor/ActorAssignment';
 import { SubWalkthroughsSection } from '@/components/walkthrough-editor/SubWalkthroughsSection';
+import { WalkthroughDocumentView } from '@/components/walkthrough-editor/WalkthroughDocumentView';
 
 export default function WalkthroughGeneralPage() {
     const {
@@ -47,6 +48,13 @@ export default function WalkthroughGeneralPage() {
                         onNextChange={handleNextChange}
                     />
                 </div>
+
+                {/* Notion-style Document View */}
+                {localWalkthrough.steps && localWalkthrough.steps.length > 0 && (
+                    <div className="mt-4">
+                        <WalkthroughDocumentView steps={localWalkthrough.steps} />
+                    </div>
+                )}
 
                 {/* Divider */}
                 <div className="border-t border-border/40 my-3" />
