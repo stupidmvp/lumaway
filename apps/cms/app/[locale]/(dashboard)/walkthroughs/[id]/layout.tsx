@@ -180,7 +180,6 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         currentStep,
         updateStep,
         selectedStepIndex,
-        localWalkthrough,
     } = useEditorContext();
 
     const totalSteps = localWalkthrough?.steps.length ?? 0;
