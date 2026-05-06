@@ -380,24 +380,24 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 onCollapse={() => setIsPropertiesCollapsed(true)}
                                 onExpand={() => setIsPropertiesCollapsed(false)}
                                 className={cn(
-                                    "transition-all duration-300 ease-in-out",
-                                    isPropertiesCollapsed ? "min-w-[0px]" : ""
+                                    "transition-all duration-300 ease-in-out border-l border-border/60",
+                                    isPropertiesCollapsed ? "min-w-[0px] border-l-0" : ""
                                 )}
                             >
-                                <aside className="h-full border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
+                                <aside className="h-full bg-slate-50/50 dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
                                     <Tabs defaultValue="configuration" className="flex-1 flex flex-col overflow-hidden">
-                                        <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm shrink-0">
-                                            <TabsList className="bg-transparent h-9 gap-1 p-0">
+                                        <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-white dark:bg-background shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                                            <TabsList className="bg-background-secondary/50 p-1 h-9 rounded-lg border border-border/40">
                                                 <TabsTrigger 
                                                     value="configuration"
-                                                    className="data-[state=active]:bg-background-secondary data-[state=active]:text-foreground text-[12px] font-medium px-3 h-8 rounded-md transition-all gap-2"
+                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
                                                 >
                                                     <SlidersHorizontal className="h-3.5 w-3.5" />
                                                     {t('configuration') || 'Config'}
                                                 </TabsTrigger>
                                                 <TabsTrigger 
                                                     value="step"
-                                                    className="data-[state=active]:bg-background-secondary data-[state=active]:text-foreground text-[12px] font-medium px-3 h-8 rounded-md transition-all gap-2"
+                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
                                                 >
                                                     <MousePointer2 className="h-3.5 w-3.5" />
                                                     {t('step') || 'Step'}
@@ -425,13 +425,14 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                         
                                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                                             <TabsContent value="configuration" className="m-0 focus-visible:outline-none">
-                                                <div className="p-6 space-y-8">
+                                                <div className="p-0 space-y-0 divide-y divide-border/40">
                                                     {/* Page Info Section */}
-                                                    <div className="space-y-4">
-                                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                                            Page Configuration
-                                                        </h3>
-                                                        <div className="space-y-4">
+                                                    <section className="p-6 space-y-6">
+                                                        <div className="flex items-center gap-2 text-foreground/80">
+                                                            <Info className="h-3.5 w-3.5 text-accent-blue" />
+                                                            <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Document Settings</h3>
+                                                        </div>
+                                                        <div className="space-y-5 px-1">
                                                             <WalkthroughProperties
                                                                 tags={localWalkthrough.tags ?? []}
                                                                 canEdit={canEdit}
@@ -444,14 +445,15 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                                                 canEdit={canEdit}
                                                             />
                                                         </div>
-                                                    </div>
+                                                    </section>
 
                                                     {/* Navigation Flow Section */}
-                                                    <div className="space-y-4 pt-6 border-t border-border/40">
-                                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                                            Workflow & Logic
-                                                        </h3>
-                                                        <div className="space-y-4">
+                                                    <section className="p-6 space-y-6 bg-white/30 dark:bg-black/10">
+                                                        <div className="flex items-center gap-2 text-foreground/80">
+                                                            <Route className="h-3.5 w-3.5 text-foreground-muted" />
+                                                            <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Workflow & Logic</h3>
+                                                        </div>
+                                                        <div className="space-y-5 px-1">
                                                             <WalkthroughFlowSection
                                                                 walkthroughId={id}
                                                                 projectId={localWalkthrough.projectId}
@@ -463,15 +465,19 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                                                 onNextChange={handleNextChange}
                                                             />
                                                         </div>
-                                                    </div>
+                                                    </section>
 
                                                     {/* Contextual help or info */}
-                                                    <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
-                                                        <div className="flex items-start gap-3">
-                                                            <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
-                                                            <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
-                                                                These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
-                                                            </p>
+                                                    <div className="p-6">
+                                                        <div className="p-5 rounded-2xl bg-accent-blue/5 border border-accent-blue/10 shadow-[0_4px_12px_rgba(var(--accent-blue-rgb),0.03)]">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center shrink-0">
+                                                                    <Info className="h-3.5 w-3.5 text-accent-blue" />
+                                                                </div>
+                                                                <p className="text-[12px] text-foreground-muted/80 leading-relaxed font-medium">
+                                                                    These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
