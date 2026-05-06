@@ -358,7 +358,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
 
                             <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors relative">
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 right-0 z-50 flex h-12 w-4 cursor-pointer items-center justify-center rounded-l-full bg-white dark:bg-[#09090b] border border-r-0 border-border shadow-[-2px_0_8px_rgba(0,0,0,0.05)] text-foreground-muted/40 hover:text-accent-blue hover:bg-background-secondary transition-all group"
+                                    className="absolute top-1/2 -translate-y-1/2 right-0 z-[100] flex h-12 w-3.5 cursor-pointer items-center justify-center rounded-l-full bg-background-secondary dark:bg-[#111114] border border-r-0 border-border dark:border-[#2d2d30] shadow-[-2px_0_8px_rgba(0,0,0,0.05)] dark:shadow-[-2px_0_8px_rgba(0,0,0,0.3)] text-foreground-muted hover:text-foreground dark:text-white/40 dark:hover:text-white hover:bg-background-secondary/80 dark:hover:bg-[#1a1a1e] transition-colors group"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
@@ -373,9 +373,9 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                     }}
                                 >
                                     {isPropertiesCollapsed ? (
-                                        <ChevronLeft className="h-3 w-3 transition-transform group-hover:scale-110" />
+                                        <ChevronLeft className="h-3 w-3 opacity-80 -mr-0.5" />
                                     ) : (
-                                        <ChevronRight className="h-3 w-3 transition-transform group-hover:scale-110" />
+                                        <ChevronRight className="h-3 w-3 opacity-80 -mr-0.5" />
                                     )}
                                 </div>
                             </ResizableHandle>
@@ -396,42 +396,25 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 )}
                             >
                                 <aside className="h-full bg-background flex flex-col overflow-hidden z-40">
-                                    <Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab} className="flex-1 flex-col overflow-hidden">
+                                    <Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab} className="flex-1 flex flex-col overflow-hidden">
                                         <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-background shrink-0">
-                                            <TabsList className="flex h-full w-auto justify-start gap-6 bg-transparent p-0 rounded-none border-none">
+                                            <TabsList className="bg-muted/50 p-1 h-9 rounded-lg border border-border">
                                                 <TabsTrigger 
                                                     value="configuration"
-                                                    className="relative h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-blue data-[state=active]:text-accent-blue data-[state=active]:bg-transparent text-[13px] font-semibold px-1 transition-all gap-2"
+                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
                                                 >
-                                                    <SlidersHorizontal className="h-4 w-4" />
+                                                    <SlidersHorizontal className="h-3.5 w-3.5" />
                                                     {t('configuration') || 'Configuration'}
                                                 </TabsTrigger>
                                                 <TabsTrigger 
                                                     value="step"
-                                                    className="relative h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-blue data-[state=active]:text-accent-blue data-[state=active]:bg-transparent text-[13px] font-semibold px-1 transition-all gap-2"
+                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
                                                 >
-                                                    <MousePointer2 className="h-4 w-4" />
-                                                    {t('step') || 'Step Properties'}
+                                                    <MousePointer2 className="h-3.5 w-3.5" />
+                                                    {t('step') || 'Step'}
                                                 </TabsTrigger>
                                             </TabsList>
                                             
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                    <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="h-8 w-8 text-foreground-muted/40 hover:text-foreground-muted"
-                                                            onClick={() => propertiesPanelRef.current?.collapse()}
-                                                        >
-                                                            <PanelRight className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="bottom" className="text-[11px]">
-                                                        Hide panel
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
                                         </div>
                                         
                                         <div className="flex-1 overflow-y-auto custom-scrollbar">
