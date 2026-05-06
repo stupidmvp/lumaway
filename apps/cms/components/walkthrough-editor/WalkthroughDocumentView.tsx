@@ -94,7 +94,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             style={style}
             onClick={() => onSelectStep(index)}
             className={cn(
-                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200 cursor-pointer outline-none focus:outline-none",
+                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-colors duration-200 cursor-pointer outline-none focus:outline-none focus-visible:outline-none",
                 isFocused 
                     ? "bg-accent-blue/[0.03] dark:bg-accent-blue/[0.05]" 
                     : "hover:bg-background-secondary/30",
@@ -140,7 +140,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                         readOnly={!canEdit}
                         placeholder={t('untitledStep')}
                         className={cn(
-                            "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[17px] font-bold tracking-tight transition-all placeholder:text-foreground-muted/30",
+                            "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none p-0 text-[17px] font-bold tracking-tight placeholder:text-foreground-muted/30",
                             isFocused ? "text-foreground" : "text-foreground/90",
                             canEdit ? "cursor-text" : "cursor-default"
                         )}
