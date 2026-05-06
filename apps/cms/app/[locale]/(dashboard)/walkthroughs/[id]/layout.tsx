@@ -398,20 +398,20 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 <aside className="h-full bg-background flex flex-col overflow-hidden z-40">
                                     <Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab} className="flex-1 flex-col overflow-hidden">
                                         <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-background shrink-0">
-                                            <TabsList className="bg-muted/50 p-1 h-9 rounded-lg border border-border">
+                                            <TabsList className="flex h-full w-auto justify-start gap-6 bg-transparent p-0 rounded-none border-none">
                                                 <TabsTrigger 
                                                     value="configuration"
-                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
+                                                    className="relative h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-blue data-[state=active]:text-accent-blue data-[state=active]:bg-transparent text-[13px] font-semibold px-1 transition-all gap-2"
                                                 >
-                                                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                                                    {t('configuration') || 'Config'}
+                                                    <SlidersHorizontal className="h-4 w-4" />
+                                                    {t('configuration') || 'Configuration'}
                                                 </TabsTrigger>
                                                 <TabsTrigger 
                                                     value="step"
-                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
+                                                    className="relative h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-blue data-[state=active]:text-accent-blue data-[state=active]:bg-transparent text-[13px] font-semibold px-1 transition-all gap-2"
                                                 >
-                                                    <MousePointer2 className="h-3.5 w-3.5" />
-                                                    {t('step') || 'Step'}
+                                                    <MousePointer2 className="h-4 w-4" />
+                                                    {t('step') || 'Step Properties'}
                                                 </TabsTrigger>
                                             </TabsList>
                                             
