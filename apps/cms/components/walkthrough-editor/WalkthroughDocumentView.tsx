@@ -166,7 +166,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                         placeholder={t('noDescription')}
                         rows={1}
                         className={cn(
-                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15.5px] text-foreground/70 dark:text-foreground-subtle/90 leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/20",
+                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none p-0 text-[15.5px] text-foreground/70 dark:text-foreground-subtle/90 leading-relaxed resize-none overflow-hidden placeholder:text-foreground-muted/20",
                             canEdit ? "cursor-text" : "cursor-default"
                         )}
                     />
@@ -293,7 +293,7 @@ export function WalkthroughDocumentView({
                     }}
                     placeholder={t('walkthroughTitlePlaceholder') || 'Untitled Walkthrough'}
                     rows={1}
-                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-2"
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-2"
                 />
 
                 {/* Walkthrough Description */}
@@ -307,7 +307,7 @@ export function WalkthroughDocumentView({
                     }}
                     placeholder={t('descriptionPlaceholder') || 'Add a description...'}
                     rows={1}
-                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] text-foreground/80 dark:text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/20"
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none p-0 text-[16px] text-foreground/80 dark:text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/20"
                 />
             </div>
 
