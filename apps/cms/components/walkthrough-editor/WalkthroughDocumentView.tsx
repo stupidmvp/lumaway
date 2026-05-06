@@ -3,13 +3,16 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Target, FileText } from 'lucide-react';
+import { Target, FileText, Plus } from 'lucide-react';
 
 interface WalkthroughDocumentViewProps {
     steps: Step[];
+    canEdit: boolean;
+    onUpdateStep: (index: number, field: keyof Step, value: any) => void;
+    onAddStep: () => void;
 }
 
-export function WalkthroughDocumentView({ steps }: WalkthroughDocumentViewProps) {
+export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
 
     if (!steps || steps.length === 0) {
@@ -42,22 +45,42 @@ export function WalkthroughDocumentView({ steps }: WalkthroughDocumentViewProps)
                             <span className="mt-[2px] font-mono text-foreground-muted/60 select-none text-[13px]">
                                 {index + 1}.
                             </span>
-                            <h3 className="text-[16px] font-semibold text-foreground leading-snug outline-none">
-                                {step.title || t('untitledStep')}
-                            </h3>
+                            <input
+                                value={step.title || ''}
+                                onChange={(e) => canEdit && onUpdateStep(index, 'title', e.target.value)}
+                                readOnly={!canEdit}
+                                placeholder={t('untitledStep')}
+                                className={cn(
+                                    "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] font-semibold text-foreground leading-snug placeholder:text-foreground-muted/30",
+                                    canEdit ? "cursor-text" : "cursor-default"
+                                )}
+                            />
                         </div>
                         
                         {/* Step Content */}
                         <div className="pl-[22px]">
-                            {step.description ? (
-                                <p className="text-[15px] text-foreground-subtle leading-[1.6] whitespace-pre-wrap outline-none">
-                                    {step.description}
-                                </p>
-                            ) : (
-                                <p className="text-[15px] text-foreground-muted/40 italic leading-[1.6] outline-none">
-                                    {t('noDescription')}
-                                </p>
-                            )}
+                            <textarea
+                                value={step.description || ''}
+                                onChange={(e) => {
+                                    if (canEdit) {
+                                        onUpdateStep(index, 'description', e.target.value);
+                                        // Simple auto-resize
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }
+                                }}
+                                onFocus={(e) => {
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                }}
+                                readOnly={!canEdit}
+                                placeholder={t('noDescription')}
+                                rows={1}
+                                className={cn(
+                                    "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15px] text-foreground-subtle leading-[1.6] resize-none overflow-hidden placeholder:text-foreground-muted/20",
+                                    canEdit ? "cursor-text" : "cursor-default"
+                                )}
+                            />
 
                             {/* Technical Target - Kept subtle */}
                             {step.target && (
@@ -69,6 +92,19 @@ export function WalkthroughDocumentView({ steps }: WalkthroughDocumentViewProps)
                         </div>
                     </div>
                 ))}
+
+                {/* Add Step Button (Notion style) */}
+                {canEdit && (
+                    <button
+                        onClick={onAddStep}
+                        className="flex items-center gap-2 w-full px-2 py-2 mt-4 text-foreground-muted/50 hover:text-foreground-muted hover:bg-background-secondary/40 rounded-md transition-all duration-200 group"
+                    >
+                        <div className="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-dashed border-foreground-muted/30 group-hover:border-foreground-muted/50">
+                            <Plus className="h-3 w-3" />
+                        </div>
+                        <span className="text-sm font-medium">{t('addStep')}</span>
+                    </button>
+                )}
             </div>
         </div>
     );
