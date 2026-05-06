@@ -24,6 +24,7 @@ export default function WalkthroughGeneralPage() {
         handleDragEnd,
         sensors,
         selectedStepIndex,
+        setSelectedStepIndex,
     } = useEditorContext();
 
     if (!localWalkthrough) return null;
@@ -47,6 +48,7 @@ export default function WalkthroughGeneralPage() {
                             onDragEnd={handleDragEnd}
                             sensors={sensors}
                             selectedStepIndex={selectedStepIndex}
+                            onSelectStep={setSelectedStepIndex}
                         />
                     </div>
                 )}

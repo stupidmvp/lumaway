@@ -49,6 +49,7 @@ interface WalkthroughDocumentViewProps {
     onDragEnd: (event: DragEndEvent) => void;
     sensors: SensorDescriptor<SensorOptions>[];
     selectedStepIndex: number;
+    onSelectStep: (index: number) => void;
 }
 
 interface SortableStepBlockProps {
@@ -59,10 +60,11 @@ interface SortableStepBlockProps {
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
     onAddStep: (index?: number) => void;
     onRemoveStep: (index: number) => void;
+    onSelectStep: (index: number) => void;
     t: any;
 }
 
-function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAddStep, onRemoveStep, t }: SortableStepBlockProps) {
+function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAddStep, onRemoveStep, onSelectStep, t }: SortableStepBlockProps) {
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
@@ -90,11 +92,12 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
         <div 
             ref={setNodeRef}
             style={style}
+            onClick={() => onSelectStep(index)}
             className={cn(
-                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200",
+                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200 cursor-pointer",
                 isFocused 
-                    ? "bg-accent-blue/[0.05] dark:bg-accent-blue/[0.08]" 
-                    : "hover:bg-background-secondary/40",
+                    ? "bg-accent-blue/[0.03] dark:bg-accent-blue/[0.05]" 
+                    : "hover:bg-background-secondary/30",
                 isDragging ? "opacity-50 z-50 bg-background border border-border shadow-md" : "opacity-100"
             )}
         >
@@ -327,6 +330,7 @@ export function WalkthroughDocumentView({
                                 onUpdateStep={onUpdateStep}
                                 onAddStep={onAddStep}
                                 onRemoveStep={onRemoveStep}
+                                onSelectStep={onSelectStep}
                                 t={t}
                             />
                         ))}

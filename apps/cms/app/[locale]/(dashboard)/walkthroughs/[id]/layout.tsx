@@ -61,7 +61,18 @@ function MetadataBar() {
         localWalkthrough,
         effectiveRole,
         versions,
+        selectedStepIndex,
     } = useEditorContext();
+
+    const [activeTab, setActiveTab] = useState('configuration');
+
+    // Auto-switch to "step" tab when a step is selected
+    useEffect(() => {
+        if (selectedStepIndex >= 0) {
+            setActiveTab('step');
+        }
+    }, [selectedStepIndex]);
+
     const tc = useTranslations('Common');
     const tm = useTranslations('Members');
     const locale = useLocale();
@@ -384,10 +395,10 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                     isPropertiesCollapsed ? "min-w-[0px] border-l-0" : ""
                                 )}
                             >
-                                <aside className="h-full bg-slate-50/50 dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
-                                    <Tabs defaultValue="configuration" className="flex-1 flex flex-col overflow-hidden">
-                                        <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-white dark:bg-background shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-                                            <TabsList className="bg-background-secondary/50 p-1 h-9 rounded-lg border border-border/40">
+                                <aside className="h-full bg-background flex flex-col overflow-hidden z-40">
+                                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                                        <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-background shrink-0">
+                                            <TabsList className="bg-muted/50 p-1 h-9 rounded-lg border border-border">
                                                 <TabsTrigger 
                                                     value="configuration"
                                                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
@@ -448,7 +459,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                                     </section>
 
                                                     {/* Navigation Flow Section */}
-                                                    <section className="p-6 space-y-6 bg-white/30 dark:bg-black/10">
+                                                    <section className="p-6 space-y-6">
                                                         <div className="flex items-center gap-2 text-foreground/80">
                                                             <Route className="h-3.5 w-3.5 text-foreground-muted" />
                                                             <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Workflow & Logic</h3>

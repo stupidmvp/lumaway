@@ -255,8 +255,8 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
 
     if (!step) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-16 h-16 rounded-3xl bg-background-secondary/50 flex items-center justify-center mb-6 shadow-sm">
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center h-full bg-background">
+                <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-6">
                     <MousePointer2 className="h-8 w-8 text-foreground-muted/20" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground mb-2">No Step Selected</h3>
@@ -268,153 +268,111 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
     }
 
     return (
-        <div className="p-0 flex flex-col min-h-full animate-in fade-in duration-500">
-            {/* Header / Context */}
-            <div className="px-6 py-5 border-b border-border/40 bg-white/40 dark:bg-black/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center shrink-0">
-                        <Bot className="h-4 w-4 text-accent-blue" />
-                    </div>
-                    <div>
-                        <h2 className="text-[14px] font-bold text-foreground">Step Properties</h2>
-                        <p className="text-[11px] text-foreground-muted/60 font-medium uppercase tracking-wider mt-0.5">
-                            Step #{stepIndex + 1}
-                        </p>
-                    </div>
+        <div className="p-0 flex flex-col min-h-full divide-y divide-border/40 bg-background">
+            {/* AI Context Section */}
+            <section className="p-6 space-y-6">
+                <div className="flex items-center gap-2 text-foreground/80">
+                    <Sparkles className="h-3.5 w-3.5 text-accent-blue" />
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('aiContext') || 'AI Context'}</h3>
                 </div>
-            </div>
+                
+                <div className="space-y-4 px-1">
+                    <Textarea
+                        value={step.aiContext || ''}
+                        onChange={(e) => onUpdateStep(stepIndex, 'aiContext', e.target.value)}
+                        readOnly={!canEdit}
+                        placeholder="Add business logic or technical context for the AI..."
+                        className="min-h-[120px] text-[13px] bg-muted/30 border-border resize-none focus:ring-1 focus:ring-accent-blue/20"
+                    />
+                </div>
+            </section>
 
-            <div className="p-6 space-y-10">
-                {/* AI Context Section */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 text-foreground/80">
-                        <Sparkles className="h-3.5 w-3.5 text-accent-blue" />
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('aiContext') || 'AI Context (Purpose)'}</h3>
-                    </div>
-                    <div className="relative rounded-xl border border-border/60 bg-white dark:bg-background shadow-sm hover:border-accent-blue/30 transition-all group overflow-hidden">
-                        <textarea
-                            value={step.purpose || ''}
-                            onChange={(e) => onUpdateStep(stepIndex, 'purpose', e.target.value)}
-                            readOnly={!canEdit}
-                            placeholder="Describe what this step does for the AI..."
-                            className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-4 text-[13px] text-foreground leading-relaxed rounded-xl placeholder:text-foreground-muted/30 min-h-[100px] resize-none"
-                        />
-                        <div className="absolute bottom-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Bot className="h-3 w-3 text-accent-blue/40" />
-                        </div>
-                    </div>
-                </section>
-
-                {/* Technical Configuration */}
-                <section className="space-y-6">
-                    <div className="flex items-center gap-2 text-foreground/80">
-                        <Settings2 className="h-3.5 w-3.5 text-foreground-muted" />
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Technical Configuration</h3>
-                    </div>
-                    
-                    <div className="space-y-5 px-1">
-                        {/* Target Element */}
+            {/* Technical Configuration Section */}
+            <section className="p-6 space-y-6">
+                <div className="flex items-center gap-2 text-foreground/80">
+                    <Settings2 className="h-3.5 w-3.5 text-foreground-muted" />
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Technical Config</h3>
+                </div>
+                
+                <div className="space-y-5 px-1">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <label className="text-[12px] font-semibold text-foreground/70">Target Element</label>
-                                <span className="text-[10px] font-mono text-foreground-muted/50 bg-background-secondary px-1.5 py-0.5 rounded">Selector</span>
-                            </div>
-                            <div className="relative group">
-                                <Hash className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted/40 transition-colors group-focus-within:text-accent-blue" />
-                                <Input
-                                    className="font-mono text-[12px] bg-white dark:bg-background border-border/60 focus:border-accent-blue/50 focus:ring-accent-blue/5 h-10 pl-9 pr-3 rounded-xl transition-all shadow-sm"
-                                    value={step.target || ''}
-                                    onChange={e => onUpdateStep(stepIndex, 'target', e.target.value)}
-                                    placeholder="e.g. #submit-button"
-                                    readOnly={!canEdit}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Placement */}
-                        <div className="space-y-2">
-                            <label className="text-[12px] font-semibold text-foreground/70">Tooltip Placement</label>
+                            <label className="text-[12px] font-semibold text-foreground/70">Placement</label>
                             <Select
                                 value={step.placement || 'auto'}
                                 onValueChange={(value) => onUpdateStep(stepIndex, 'placement', value)}
                                 disabled={!canEdit}
                             >
-                                <SelectTrigger className="w-full h-10 px-4 rounded-xl bg-white dark:bg-background border-border/60 text-[13px] transition-all hover:border-accent-blue/30 focus:ring-accent-blue/5 focus:border-accent-blue/50 cursor-pointer shadow-sm">
-                                    <div className="flex items-center gap-2">
-                                        <Layout className="h-3.5 w-3.5 text-foreground-muted/50" />
-                                        <SelectValue placeholder="Select placement..." />
-                                    </div>
+                                <SelectTrigger className="w-full h-9 px-3 rounded-md bg-muted/30 border-border text-[12px]">
+                                    <SelectValue placeholder="Select..." />
                                 </SelectTrigger>
-                                <SelectContent className="rounded-xl border-border/60 shadow-xl">
-                                    <SelectItem value="auto" className="rounded-md">Automatic</SelectItem>
-                                    <SelectGroup>
-                                        <SelectItem value="top" className="rounded-md">Top</SelectItem>
-                                        <SelectItem value="bottom" className="rounded-md">Bottom</SelectItem>
-                                        <SelectItem value="left" className="rounded-md">Left</SelectItem>
-                                        <SelectItem value="right" className="rounded-md">Right</SelectItem>
-                                    </SelectGroup>
+                                <SelectContent className="rounded-lg border-border shadow-xl">
+                                    <SelectItem value="auto">Automatic</SelectItem>
+                                    <SelectItem value="top">Top</SelectItem>
+                                    <SelectItem value="bottom">Bottom</SelectItem>
+                                    <SelectItem value="left">Left</SelectItem>
+                                    <SelectItem value="right">Right</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
-                </section>
-
-                {/* Metadata Section */}
-                <section className="space-y-4 pt-4 border-t border-border/40">
-                    <div className="flex items-center justify-between px-0.5">
-                        <div className="flex items-center gap-2 text-foreground/80">
-                            <Component className="h-3.5 w-3.5 text-foreground-muted" />
-                            <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('metadata') || 'Metadata'}</h3>
+                        <div className="space-y-2">
+                            <label className="text-[12px] font-semibold text-foreground/70">Reference</label>
+                            <Input
+                                value={step.target || ''}
+                                onChange={(e) => onUpdateStep(stepIndex, 'target', e.target.value)}
+                                readOnly={!canEdit}
+                                className="h-9 text-[12px] bg-muted/30 border-border font-mono"
+                                placeholder="#id or .class"
+                            />
                         </div>
-                        {canEdit && (
-                            <Button
-                                onClick={() => {
-                                    const currentMeta = step.metadata || {};
-                                    const newKey = `property_${Object.keys(currentMeta).length + 1}`;
-                                    onUpdateStep(stepIndex, 'metadata', {
-                                        ...currentMeta,
-                                        [newKey]: ''
-                                    });
-                                    setFocusNewKey(newKey);
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-[11px] font-semibold text-accent-blue hover:bg-accent-blue/5 rounded-lg gap-1.5"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                                Add Entry
-                            </Button>
-                        )}
                     </div>
+                </div>
+            </section>
 
-                    <div className="bg-background-secondary/30 dark:bg-background/40 rounded-2xl p-5 border border-border/50 shadow-inner min-h-[100px]">
-                        {Object.keys(step.metadata || {}).length > 0 ? (
-                            <div className="space-y-4">
-                                {renderObjectFields(step.metadata || {}, (nextMeta) => {
-                                    onUpdateStep(stepIndex, 'metadata', nextMeta);
-                                })}
-                            </div>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-center py-6">
-                                <div className="w-10 h-10 rounded-full bg-border/20 flex items-center justify-center mb-3">
-                                    <ListTree className="h-5 w-5 text-foreground-muted/30" />
-                                </div>
-                                <p className="text-[12px] text-foreground-muted/40 font-medium italic">
-                                    No custom metadata defined for this step
-                                </p>
-                            </div>
-                        )}
+            {/* Metadata Section */}
+            <section className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-foreground/80">
+                        <Component className="h-3.5 w-3.5 text-foreground-muted" />
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Step Metadata</h3>
                     </div>
-                </section>
+                    {canEdit && (
+                        <Button
+                            onClick={() => {
+                                const currentMeta = step.metadata || {};
+                                const newKey = `property_${Object.keys(currentMeta).length + 1}`;
+                                onUpdateStep(stepIndex, 'metadata', {
+                                    ...currentMeta,
+                                    [newKey]: ''
+                                });
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[10px] text-accent-blue hover:bg-accent-blue/5 rounded-md gap-1"
+                        >
+                            <Plus className="h-3 w-3" />
+                            Add Entry
+                        </Button>
+                    )}
+                </div>
 
-                {/* Help Section */}
-                <div className="p-5 rounded-2xl bg-accent-blue/5 border border-accent-blue/10 shadow-[0_4px_12px_rgba(var(--accent-blue-rgb),0.03)]">
+                <div className="p-4 rounded-lg bg-muted/30 border border-border min-h-[80px]">
+                    {renderObjectFields(
+                        step.metadata || {},
+                        (nextMetadata) => onUpdateStep(stepIndex, 'metadata', nextMetadata)
+                    )}
+                </div>
+            </section>
+
+            {/* Help / Footer */}
+            <div className="p-6">
+                <div className="p-5 rounded-2xl bg-accent-blue/5 border border-accent-blue/10">
                     <div className="flex items-start gap-3">
                         <div className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center shrink-0">
                             <Info className="h-3.5 w-3.5 text-accent-blue" />
                         </div>
                         <p className="text-[12px] text-foreground-muted/80 leading-relaxed font-medium">
-                            Need help? <span className="text-accent-blue cursor-pointer hover:underline">Learn more</span> about how these properties impact the walkthrough experience.
+                            These properties define the technical behavior of this step during playback.
                         </p>
                     </div>
                 </div>
@@ -423,4 +381,6 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
     );
 });
 
-import { MousePointer2, Sparkles, Settings2, ListTree } from 'lucide-react';
+import { MousePointer2, Sparkles, Settings2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
