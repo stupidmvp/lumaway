@@ -18,6 +18,8 @@ export default function WalkthroughGeneralPage() {
         handleNextChange,
         addStep,
         updateStep,
+        handleDragEnd,
+        sensors,
     } = useEditorContext();
 
     if (!localWalkthrough) return null;
@@ -59,6 +61,8 @@ export default function WalkthroughGeneralPage() {
                             canEdit={canEdit}
                             onUpdateStep={updateStep}
                             onAddStep={addStep}
+                            onDragEnd={handleDragEnd}
+                            sensors={sensors}
                         />
                     </div>
                 )}
