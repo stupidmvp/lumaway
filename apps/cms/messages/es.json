@@ -239,7 +239,8 @@
         "membersSubtitle": "Gestiona el acceso del equipo y los roles para este proyecto.",
         "invitationsSubtitle": "Seguimiento y gestión de las invitaciones pendientes del proyecto.",
         "actorsSubtitle": "Define y gestiona los actores del sistema para simulaciones de recorridos.",
-        "settingsSubtitle": "Configura los ajustes y preferencias generales del proyecto."
+        "settingsSubtitle": "Configura los ajustes y preferencias generales del proyecto.",
+        "activitySubtitle": "Seguimiento de cambios recientes y actualizaciones en este proyecto."
     },
     "ProjectLumens": {
         "title": "Lumens",
@@ -959,9 +960,14 @@
         "zoomSize": "Tamaño",
         "zoomToFit": "Ajustar a pantalla",
         "zoomTo50": "Acercar al 50%",
-        "zoomTo100": "Acercar al 100%",
-        "zoomTo200": "Acercar al 200%",
-        "reprocessInProgress": "El procesamiento del Lumen está en progreso. Los resultados aparecerán automáticamente.",
+        "zoomTo100": "100%",
+        "zoomTo200": "200%",
+        "noVideoAvailable": "Video no disponible para esta sesión",
+        "generateWalkthrough": "Generar Walkthrough",
+        "generatingWalkthrough": "Generando...",
+        "generateSuccess": "Walkthrough generado con éxito",
+        "generateFailed": "Error al generar Walkthrough",
+        "reprocessInProgress": "El procesamiento de Lumen está en curso. Los resultados aparecerán automáticamente.",
         "reprocessQueued": "La regeneración del Lumen fue encolada.",
         "reprocessFailed": "No se pudo encolar la regeneración del Lumen.",
         "generateSingle": "Generar walkthrough único",

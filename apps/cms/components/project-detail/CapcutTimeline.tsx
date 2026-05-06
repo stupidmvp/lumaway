@@ -744,12 +744,12 @@ export function CapcutTimeline({
                 key={item.id}
                 className={cn(
                     "absolute h-8 top-2 rounded-[3px] cursor-grab active:cursor-grabbing flex items-center overflow-visible border group pointer-events-auto",
-                    type === 'step' ? (isSelected ? "bg-[#6366f1]" : "bg-[#6366f1]/80") : (isSelected ? "bg-[#3a3a3e]" : "bg-[#2a2a2e]"),
+                    type === 'step' ? (isSelected ? "bg-[#6366f1]" : "bg-[#6366f1]/80") : (isSelected ? "bg-foreground/20 dark:bg-[#3a3a3e]" : "bg-foreground/10 dark:bg-[#2a2a2e]"),
                     isSelected 
-                        ? "border-[2px] border-white z-[60] shadow-xl ring-2 ring-white/30" 
+                        ? "border-[2px] border-foreground/40 dark:border-white z-[60] shadow-xl ring-2 ring-foreground/20 dark:ring-white/30" 
                         : isActive
-                            ? "border-white/20 z-40"
-                            : "border-white/10 z-30"
+                            ? "border-foreground/30 dark:border-white/20 z-40"
+                            : "border-foreground/10 dark:border-white/10 z-30"
                 )}
                 style={{ 
                     left: `${x}px`, 
@@ -787,8 +787,8 @@ export function CapcutTimeline({
                     }
                 }}
             >
-                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-white/20 rounded-t-[3px] z-10" />
-                {isSelected && <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/40 rounded-t-[3px] z-20" />}
+                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-foreground/10 dark:bg-white/20 rounded-t-[3px] z-10" />
+                {isSelected && <div className="absolute top-0 left-0 right-0 h-[1px] bg-foreground/20 dark:bg-white/40 rounded-t-[3px] z-20" />}
                 
                 <div 
                     className={cn(
@@ -803,11 +803,11 @@ export function CapcutTimeline({
                 </div>
                 
                 <div className="flex flex-col justify-center px-4 pointer-events-none overflow-hidden w-full select-none">
-                    <span className={cn("text-[10px] font-bold truncate tracking-tight text-white")}>
+                    <span className={cn("text-[10px] font-bold truncate tracking-tight", type === 'step' ? "text-white" : "text-foreground dark:text-white")}>
                         {item.text}
                     </span>
                     {item.description && (
-                        <span className={cn("text-[8px] truncate leading-tight font-medium text-white/70")}>
+                        <span className={cn("text-[8px] truncate leading-tight font-medium", type === 'step' ? "text-white/70" : "text-foreground/70 dark:text-white/70")}>
                             {item.description}
                         </span>
                     )}
@@ -829,7 +829,7 @@ export function CapcutTimeline({
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#0f0f11] overflow-hidden border border-[#2a2a2e] select-none shadow-2xl">
+        <div className="flex flex-col h-full bg-background dark:bg-[#0f0f11] overflow-hidden border border-border dark:border-[#2a2a2e] select-none shadow-2xl">
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes ring-pulse {
                     0% { ring-offset-color: #0f0f11; ring-color: rgba(99, 102, 241, 0.2); }
@@ -840,7 +840,7 @@ export function CapcutTimeline({
                     animation: ring-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                 }
             `}} />
-            <div className="h-14 border-b border-[#2a2a2e] bg-[#0f0f11] flex items-center px-4 shrink-0 gap-4">
+            <div className="h-14 border-b border-border dark:border-[#2a2a2e] bg-background dark:bg-[#0f0f11] flex items-center px-4 shrink-0 gap-4">
                 <div className="flex-1 flex items-center gap-1.5 min-w-0">
                     <TooltipProvider>
                         <Tooltip>
@@ -894,9 +894,9 @@ export function CapcutTimeline({
                             {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                         </button>
                         <div className="flex items-center gap-1 font-mono text-[11px] tabular-nums whitespace-nowrap">
-                            <span className="text-white font-semibold">{formatVideoTime(currentTimeSec).split('.')[0]}</span>
-                            <span className="text-white/20">/</span>
-                            <span className="text-white/40">{formatVideoTime(durationSec).split('.')[0]}</span>
+                            <span className="text-foreground dark:text-white font-semibold">{formatVideoTime(currentTimeSec).split('.')[0]}</span>
+                            <span className="text-foreground/20 dark:text-white/20">/</span>
+                            <span className="text-foreground-muted dark:text-white/40">{formatVideoTime(durationSec).split('.')[0]}</span>
                         </div>
                     </div>
                 </div>
@@ -944,16 +944,16 @@ export function CapcutTimeline({
                     </div>
                 </div>
             </div>
-            <div ref={containerRef} className="flex-1 overflow-auto relative custom-scrollbar bg-[#0f0f11]" onScroll={handleScroll}>
+            <div ref={containerRef} className="flex-1 overflow-auto relative custom-scrollbar bg-background dark:bg-[#0f0f11]" onScroll={handleScroll}>
                 <div className="flex relative" style={{ width: `${timelineWidth + sidebarWidth}px` }}>
-                    <div className="sticky left-0 w-[280px] z-[70] bg-[#0f0f11] border-r border-[#2a2a2e] flex flex-col shadow-2xl shrink-0">
+                    <div className="sticky left-0 w-[280px] z-[70] bg-background dark:bg-[#0f0f11] border-r border-border dark:border-[#2a2a2e] flex flex-col shadow-2xl shrink-0">
                          <div className="flex flex-col py-0 flex-1 overflow-visible">
-                             <div className="h-10 shrink-0 border-b border-[#2d2d30] bg-[#1a1a1e]" />
-                             <div className="h-12 flex items-center px-4 shrink-0 bg-[#252529] border-b border-[#2d2d30] relative">
-                                 <span className="text-[11px] font-bold text-white truncate uppercase tracking-[0.1em]">Transcripción</span>
+                             <div className="h-10 shrink-0 border-b border-border dark:border-[#2d2d30] bg-background-secondary/80 dark:bg-[#1a1a1e]" />
+                             <div className="h-12 flex items-center px-4 shrink-0 bg-background-secondary dark:bg-[#252529] border-b border-border dark:border-[#2d2d30] relative">
+                                 <span className="text-[11px] font-bold text-foreground dark:text-white truncate uppercase tracking-[0.1em]">Transcripción</span>
                              </div>
-                             <div className="h-8 flex items-center px-4 shrink-0 bg-[#0f0f11] border-b border-[#2a2a2e]/50">
-                                 <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em]">Steps</span>
+                             <div className="h-8 flex items-center px-4 shrink-0 bg-background dark:bg-[#0f0f11] border-b border-border dark:border-[#2a2a2e]/50">
+                                 <span className="text-[9px] font-bold text-foreground-muted dark:text-white/40 uppercase tracking-[0.2em]">Steps</span>
                              </div>
                              <DndContext 
                                  sensors={sensors} 
@@ -973,12 +973,12 @@ export function CapcutTimeline({
                          </div>
                     </div>
                     <div ref={trackRef} className="flex-1 relative min-h-full" onClick={handleTrackClick}>
-                        <div className="h-10 border-b border-[#2d2d30] sticky top-0 bg-[#09090b] backdrop-blur-sm z-40">
+                        <div className="h-10 border-b border-border dark:border-[#2d2d30] sticky top-0 bg-background/95 dark:bg-[#09090b] backdrop-blur-sm z-40">
                             <div className="relative h-full">
                                 {ticks.map((tick) => (
-                                    <div key={tick.sec} className={cn("absolute top-0 h-full border-l", tick.isMajor ? "border-white/40 w-[1.5px]" : "border-white/20 h-1.5 mt-auto")} style={{ left: `${tick.x}px` }}>
+                                    <div key={tick.sec} className={cn("absolute top-0 h-full border-l", tick.isMajor ? "border-foreground/40 dark:border-white/40 w-[1.5px]" : "border-foreground/20 dark:border-white/20 h-1.5 mt-auto")} style={{ left: `${tick.x}px` }}>
                                         {tick.isMajor && (
-                                            <span className="text-[10px] text-white/60 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1.5 leading-none font-bold tracking-tight">
+                                            <span className="text-[10px] text-foreground-muted/80 dark:text-white/60 -translate-x-1/2 ml-[-1px] mb-1 absolute bottom-1.5 leading-none font-bold tracking-tight">
                                                 {formatVideoTime(tick.sec).split('.')[0]}s
                                             </span>
                                         )}
@@ -987,21 +987,21 @@ export function CapcutTimeline({
                             </div>
                         </div>
                         <div className="flex flex-col px-0 relative min-h-[160px]">
-                            <div className="h-12 relative border-b border-[#2d2d30] bg-[#1a1a1e] group transition-colors">
+                            <div className="h-12 relative border-b border-border dark:border-[#2d2d30] bg-background-secondary/80 dark:bg-[#1a1a1e] group transition-colors">
                                 {segments.map((segment) => renderTimelineItem(segment, 'subtitle', onUpdateSegment))}
                             </div>
-                            <div className="h-8 bg-[#09090b] border-b border-[#2d2d30] relative" />
+                            <div className="h-8 bg-background-secondary/30 dark:bg-[#09090b] border-b border-border dark:border-[#2d2d30] relative" />
                             {steps.map((step) => {
                                 return (
-                                    <div key={step.id} className={cn("h-12 relative border-b border-[#2d2d30] group hover:bg-white/[0.04] transition-colors z-20", steps.findIndex(s => s.id === step.id) % 2 === 0 ? "bg-[#111114]" : "bg-[#1a1a1e]")}>
+                                    <div key={step.id} className={cn("h-12 relative border-b border-border dark:border-[#2d2d30] group hover:bg-foreground/5 dark:hover:bg-white/[0.04] transition-colors z-20", steps.findIndex(s => s.id === step.id) % 2 === 0 ? "bg-background dark:bg-[#111114]" : "bg-background-secondary/80 dark:bg-[#1a1a1e]")}>
                                         {renderTimelineItem(step, 'step', onUpdateStep || onUpdateSegment)}
                                     </div>
                                 );
                             })}
-                            <div className="h-20 mt-6 relative bg-white/[0.02] border-y border-[#2a2a2e] flex items-center overflow-hidden">
-                                 <div className="flex gap-1 h-full opacity-20">
+                            <div className="h-20 mt-6 relative bg-foreground/[0.02] dark:bg-white/[0.02] border-y border-border dark:border-[#2a2a2e] flex items-center overflow-hidden">
+                                 <div className="flex gap-1 h-full opacity-20 dark:opacity-20">
                                     {Array.from({ length: Math.min(Math.ceil(timelineWidth / 120), 300) }).map((_, i) => (
-                                        <div key={i} className="w-[116px] h-full bg-white/5 shrink-0 border-r border-[#2a2a2e]" />
+                                        <div key={i} className="w-[116px] h-full bg-foreground/5 dark:bg-white/5 shrink-0 border-r border-border dark:border-[#2a2a2e]" />
                                     ))}
                                  </div>
                             </div>
@@ -1009,9 +1009,9 @@ export function CapcutTimeline({
                         <div ref={playheadRef} className="absolute top-0 bottom-0 left-0 w-[1.5px] z-[60] pointer-events-none will-change-transform">
                             <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
                                 <div className="relative z-[70] top-0 flex-none">
-                                    <Triangle className="w-[12px] h-[12px] fill-white text-white rotate-180 drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+                                    <Triangle className="w-[12px] h-[12px] fill-foreground dark:fill-white text-foreground dark:text-white rotate-180 drop-shadow-[0_0_8px_rgba(0,0,0,0.2)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
                                 </div>
-                                <div className="w-[1.5px] flex-1 bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)] -mt-[0.5px]" />
+                                <div className="w-[1.5px] flex-1 bg-foreground dark:bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] dark:shadow-[0_0_10px_rgba(255,255,255,0.3)] -mt-[0.5px]" />
                             </div>
                         </div>
                     </div>

@@ -15,7 +15,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, ChevronRight, Circle, Combine, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Undo2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Captions, CheckCircle2, ChevronLeft, ChevronRight, Circle, Combine, Hand, Loader2, Magnet, MousePointer2, Move, Pause, Play, Redo2, RotateCcw, RotateCw, Save, Scissors, Settings2, Sparkles, Undo2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -958,9 +958,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
     const selectedSubtitleSegment = subtitleSegments.find((s) => s.id === selectedSubtitleSegmentId) ?? null;
 
     return (
-        <div className="flex flex-col h-full bg-[#0f0f11] min-w-0 overflow-hidden">
+        <div className="flex flex-col h-full bg-background dark:bg-[#0f0f11] min-w-0 overflow-hidden">
             {/* Header / Info Bar */}
-            <div className="bg-[#09090b] border-b border-[#2a2a2e] px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="bg-background-secondary/50 dark:bg-[#09090b] border-b border-border dark:border-[#2a2a2e] px-4 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                     <Link
                         href={`/projects/${projectId}/lumens`}
@@ -985,11 +985,11 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                 </div>
 
                 {/* Header Toolbar (Zoom & Pan) */}
-                <div className="flex items-center gap-1 bg-[#141417] border border-[#2a2a2e]/40 rounded-full px-1 py-1 shadow-sm">
+                <div className="flex items-center gap-1 bg-background-secondary dark:bg-[#141417] border border-border/60 dark:border-[#2a2a2e]/40 rounded-full px-1 py-1 shadow-sm">
                     <Button
                         variant="ghost"
                         size="icon"
-                        className={cn("h-7 w-7 rounded-full transition-colors", !isPanning ? "bg-[#2a2a2e] text-white shadow-sm" : "text-white/50 hover:text-white")}
+                        className={cn("h-7 w-7 rounded-full transition-colors", !isPanning ? "bg-background-secondary dark:bg-[#2a2a2e] text-foreground dark:text-white shadow-sm ring-1 ring-border/50 dark:ring-0" : "text-foreground-muted hover:text-foreground dark:text-white/50 dark:hover:text-white")}
                         onClick={() => setIsPanning(false)}
                     >
                         <MousePointer2 className="h-3.5 w-3.5" />
@@ -997,7 +997,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                     <Button
                         variant="ghost"
                         size="icon"
-                        className={cn("h-7 w-7 rounded-full transition-colors", isPanning ? "bg-background text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}
+                        className={cn("h-7 w-7 rounded-full transition-colors", isPanning ? "bg-background text-foreground shadow-sm ring-1 ring-border/50 dark:ring-0" : "text-foreground-muted hover:text-foreground")}
                         onClick={() => setIsPanning(true)}
                     >
                         <Hand className="h-3.5 w-3.5" />
@@ -1005,7 +1005,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                     <div className="w-[1px] h-3 bg-border/40 mx-0.5" />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 rounded-full text-[10px] font-bold gap-1 text-white/70 hover:text-white hover:bg-white/5">
+                            <Button variant="ghost" size="sm" className="h-7 px-2 rounded-full text-[10px] font-bold gap-1 text-foreground/70 hover:text-foreground hover:bg-foreground/5 dark:text-white/70 dark:hover:text-white dark:hover:bg-white/5">
                                 {zoom}%
                                 <ChevronLeft className="h-2.5 w-2.5 rotate-[-90deg] opacity-50" />
                             </Button>
@@ -1054,7 +1054,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 text-[11px] font-bold gap-1.5 text-white/50 hover:text-white hover:bg-[#2a2a2e] border-[#2a2a2e] transition-all shadow-sm px-3"
+                        className="h-8 text-[11px] font-bold gap-1.5 text-foreground-muted hover:text-foreground hover:bg-background-secondary border-border dark:text-white/50 dark:hover:text-white dark:hover:bg-[#2a2a2e] dark:border-[#2a2a2e] transition-all shadow-sm px-3"
                         onClick={() => reprocessMutation.mutate(lumenId)}
                         disabled={reprocessMutation.isPending}
                     >
@@ -1065,6 +1065,36 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         )}
                         {t('reprocess')}
                     </Button>
+                    {canGenerate && (
+                        <Button
+                            size="sm"
+                            className="h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white border-none font-bold shadow-sm px-4"
+                            onClick={() => {
+                                generateMutation.mutate(lumenId, {
+                                    onSuccess: () => {
+                                        toast.success(t('generateSuccess') || 'Walkthrough generated successfully');
+                                        router.push(`/projects/${projectId}/walkthroughs`);
+                                    },
+                                    onError: () => {
+                                        toast.error(t('generateFailed') || 'Failed to generate Walkthrough');
+                                    }
+                                });
+                            }}
+                            disabled={generateMutation.isPending}
+                        >
+                            {generateMutation.isPending ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                    {t('generatingWalkthrough') || 'Generating...'}
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                                    {t('generateWalkthrough') || 'Generate Walkthrough'}
+                                </>
+                            )}
+                        </Button>
+                    )}
                     <Button
                         size="sm"
                         className="h-8 text-[11px] bg-[#6366f1] hover:bg-[#6366f1]/90 text-white border-none font-bold shadow-sm px-4"
@@ -1106,9 +1136,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                             isPropertiesCollapsed ? "min-w-[0px]" : ""
                         )}
                     >
-                        <div className="h-full bg-[#111114] border-r border-[#2d2d30] overflow-hidden flex flex-col z-10 relative shadow-xl">
-                            <div className="p-4 border-b border-[#2d2d30] bg-[#09090b] shrink-0 flex items-center justify-between">
-                                <h2 className="text-sm font-bold text-white">{t('properties')}</h2>
+                        <div className="h-full bg-background dark:bg-[#111114] border-r border-border dark:border-[#2d2d30] overflow-hidden flex flex-col z-10 relative shadow-xl">
+                            <div className="p-4 border-b border-border dark:border-[#2d2d30] bg-background-secondary/50 dark:bg-[#09090b] shrink-0 flex items-center justify-between">
+                                <h2 className="text-sm font-bold text-foreground dark:text-white">{t('properties')}</h2>
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
@@ -1140,11 +1170,11 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                             return (
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="text-sm font-semibold text-white">{t('selectedStep')}</div>
+                                                        <div className="text-sm font-semibold text-foreground dark:text-white">{t('selectedStep')}</div>
                                                     </div>
                                                     
                                                     <div className="space-y-2">
-                                                        <Label className="text-xs text-white/50">{t('stepTitle') || 'Título'}</Label>
+                                                        <Label className="text-xs text-foreground-muted dark:text-white/50">{t('stepTitle') || 'Título'}</Label>
                                                         <Input 
                                                             value={step.title}
                                                             onChange={(e) => handleUpdateStep(activeStepId, { title: e.target.value })}
@@ -1155,7 +1185,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs text-white/50">{t('startTime')} ({t('milliseconds')})</Label>
+                                                            <Label className="text-xs text-foreground-muted dark:text-white/50">{t('startTime')} ({t('milliseconds')})</Label>
                                                             <Input 
                                                                 type="number"
                                                                 value={step.timestampMs}
@@ -1164,7 +1194,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                             />
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs text-white/50">{t('duration')} ({t('milliseconds')})</Label>
+                                                            <Label className="text-xs text-foreground-muted dark:text-white/50">{t('duration')} ({t('milliseconds')})</Label>
                                                             <Input 
                                                                 type="number"
                                                                 value={step.durationMs || 8000}
@@ -1175,7 +1205,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                                     </div>
 
                                                     <div className="space-y-2">
-                                                        <Label className="text-xs text-white/50">{t('stepDescription') || 'Descripción'}</Label>
+                                                        <Label className="text-xs text-foreground-muted dark:text-white/50">{t('stepDescription') || 'Descripción'}</Label>
                                                         <Textarea 
                                                             value={step.description}
                                                             onChange={(e) => handleUpdateStep(activeStepId, { description: e.target.value })}
@@ -1279,9 +1309,9 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                         </div>
                     </ResizablePanel>
 
-                    <ResizableHandle withHandle={false} className="relative z-[100] w-px bg-[#2d2d30] after:hidden">
+                    <ResizableHandle withHandle={false} className="relative z-[100] w-px bg-border dark:bg-[#2d2d30] after:hidden">
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-3.0 cursor-pointer items-center justify-center rounded-r-full bg-[#111114] border border-l-0 border-[#2d2d30] shadow-[2px_0_8px_rgba(0,0,0,0.3)] text-white/40 hover:text-white hover:bg-[#1a1a1e] transition-colors"
+                            className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-3.0 cursor-pointer items-center justify-center rounded-r-full bg-background-secondary dark:bg-[#111114] border border-l-0 border-border dark:border-[#2d2d30] shadow-[2px_0_8px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_rgba(0,0,0,0.3)] text-foreground-muted hover:text-foreground dark:text-white/40 dark:hover:text-white hover:bg-background-secondary/80 dark:hover:bg-[#1a1a1e] transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1311,7 +1341,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 <div
                                     ref={canvasRef}
                                     className={cn(
-                                        "h-full w-full bg-[#18181c] flex items-center justify-center relative overflow-hidden",
+                                        "h-full w-full bg-background-secondary/30 dark:bg-[#18181c] flex items-center justify-center relative overflow-hidden",
                                         isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
                                     )}
                                     onMouseDown={handleMouseDown}
@@ -1375,7 +1405,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
 
                             {/* Bottom Section: Full Width Timeline */}
                             <ResizablePanel defaultSize={35} minSize={20}>
-                                <div className="h-full bg-[#0f0f11] shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.2)] z-50 overflow-hidden">
+                                <div className="h-full bg-background dark:bg-[#0f0f11] shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.2)] z-50 overflow-hidden">
                                     <CapcutTimeline
                                         durationSec={durationSec}
                                         currentTimeSec={currentTime}
