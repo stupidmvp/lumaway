@@ -81,7 +81,6 @@ function SortableStepBlock({
     t 
 }: SortableStepBlockProps) {
     const inputRef = React.useRef<HTMLInputElement>(null);
-    const [isCommentsExpanded, setIsCommentsExpanded] = React.useState(true);
 
     React.useEffect(() => {
         if (isFocused && inputRef.current && !step.title) {
@@ -200,40 +199,6 @@ function SortableStepBlock({
                 </div>
             </div>
 
-            {/* Discussion Section (Notion style, collapsible) */}
-            {isFocused && (
-                <div className="mt-4 pt-4 border-t border-border/30">
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsCommentsExpanded(!isCommentsExpanded);
-                        }}
-                        className="flex items-center gap-2 mb-4 text-foreground-muted hover:text-foreground transition-colors group/disc"
-                    >
-                        {isCommentsExpanded ? (
-                            <ChevronDown className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
-                        ) : (
-                            <ChevronRight className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
-                        )}
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        <span className="text-[11px] font-bold uppercase tracking-[0.1em]">{t('discussion')}</span>
-                    </button>
-
-                    {isCommentsExpanded && (
-                        <div className="pl-4 border-l-2 border-border/20 ml-1.5 pb-2">
-                            <CommentsPanel 
-                                projectId={projectId}
-                                walkthroughId={walkthroughId}
-                                stepId={step.id}
-                                showHeader={false}
-                                className="bg-transparent"
-                                canComment={canEdit}
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
             {/* Actions Menu */}
             {canEdit && (
                 <div className={cn(
@@ -301,6 +266,7 @@ export function WalkthroughDocumentView({
     const t = useTranslations('Editor');
     const titleRef = React.useRef<HTMLTextAreaElement>(null);
     const descRef = React.useRef<HTMLTextAreaElement>(null);
+    const [isCommentsExpanded, setIsCommentsExpanded] = React.useState(true);
 
     // Auto-resize on mount
     React.useEffect(() => {
@@ -403,6 +369,34 @@ export function WalkthroughDocumentView({
                     <span className="text-[15px]">{t('addStep')}</span>
                 </button>
             )}
+
+            {/* Global Walkthrough Discussion Section */}
+            <div className="mt-16 pt-8 border-t border-border/20">
+                <button 
+                    onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}
+                    className="flex items-center gap-2 mb-6 text-foreground-muted hover:text-foreground transition-colors group/disc"
+                >
+                    {isCommentsExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
+                    ) : (
+                        <ChevronRight className="h-3.5 w-3.5 opacity-50 group-hover/disc:opacity-100" />
+                    )}
+                    <MessageSquare className="h-4 w-4" />
+                    <h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">{t('discussion')}</h3>
+                </button>
+
+                {isCommentsExpanded && (
+                    <div className="px-1">
+                        <CommentsPanel 
+                            projectId={projectId}
+                            walkthroughId={walkthroughId}
+                            showHeader={false}
+                            className="bg-transparent"
+                            canComment={canEdit}
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
