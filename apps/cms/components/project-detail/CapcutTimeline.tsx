@@ -152,7 +152,7 @@ function SortableStepItem({
         if (isStepActive && localRef.current) {
             localRef.current.scrollIntoView({
                 behavior: 'smooth',
-                block: 'nearest'
+                block: 'center'
             });
         }
     }, [isStepActive]);
@@ -162,9 +162,9 @@ function SortableStepItem({
             ref={setRefs}
             style={style}
             className={cn(
-                "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none",
+                "h-12 flex items-center transition-all duration-300 ease-out text-left shrink-0 overflow-hidden relative border-b border-border/50 group outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none",
                 isStepActive 
-                    ? "bg-sky-600 text-white z-10 shadow-md scale-[1.02] px-2" 
+                    ? "bg-sky-600 text-white z-10 shadow-lg scale-[1.02] px-2" 
                     : isEven 
                         ? "bg-background hover:bg-secondary/50"
                         : "bg-secondary/20 hover:bg-secondary/50",
@@ -960,7 +960,7 @@ export function CapcutTimeline({
                     </div>
                 </div>
             </div>
-            <div ref={containerRef} className="flex-1 overflow-auto relative custom-scrollbar bg-background dark:bg-[#0f0f11]" onScroll={handleScroll}>
+            <div ref={containerRef} className="flex-1 overflow-auto scroll-smooth relative custom-scrollbar bg-background dark:bg-[#0f0f11]" onScroll={handleScroll}>
                 <div className="flex relative" style={{ width: `${timelineWidth + sidebarWidth}px` }}>
                     <div className="sticky left-0 w-[280px] z-[70] bg-background dark:bg-[#0f0f11] border-r border-border dark:border-[#2a2a2e] flex flex-col shadow-2xl shrink-0">
                          <div className="flex flex-col py-0 flex-1 overflow-visible">
