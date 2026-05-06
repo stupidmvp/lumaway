@@ -19,6 +19,12 @@ import { UserAvatar } from '@/components/ui/user-avatar';
 import VersionHistoryDrawer from '@/components/walkthrough-editor/VersionHistoryDrawer';
 import { useCurrentUser } from '@luma/infra';
 
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from '@/components/ui/resizable';
+
 // Properties Panel Components
 import { WalkthroughProperties } from '@/components/walkthrough-editor/WalkthroughProperties';
 import { ActorAssignment } from '@/components/walkthrough-editor/ActorAssignment';
@@ -319,73 +325,81 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                     />
 
                     <div className="flex-1 flex overflow-hidden">
-                        {/* Center Content (Scrollable) */}
-                        <div className="flex-1 overflow-y-auto bg-background custom-scrollbar">
-                            {children}
-                        </div>
-
-                        {/* Right Properties Panel */}
-                        <aside className="w-[320px] border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 overflow-hidden z-40">
-                            <div className="h-14 px-5 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm">
-                                <span className="text-[13px] font-bold uppercase tracking-wider text-foreground-muted/70 flex items-center gap-2">
-                                    <PanelRight className="h-4 w-4" />
-                                    Properties
-                                </span>
-                            </div>
-                            
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="p-6 space-y-8">
-                                    {/* Page Info Section */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                            Page Configuration
-                                        </h3>
-                                        <div className="space-y-4">
-                                            <WalkthroughProperties
-                                                tags={localWalkthrough.tags ?? []}
-                                                canEdit={canEdit}
-                                                onTagsChange={handleTagsChange}
-                                            />
-
-                                            <ActorAssignment
-                                                walkthroughId={id}
-                                                projectId={localWalkthrough.projectId}
-                                                canEdit={canEdit}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Navigation Flow Section */}
-                                    <div className="space-y-4 pt-6 border-t border-border/40">
-                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                            Workflow & Logic
-                                        </h3>
-                                        <div className="space-y-4">
-                                            <WalkthroughFlowSection
-                                                walkthroughId={id}
-                                                projectId={localWalkthrough.projectId}
-                                                parentId={localWalkthrough.parentId}
-                                                previousWalkthroughId={localWalkthrough.previousWalkthroughId}
-                                                nextWalkthroughId={localWalkthrough.nextWalkthroughId}
-                                                onParentChange={handleParentChange}
-                                                onPreviousChange={handlePreviousChange}
-                                                onNextChange={handleNextChange}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Contextual help or info */}
-                                    <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
-                                        <div className="flex items-start gap-3">
-                                            <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
-                                            <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
-                                                These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
-                                            </p>
-                                        </div>
-                                    </div>
+                        <ResizablePanelGroup direction="horizontal">
+                            {/* Center Content (Scrollable) */}
+                            <ResizablePanel defaultSize={75} minSize={40}>
+                                <div className="h-full overflow-y-auto bg-background custom-scrollbar">
+                                    {children}
                                 </div>
-                            </div>
-                        </aside>
+                            </ResizablePanel>
+
+                            <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors" />
+
+                            {/* Right Properties Panel */}
+                            <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+                                <aside className="h-full border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
+                                    <div className="h-14 px-5 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm shrink-0">
+                                        <span className="text-[13px] font-bold uppercase tracking-wider text-foreground-muted/70 flex items-center gap-2">
+                                            <PanelRight className="h-4 w-4" />
+                                            Properties
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                        <div className="p-6 space-y-8">
+                                            {/* Page Info Section */}
+                                            <div className="space-y-4">
+                                                <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                                    Page Configuration
+                                                </h3>
+                                                <div className="space-y-4">
+                                                    <WalkthroughProperties
+                                                        tags={localWalkthrough.tags ?? []}
+                                                        canEdit={canEdit}
+                                                        onTagsChange={handleTagsChange}
+                                                    />
+
+                                                    <ActorAssignment
+                                                        walkthroughId={id}
+                                                        projectId={localWalkthrough.projectId}
+                                                        canEdit={canEdit}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Navigation Flow Section */}
+                                            <div className="space-y-4 pt-6 border-t border-border/40">
+                                                <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                                    Workflow & Logic
+                                                </h3>
+                                                <div className="space-y-4">
+                                                    <WalkthroughFlowSection
+                                                        walkthroughId={id}
+                                                        projectId={localWalkthrough.projectId}
+                                                        parentId={localWalkthrough.parentId}
+                                                        previousWalkthroughId={localWalkthrough.previousWalkthroughId}
+                                                        nextWalkthroughId={localWalkthrough.nextWalkthroughId}
+                                                        onParentChange={handleParentChange}
+                                                        onPreviousChange={handlePreviousChange}
+                                                        onNextChange={handleNextChange}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Contextual help or info */}
+                                            <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
+                                                <div className="flex items-start gap-3">
+                                                    <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
+                                                    <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
+                                                        These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </aside>
+                            </ResizablePanel>
+                        </ResizablePanelGroup>
                     </div>
                 </div>
 
