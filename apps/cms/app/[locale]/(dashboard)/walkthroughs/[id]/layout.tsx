@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useMemo, useRef, useState } from 'react';
+import React, { use, useMemo, useRef, useState, useEffect } from 'react';
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -203,7 +203,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
     const [activePropertiesTab, setActivePropertiesTab] = useState('configuration');
 
     // Auto-switch to "step" tab when a step is selected
-    React.useEffect(() => {
+    useEffect(() => {
         if (selectedStepIndex >= 0) {
             setActivePropertiesTab('step');
         }
