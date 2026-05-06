@@ -66,84 +66,6 @@ export const StepsSidebar = React.memo(function StepsSidebar({
         );
     }, [steps, searchQuery]);
 
-    // --- Thumbnail / collapsed mode ---
-    if (!isExpanded) {
-        return (
-            <aside className="w-[52px] shrink-0 bg-background border-r border-border flex flex-col transition-all duration-200">
-                {/* Header — just the icon */}
-                <div className="h-11 border-b border-border flex items-center justify-center bg-background-secondary/30 shrink-0">
-                    <Route className="h-3.5 w-3.5 text-foreground-muted" />
-                </div>
-
-                {/* Thumbnail step list */}
-                <div className="flex-1 overflow-y-auto py-2 px-1.5 flex flex-col items-center gap-1">
-                    {steps.length === 0 && (
-                        <div className="text-foreground-subtle text-[9px] text-center mt-2">—</div>
-                    )}
-                    {steps.map((step, idx) => (
-                        <Tooltip key={step.id} delayDuration={300}>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={() => onSelectStep(idx)}
-                                    className={`
-                                        w-9 h-9 rounded-md flex items-center justify-center text-xs font-medium transition-all duration-150 shrink-0
-                                        ${selectedStepIndex === idx
-                                            ? 'bg-accent-blue/10 text-accent-blue ring-1 ring-accent-blue/30'
-                                            : 'bg-transparent hover:bg-background-secondary text-foreground-muted hover:text-foreground'
-                                        }
-                                    `}
-                                >
-                                    {idx + 1}
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs">
-                                {step.title || t('noTargetSelector')}
-                            </TooltipContent>
-                        </Tooltip>
-                    ))}
-                </div>
-
-                {/* Footer — toggle expand + add */}
-                <div className="border-t border-border py-1.5 px-1.5 flex flex-col items-center gap-1 shrink-0">
-                    {canEdit && (
-                        <Tooltip delayDuration={300}>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    onClick={onAddStep}
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 rounded-full hover:bg-background-tertiary text-primary"
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs">
-                                {t('addStep')}
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                    <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                            <Button
-                                onClick={onToggleExpand}
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 shrink-0"
-                                title={t('showSteps')}
-                            >
-                                <PanelLeftOpen className="h-3.5 w-3.5 text-foreground-muted" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="text-xs">
-                            {t('showSteps')}
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            </aside>
-        );
-    }
-
-    // --- Expanded / full mode ---
     return (
         <aside className="w-full shrink-0 bg-background flex flex-col transition-all duration-200 h-full">
             <div className="flex flex-col border-b border-border bg-background-secondary/30">
@@ -231,19 +153,6 @@ export const StepsSidebar = React.memo(function StepsSidebar({
                 </DndContext>
             </div>
 
-            {/* Footer — toggle collapse */}
-            <div className="border-t border-border px-3 py-1.5 flex items-center shrink-0">
-                <Button
-                    onClick={onToggleExpand}
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1.5 text-foreground-muted hover:text-foreground px-2"
-                    title={t('hideSteps')}
-                >
-                    <PanelLeftClose className="h-3.5 w-3.5" />
-                    <span className="text-[10px]">{t('hideSteps')}</span>
-                </Button>
-            </div>
         </aside>
     );
 });

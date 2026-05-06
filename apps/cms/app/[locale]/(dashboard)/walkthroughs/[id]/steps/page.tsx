@@ -36,14 +36,6 @@ export default function WalkthroughStepsPage() {
                 minSize={15} 
                 maxSize={40} 
                 className="border-r border-border bg-background transition-all duration-300"
-                collapsible={true}
-                collapsedSize={4}
-                onCollapse={() => {
-                    if (stepsExpanded) toggleStepsPanel();
-                }}
-                onExpand={() => {
-                    if (!stepsExpanded) toggleStepsPanel();
-                }}
             >
                 <StepsSidebar
                     steps={localWalkthrough.steps}
