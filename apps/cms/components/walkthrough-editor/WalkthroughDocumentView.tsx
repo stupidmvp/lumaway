@@ -3,7 +3,7 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Hash, Plus, GripVertical, MoreVertical, Trash2 } from 'lucide-react';
+import { Hash, Plus, GripVertical, MoreVertical, Trash2, Smile, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -37,8 +37,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 interface WalkthroughDocumentViewProps {
+    title: string;
+    description: string | null;
     steps: Step[];
     canEdit: boolean;
+    onTitleChange: (title: string) => void;
+    onDescriptionChange: (description: string) => void;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
     onAddStep: (index?: number) => void;
     onRemoveStep: (index: number) => void;
@@ -205,15 +209,69 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
     );
 }
 
-export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep, onRemoveStep, onDragEnd, sensors, selectedStepIndex }: WalkthroughDocumentViewProps) {
+export function WalkthroughDocumentView({ 
+    title, 
+    description, 
+    steps, 
+    canEdit, 
+    onTitleChange,
+    onDescriptionChange,
+    onUpdateStep, 
+    onAddStep, 
+    onRemoveStep, 
+    onDragEnd, 
+    sensors, 
+    selectedStepIndex 
+}: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
 
-    if (!steps || steps.length === 0) {
+    if (!steps) {
         return null;
     }
 
     return (
-        <div className="py-10 px-4 max-w-[800px] mx-auto w-full">
+        <div className="py-12 px-8 max-w-[850px] mx-auto w-full min-h-full">
+            {/* Notion-style Page Header */}
+            <div className="mb-10 group/header">
+                {/* Actions (Icon/Cover) */}
+                <div className="flex items-center gap-4 mb-4 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted/60 hover:text-foreground transition-colors">
+                        <Smile className="h-3.5 w-3.5" />
+                        <span>{t('addIcon') || 'Add icon'}</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted/60 hover:text-foreground transition-colors">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        <span>{t('addCover') || 'Add cover'}</span>
+                    </button>
+                </div>
+
+                {/* Main Title */}
+                <textarea
+                    value={title}
+                    onChange={(e) => {
+                        onTitleChange(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    placeholder={t('walkthroughTitlePlaceholder') || 'Untitled Walkthrough'}
+                    rows={1}
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/10 mb-2"
+                />
+
+                {/* Walkthrough Description */}
+                <textarea
+                    value={description || ''}
+                    onChange={(e) => {
+                        onDescriptionChange(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    placeholder={t('descriptionPlaceholder') || 'Add a description...'}
+                    rows={1}
+                    className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/10"
+                />
+            </div>
+
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

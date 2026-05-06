@@ -16,6 +16,8 @@ export default function WalkthroughGeneralPage() {
         handleParentChange,
         handlePreviousChange,
         handleNextChange,
+        handleTitleChange,
+        handleDescriptionChange,
         addStep,
         updateStep,
         removeStep,
@@ -59,8 +61,12 @@ export default function WalkthroughGeneralPage() {
                 {localWalkthrough.steps && localWalkthrough.steps.length > 0 && (
                     <div className="mt-4">
                         <WalkthroughDocumentView 
+                            title={localWalkthrough.title}
+                            description={localWalkthrough.description ?? null}
                             steps={localWalkthrough.steps} 
                             canEdit={canEdit}
+                            onTitleChange={handleTitleChange}
+                            onDescriptionChange={handleDescriptionChange}
                             onUpdateStep={updateStep}
                             onAddStep={addStep}
                             onRemoveStep={removeStep}

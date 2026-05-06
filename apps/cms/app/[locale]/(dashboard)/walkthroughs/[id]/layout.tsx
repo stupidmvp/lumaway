@@ -294,23 +294,6 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                 currentUserId={currentUserId}
             />
 
-            {/* Title + metadata + tabs */}
-            <div className="px-5 sm:px-6 pt-4 pb-4 bg-background-secondary dark:bg-background shrink-0 border-b border-border">
-                <div className="w-full max-w-[1400px] mx-auto">
-                    {/* Metadata bar */}
-                    <MetadataBar />
-
-                    {/* Title + Description */}
-                    <WalkthroughTitleBlock
-                        title={localWalkthrough.title}
-                        description={localWalkthrough.description ?? null}
-                        canEdit={canEdit}
-                        onTitleChange={handleTitleChange}
-                        onDescriptionChange={handleDescriptionChange}
-                    />
-                </div>
-            </div>
-
                 {/* Tab content — fills remaining space */}
                 <div className="flex-1 overflow-hidden bg-background relative flex flex-col">
                     {children}
