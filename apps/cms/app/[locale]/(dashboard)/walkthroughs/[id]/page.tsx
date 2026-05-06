@@ -18,6 +18,7 @@ export default function WalkthroughGeneralPage() {
         handleNextChange,
         addStep,
         updateStep,
+        removeStep,
         handleDragEnd,
         sensors,
     } = useEditorContext();
@@ -61,6 +62,7 @@ export default function WalkthroughGeneralPage() {
                             canEdit={canEdit}
                             onUpdateStep={updateStep}
                             onAddStep={addStep}
+                            onRemoveStep={removeStep}
                             onDragEnd={handleDragEnd}
                             sensors={sensors}
                         />

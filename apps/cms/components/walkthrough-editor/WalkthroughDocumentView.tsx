@@ -3,8 +3,25 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Hash, Plus, GripVertical } from 'lucide-react';
+import { Hash, Plus, GripVertical, MoreVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
     DndContext,
     closestCenter,
@@ -24,6 +41,7 @@ interface WalkthroughDocumentViewProps {
     canEdit: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
     onAddStep: () => void;
+    onRemoveStep: (index: number) => void;
     onDragEnd: (event: DragEndEvent) => void;
     sensors: SensorDescriptor<SensorOptions>[];
 }
@@ -33,10 +51,11 @@ interface SortableStepBlockProps {
     index: number;
     canEdit: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
+    onRemoveStep: (index: number) => void;
     t: any;
 }
 
-function SortableStepBlock({ step, index, canEdit, onUpdateStep, t }: SortableStepBlockProps) {
+function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t }: SortableStepBlockProps) {
     const {
         attributes,
         listeners,
@@ -120,11 +139,52 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, t }: SortableSt
                     </div>
                 )}
             </div>
+
+            {/* Actions Menu */}
+            {canEdit && (
+                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <AlertDialog>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="p-1 rounded hover:bg-background-tertiary text-foreground-muted/40 hover:text-foreground-muted transition-colors">
+                                    <MoreVertical className="h-4 w-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive gap-2 cursor-pointer">
+                                        <Trash2 className="h-4 w-4" />
+                                        <span>{t('deleteStep')}</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>{t('deleteStepConfirmTitle') || 'Delete Step?'}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    {t('deleteStepConfirmDescription') || 'This action cannot be undone. This step will be permanently removed from the walkthrough.'}
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={() => onRemoveStep(index)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                    {t('delete') || 'Delete'}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
         </div>
     );
 }
 
-export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep, onDragEnd, sensors }: WalkthroughDocumentViewProps) {
+export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep, onRemoveStep, onDragEnd, sensors }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
 
     if (!steps || steps.length === 0) {
@@ -150,6 +210,7 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
                                 index={index}
                                 canEdit={canEdit}
                                 onUpdateStep={onUpdateStep}
+                                onRemoveStep={onRemoveStep}
                                 t={t}
                             />
                         ))}
