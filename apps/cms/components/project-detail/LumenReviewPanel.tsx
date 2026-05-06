@@ -1073,7 +1073,7 @@ export function LumenReviewPanel({ projectId, lumenId }: LumenReviewPanelProps) 
                                 generateMutation.mutate({ observerSessionId: lumenId }, {
                                     onSuccess: () => {
                                         toast.success(t('generateSuccess') || 'Walkthrough generated successfully');
-                                        router.push(`/projects/${projectId}/walkthroughs`);
+                                        router.push(`/projects/${projectId}`);
                                     },
                                     onError: () => {
                                         toast.error(t('generateFailed') || 'Failed to generate Walkthrough');
