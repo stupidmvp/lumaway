@@ -70,6 +70,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             inputRef.current.focus();
         }
     }, [isFocused, step.title]);
+
     const {
         attributes,
         listeners,
@@ -90,16 +91,22 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             ref={setNodeRef}
             style={style}
             className={cn(
-                "group relative flex flex-col rounded-md px-2 py-0.5 hover:bg-background-secondary/40 transition-colors duration-150",
-                isDragging ? "opacity-50 z-50 bg-background shadow-lg ring-1 ring-border" : "opacity-100"
+                "group relative flex flex-col rounded-xl px-4 py-3 transition-all duration-300",
+                isFocused 
+                    ? "bg-white dark:bg-[#111114] shadow-[0_8px_24px_rgba(0,0,0,0.04)] ring-1 ring-accent-blue/20 z-10" 
+                    : "hover:bg-background-secondary/40",
+                isDragging ? "opacity-50 z-50 bg-background shadow-xl ring-2 ring-accent-blue/30" : "opacity-100"
             )}
         >
             {/* Notion-style Block Drag Handle & Add Button */}
-            <div className="absolute -left-[54px] top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <div className={cn(
+                "absolute -left-[54px] top-1/2 -translate-y-1/2 transition-all duration-300 flex items-center gap-1",
+                isFocused ? "opacity-100 translate-x-2" : "opacity-0 group-hover:opacity-100"
+            )}>
                 {canEdit && (
                     <button
                         onClick={() => onAddStep(index + 1)}
-                        className="p-1 rounded hover:bg-background-tertiary text-foreground-muted/30 hover:text-foreground-muted transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-background-secondary text-foreground-muted/30 hover:text-accent-blue transition-all"
                     >
                         <Plus className="h-4 w-4" />
                     </button>
@@ -109,7 +116,10 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                     {...attributes}
                     {...listeners}
                     className={cn(
-                        "flex cursor-grab active:cursor-grabbing items-center justify-center text-foreground-muted/30 hover:text-foreground-muted p-1 rounded",
+                        "flex cursor-grab active:cursor-grabbing items-center justify-center p-1.5 rounded-lg transition-all",
+                        isFocused 
+                            ? "text-accent-blue bg-accent-blue/5" 
+                            : "text-foreground-muted/30 hover:text-foreground-muted hover:bg-background-secondary",
                         !canEdit && "pointer-events-none"
                     )}
                 >
@@ -117,67 +127,85 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                 </div>
             </div>
 
-            {/* Step Title (H3 style in Notion) */}
-            <div className="flex items-start">
-                <input
-                    ref={inputRef}
-                    value={step.title || ''}
-                    onChange={(e) => canEdit && onUpdateStep(index, 'title', e.target.value)}
-                    readOnly={!canEdit}
-                    placeholder={t('untitledStep')}
-                    className={cn(
-                        "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] font-semibold text-foreground leading-normal placeholder:text-foreground-muted/20",
-                        canEdit ? "cursor-text" : "cursor-default"
-                    )}
-                />
-            </div>
-            
-            {/* Step Content */}
-            <div className="mt-[-2px]">
-                <textarea
-                    value={step.description || ''}
-                    onChange={(e) => {
-                        if (canEdit) {
-                            onUpdateStep(index, 'description', e.target.value);
+            <div className="flex flex-col gap-1">
+                {/* Step Title */}
+                <div className="flex items-center gap-3">
+                    <span className={cn(
+                        "text-[12px] font-bold font-mono transition-colors",
+                        isFocused ? "text-accent-blue" : "text-foreground-muted/20 group-hover:text-foreground-muted/40"
+                    )}>
+                        {(index + 1).toString().padStart(2, '0')}
+                    </span>
+                    <input
+                        ref={inputRef}
+                        value={step.title || ''}
+                        onChange={(e) => canEdit && onUpdateStep(index, 'title', e.target.value)}
+                        readOnly={!canEdit}
+                        placeholder={t('untitledStep')}
+                        className={cn(
+                            "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[17px] font-bold tracking-tight transition-all placeholder:text-foreground-muted/10",
+                            isFocused ? "text-foreground" : "text-foreground/80",
+                            canEdit ? "cursor-text" : "cursor-default"
+                        )}
+                    />
+                </div>
+                
+                {/* Step Description */}
+                <div className="pl-[31px]">
+                    <textarea
+                        value={step.description || ''}
+                        onChange={(e) => {
+                            if (canEdit) {
+                                onUpdateStep(index, 'description', e.target.value);
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                            }
+                        }}
+                        onFocus={(e) => {
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
-                        }
-                    }}
-                    onFocus={(e) => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    readOnly={!canEdit}
-                    placeholder={t('noDescription')}
-                    rows={1}
-                    className={cn(
-                        "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[14.5px] text-foreground-subtle/90 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/10",
-                        canEdit ? "cursor-text" : "cursor-default"
-                    )}
-                />
+                        }}
+                        readOnly={!canEdit}
+                        placeholder={t('noDescription')}
+                        rows={1}
+                        className={cn(
+                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15px] leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/10",
+                            isFocused ? "text-foreground-subtle" : "text-foreground-subtle/70",
+                            canEdit ? "cursor-text" : "cursor-default"
+                        )}
+                    />
 
-                {/* Technical Target - Kept subtle */}
-                {step.target && (
-                    <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background-secondary/40 text-[10px] text-foreground-muted/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Hash className="h-2.5 w-2.5" />
-                        <code className="font-mono truncate max-w-[300px]">{step.target}</code>
-                    </div>
-                )}
+                    {/* Technical Target */}
+                    {step.target && (
+                        <div className={cn(
+                            "mt-3 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-300",
+                            isFocused 
+                                ? "bg-accent-blue/5 border-accent-blue/10 text-accent-blue opacity-100" 
+                                : "bg-background-secondary/40 border-transparent text-foreground-muted/50 opacity-0 group-hover:opacity-100"
+                        )}>
+                            <Hash className="h-3 w-3" />
+                            <code className="text-[11px] font-mono font-medium truncate max-w-[400px]">{step.target}</code>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Actions Menu */}
             {canEdit && (
-                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={cn(
+                    "absolute top-3 right-3 transition-all duration-300",
+                    isFocused ? "opacity-100 scale-100" : "opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100"
+                )}>
                     <AlertDialog>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="p-1 rounded hover:bg-background-tertiary text-foreground-muted/40 hover:text-foreground-muted transition-colors">
+                                <button className="p-1.5 rounded-lg hover:bg-background-secondary text-foreground-muted/40 hover:text-foreground-muted transition-all">
                                     <MoreVertical className="h-4 w-4" />
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl border-border/40">
                                 <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive gap-2 cursor-pointer">
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive gap-2 cursor-pointer rounded-lg m-1">
                                         <Trash2 className="h-4 w-4" />
                                         <span>{t('deleteStep')}</span>
                                     </DropdownMenuItem>
@@ -185,7 +213,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <AlertDialogContent>
+                        <AlertDialogContent className="rounded-2xl border-border/40">
                             <AlertDialogHeader>
                                 <AlertDialogTitle>{t('deleteStepConfirmTitle') || 'Delete Step?'}</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -193,10 +221,10 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+                                <AlertDialogCancel className="rounded-xl">{t('cancel') || 'Cancel'}</AlertDialogCancel>
                                 <AlertDialogAction
                                     onClick={() => onRemoveStep(index)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    className="bg-destructive text-white hover:bg-destructive/90 rounded-xl"
                                 >
                                     {t('delete') || 'Delete'}
                                 </AlertDialogAction>
