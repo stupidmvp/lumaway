@@ -394,6 +394,7 @@
     "Editor": {
         "documentView": "Document View",
         "noDescription": "No description provided.",
+        "noMetadata": "No metadata available.",
         "untitledStep": "Untitled Step",
         "deleteStepConfirmTitle": "Delete Step?",
         "deleteStepConfirmDescription": "This action cannot be undone. This step will be permanently removed from the walkthrough.",
