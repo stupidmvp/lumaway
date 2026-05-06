@@ -3,7 +3,8 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Target, FileText, Plus } from 'lucide-react';
+import { Target, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WalkthroughDocumentViewProps {
     steps: Step[];

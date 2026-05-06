@@ -394,6 +394,7 @@
     "Editor": {
         "documentView": "Document View",
         "noDescription": "No description provided.",
+        "untitledStep": "Untitled Step",
         "versionHistory": "Version History",
         "saveChanges": "Save Changes",
         "publish": "Publish",
