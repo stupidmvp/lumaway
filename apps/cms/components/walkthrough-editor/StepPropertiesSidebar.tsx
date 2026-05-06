@@ -339,7 +339,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                     <Zap className="h-3.5 w-3.5 text-accent-pink" />
                     <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('deliverySection')}</h3>
                 </div>
-                
+                <div className="space-y-5 px-1">
                     {/* Delivery Mode Selection */}
                     <div className="space-y-3">
                         <Label className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{t('deliveryMode')}</Label>
