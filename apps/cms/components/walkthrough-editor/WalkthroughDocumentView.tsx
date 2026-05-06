@@ -44,19 +44,28 @@ interface WalkthroughDocumentViewProps {
     onRemoveStep: (index: number) => void;
     onDragEnd: (event: DragEndEvent) => void;
     sensors: SensorDescriptor<SensorOptions>[];
+    selectedStepIndex: number;
 }
 
 interface SortableStepBlockProps {
     step: Step;
     index: number;
     canEdit: boolean;
+    isFocused: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
     onAddStep: (index?: number) => void;
     onRemoveStep: (index: number) => void;
     t: any;
 }
 
-function SortableStepBlock({ step, index, canEdit, onUpdateStep, onAddStep, onRemoveStep, t }: SortableStepBlockProps) {
+function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAddStep, onRemoveStep, t }: SortableStepBlockProps) {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        if (isFocused && inputRef.current && !step.title) {
+            inputRef.current.focus();
+        }
+    }, [isFocused, step.title]);
     const {
         attributes,
         listeners,
@@ -107,6 +116,7 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onAddStep, onRe
             {/* Step Title (H3 style in Notion) */}
             <div className="flex items-start">
                 <input
+                    ref={inputRef}
                     value={step.title || ''}
                     onChange={(e) => canEdit && onUpdateStep(index, 'title', e.target.value)}
                     readOnly={!canEdit}
@@ -195,7 +205,7 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onAddStep, onRe
     );
 }
 
-export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep, onRemoveStep, onDragEnd, sensors }: WalkthroughDocumentViewProps) {
+export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddStep, onRemoveStep, onDragEnd, sensors, selectedStepIndex }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
 
     if (!steps || steps.length === 0) {
@@ -220,6 +230,7 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
                                 step={step}
                                 index={index}
                                 canEdit={canEdit}
+                                isFocused={index === selectedStepIndex}
                                 onUpdateStep={onUpdateStep}
                                 onAddStep={onAddStep}
                                 onRemoveStep={onRemoveStep}
