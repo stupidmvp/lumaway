@@ -78,11 +78,11 @@
 
   .dark {
     /* Backgrounds */
-    --background: 16 16 16;
-    /* True dark */
-    --background-secondary: 24 24 24;
+    --background: 25 25 25;
+    /* Notion dark mode #191919 */
+    --background-secondary: 32 32 32;
     /* Elevated */
-    --background-tertiary: 32 32 32;
+    --background-tertiary: 40 40 40;
     /* More elevated */
 
     /* Text */
