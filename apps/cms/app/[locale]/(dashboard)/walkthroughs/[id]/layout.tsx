@@ -19,6 +19,11 @@ import { UserAvatar } from '@/components/ui/user-avatar';
 import VersionHistoryDrawer from '@/components/walkthrough-editor/VersionHistoryDrawer';
 import { useCurrentUser } from '@luma/infra';
 
+// Properties Panel Components
+import { WalkthroughProperties } from '@/components/walkthrough-editor/WalkthroughProperties';
+import { ActorAssignment } from '@/components/walkthrough-editor/ActorAssignment';
+import { WalkthroughFlowSection } from '@/components/walkthrough-editor/WalkthroughFlowSection';
+
 /* ─── Tab types ─── */
 
 type TabKey = 'general' | 'steps' | 'activity';
@@ -159,6 +164,10 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         rejectVersion,
         reviewerUserIds,
         approvals,
+        handleTagsChange,
+        handleParentChange,
+        handlePreviousChange,
+        handleNextChange,
     } = useEditorContext();
 
     const { data: user } = useCurrentUser();
@@ -316,7 +325,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                         </div>
 
                         {/* Right Properties Panel */}
-                        <aside className="w-80 border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 overflow-hidden z-40">
+                        <aside className="w-[320px] border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 overflow-hidden z-40">
                             <div className="h-14 px-5 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm">
                                 <span className="text-[13px] font-bold uppercase tracking-wider text-foreground-muted/70 flex items-center gap-2">
                                     <PanelRight className="h-4 w-4" />
@@ -324,13 +333,57 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 </span>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto p-6 text-center flex flex-col items-center justify-center">
-                                <div className="w-12 h-12 rounded-full bg-background-secondary flex items-center justify-center mb-4">
-                                    <Layers className="h-6 w-6 text-foreground-muted/20" />
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="p-6 space-y-8">
+                                    {/* Page Info Section */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                            Page Configuration
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <WalkthroughProperties
+                                                tags={localWalkthrough.tags ?? []}
+                                                canEdit={canEdit}
+                                                onTagsChange={handleTagsChange}
+                                            />
+
+                                            <ActorAssignment
+                                                walkthroughId={id}
+                                                projectId={localWalkthrough.projectId}
+                                                canEdit={canEdit}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Navigation Flow Section */}
+                                    <div className="space-y-4 pt-6 border-t border-border/40">
+                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                            Workflow & Logic
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <WalkthroughFlowSection
+                                                walkthroughId={id}
+                                                projectId={localWalkthrough.projectId}
+                                                parentId={localWalkthrough.parentId}
+                                                previousWalkthroughId={localWalkthrough.previousWalkthroughId}
+                                                nextWalkthroughId={localWalkthrough.nextWalkthroughId}
+                                                onParentChange={handleParentChange}
+                                                onPreviousChange={handlePreviousChange}
+                                                onNextChange={handleNextChange}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Contextual help or info */}
+                                    <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
+                                        <div className="flex items-start gap-3">
+                                            <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
+                                            <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
+                                                These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-foreground-muted/60 max-w-[200px]">
-                                    Select a block to see its properties here.
-                                </p>
                             </div>
                         </aside>
                     </div>
