@@ -351,7 +351,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                         <ResizablePanelGroup direction="horizontal">
                             {/* Center Content (Scrollable) */}
                             <ResizablePanel defaultSize={75} minSize={40}>
-                                <div className="h-full overflow-y-auto bg-background custom-scrollbar">
+                                <div className="h-full overflow-y-auto bg-background dark:bg-[#191919] custom-scrollbar">
                                     {children}
                                 </div>
                             </ResizablePanel>
