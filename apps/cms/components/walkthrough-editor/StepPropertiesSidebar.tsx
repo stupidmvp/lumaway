@@ -348,17 +348,17 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onValueChange={(val) => canEdit && updateMetadata('runtime.deliveryMode', val === 'chat' ? 'chat-guided' : 'interactive')}
                             className="w-full"
                         >
-                            <TabsList className="grid w-full grid-cols-2 bg-muted/20 border border-border/40 h-10 p-1 rounded-xl">
+                            <TabsList className="grid w-full grid-cols-2 bg-muted/20 border border-border/40 h-11 p-1.5 rounded-xl">
                                 <TabsTrigger 
                                     value="interactive" 
-                                    className="rounded-lg text-[11px] font-semibold gap-2 data-[state=active]:bg-white/[0.08] dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 transition-all"
+                                    className="rounded-lg text-[11px] font-bold gap-2 data-[state=active]:bg-white/10 data-[state=active]:text-accent-blue data-[state=active]:ring-1 data-[state=active]:ring-accent-blue/30 data-[state=active]:shadow-md transition-all duration-200"
                                 >
                                     <Target className="h-3.5 w-3.5" />
                                     {t('modeInteractive')}
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="chat" 
-                                    className="rounded-lg text-[11px] font-semibold gap-2 data-[state=active]:bg-white/[0.08] dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 transition-all"
+                                    className="rounded-lg text-[11px] font-bold gap-2 data-[state=active]:bg-white/10 data-[state=active]:text-accent-blue data-[state=active]:ring-1 data-[state=active]:ring-accent-blue/30 data-[state=active]:shadow-md transition-all duration-200"
                                 >
                                     <Bot className="h-3.5 w-3.5" />
                                     {t('modeChat')}
