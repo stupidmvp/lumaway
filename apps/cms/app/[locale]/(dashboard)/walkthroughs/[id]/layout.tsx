@@ -1,6 +1,7 @@
 'use client';
 
-import { use, useMemo } from 'react';
+import { use, useMemo, useRef, useState } from 'react';
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Info, Route, MessageCircle, Settings, Layers, PanelRight, ChevronLeft, ChevronRight, SlidersHorizontal, MousePointer2, Component, Bot } from 'lucide-react';
@@ -184,6 +185,9 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
 
     const totalSteps = localWalkthrough?.steps.length ?? 0;
 
+    const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false);
+    const propertiesPanelRef = useRef<ImperativePanelHandle>(null);
+
     const { data: user } = useCurrentUser();
     const currentUserId = user?.id;
 
@@ -341,10 +345,45 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                 </div>
                             </ResizablePanel>
 
-                            <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors" />
+                            <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors relative">
+                                <div
+                                    className="absolute top-1/2 -translate-y-1/2 right-0 z-50 flex h-12 w-4 cursor-pointer items-center justify-center rounded-l-full bg-white dark:bg-[#09090b] border border-r-0 border-border shadow-[-2px_0_8px_rgba(0,0,0,0.05)] text-foreground-muted/40 hover:text-accent-blue hover:bg-background-secondary transition-all group"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        const panel = propertiesPanelRef.current;
+                                        if (panel) {
+                                            if (panel.isCollapsed()) {
+                                                panel.expand();
+                                            } else {
+                                                panel.collapse();
+                                            }
+                                        }
+                                    }}
+                                >
+                                    {isPropertiesCollapsed ? (
+                                        <ChevronLeft className="h-3 w-3 transition-transform group-hover:scale-110" />
+                                    ) : (
+                                        <ChevronRight className="h-3 w-3 transition-transform group-hover:scale-110" />
+                                    )}
+                                </div>
+                            </ResizableHandle>
 
                             {/* Right Properties Panel */}
-                            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+                            <ResizablePanel 
+                                ref={propertiesPanelRef}
+                                defaultSize={25} 
+                                minSize={20} 
+                                maxSize={40}
+                                collapsible={true}
+                                collapsedSize={0}
+                                onCollapse={() => setIsPropertiesCollapsed(true)}
+                                onExpand={() => setIsPropertiesCollapsed(false)}
+                                className={cn(
+                                    "transition-all duration-300 ease-in-out",
+                                    isPropertiesCollapsed ? "min-w-[0px]" : ""
+                                )}
+                            >
                                 <aside className="h-full border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
                                     <Tabs defaultValue="configuration" className="flex-1 flex flex-col overflow-hidden">
                                         <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm shrink-0">
@@ -368,7 +407,12 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted/40 hover:text-foreground-muted">
+                                                    <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-8 w-8 text-foreground-muted/40 hover:text-foreground-muted"
+                                                            onClick={() => propertiesPanelRef.current?.collapse()}
+                                                        >
                                                             <PanelRight className="h-4 w-4" />
                                                         </Button>
                                                     </TooltipTrigger>
