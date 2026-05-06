@@ -33,6 +33,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tabs,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 interface StepPropertiesSidebarProps {
@@ -335,36 +340,31 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                     <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">{t('deliverySection')}</h3>
                 </div>
                 
-                <div className="space-y-5 px-1">
-                    {/* Delivery Mode Toggle */}
-                    <div className="space-y-2">
-                        <Label className="text-[11px] font-semibold text-foreground-muted">{t('deliveryMode')}</Label>
-                        <div className="flex bg-muted/30 p-1 rounded-lg border border-border/40">
-                            <button
-                                onClick={() => canEdit && updateMetadata('runtime.deliveryMode', 'interactive')}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-[11px] font-medium transition-all",
-                                    runtime.deliveryMode !== 'chat-guided' 
-                                        ? "bg-background shadow-sm text-foreground" 
-                                        : "text-foreground-muted hover:text-foreground"
-                                )}
-                            >
-                                <Target className="h-3 w-3" />
-                                {t('modeInteractive')}
-                            </button>
-                            <button
-                                onClick={() => canEdit && updateMetadata('runtime.deliveryMode', 'chat-guided')}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-[11px] font-medium transition-all",
-                                    runtime.deliveryMode === 'chat-guided' 
-                                        ? "bg-background shadow-sm text-foreground" 
-                                        : "text-foreground-muted hover:text-foreground"
-                                )}
-                            >
-                                <Bot className="h-3 w-3" />
-                                {t('modeChat')}
-                            </button>
-                        </div>
+                    {/* Delivery Mode Selection */}
+                    <div className="space-y-3">
+                        <Label className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{t('deliveryMode')}</Label>
+                        <Tabs 
+                            value={runtime.deliveryMode === 'chat-guided' ? 'chat' : 'interactive'} 
+                            onValueChange={(val) => canEdit && updateMetadata('runtime.deliveryMode', val === 'chat' ? 'chat-guided' : 'interactive')}
+                            className="w-full"
+                        >
+                            <TabsList className="grid w-full grid-cols-2 bg-muted/30 border border-border/40 h-10 p-1 rounded-xl">
+                                <TabsTrigger 
+                                    value="interactive" 
+                                    className="rounded-lg text-[11px] font-semibold gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+                                >
+                                    <Target className="h-3.5 w-3.5" />
+                                    {t('modeInteractive')}
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="chat" 
+                                    className="rounded-lg text-[11px] font-semibold gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+                                >
+                                    <Bot className="h-3.5 w-3.5" />
+                                    {t('modeChat')}
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
