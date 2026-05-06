@@ -220,95 +220,136 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <div className="flex h-full bg-background font-sans transition-colors duration-300">
-            {/* Sidebar Navigation — Full height */}
-            <aside className="w-60 border-r border-border bg-background-secondary/50 dark:bg-background flex flex-col shrink-0 p-3 pt-6 gap-1 overflow-y-auto">
-                <div className="px-3 mb-6">
-                    <div className="flex items-center gap-2 text-foreground font-bold tracking-tight">
-                        <div className="w-6 h-6 rounded bg-accent-blue flex items-center justify-center text-white">
-                            <Route className="h-4 w-4" />
+        <TooltipProvider delayDuration={0}>
+            <div className="flex h-full bg-background font-sans transition-colors duration-300">
+                {/* Slim Icon Sidebar — Left */}
+                <aside className="w-[68px] border-r border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 py-4 gap-2 items-center z-50">
+                    {/* App Logo */}
+                    <div className="mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue">
+                            <Route className="h-5 w-5" />
                         </div>
-                        <span>Lumaway</span>
+                    </div>
+
+                    <div className="flex flex-col gap-2 w-full px-2">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.key;
+
+                            return (
+                                <Tooltip key={tab.key}>
+                                    <TooltipTrigger asChild>
+                                        <Link
+                                            href={tab.href}
+                                            className={cn(
+                                                'relative flex items-center justify-center h-12 w-full rounded-xl transition-all duration-200 group',
+                                                isActive
+                                                    ? 'bg-accent-blue text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)]'
+                                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary'
+                                            )}
+                                        >
+                                            <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-white" : "text-foreground-muted group-hover:text-foreground")} />
+                                            
+                                            {/* Active indicator bar */}
+                                            {isActive && (
+                                                <div className="absolute -left-2 w-1 h-4 bg-accent-blue rounded-r-full" />
+                                            )}
+
+                                            {/* Badge */}
+                                            {!!tab.badge && tab.badge > 0 && (
+                                                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-background shadow-sm">
+                                                    {tab.badge}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5">
+                                        {tab.label}
+                                    </TooltipContent>
+                                </Tooltip>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-auto flex flex-col gap-2 w-full px-2">
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button className="flex items-center justify-center h-12 w-full rounded-xl text-foreground-muted hover:text-foreground hover:bg-background-secondary transition-all">
+                                    <Settings className="h-5 w-5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5">
+                                {t('settings') || 'Settings'}
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                </aside>
+
+                {/* Main Workspace Area */}
+                <div className="flex flex-1 flex-col overflow-hidden relative">
+                    <EditorHeader
+                        hasVersions={versions.length > 0}
+                        onOpenVersionHistory={openVersionHistory}
+                        canEdit={canEdit}
+                        canPublish={canPublish}
+                        isPublished={localWalkthrough.isPublished}
+                        isPending={isPending}
+                        parentId={localWalkthrough.parentId}
+                        onTogglePublish={togglePublish}
+                        onSave={handleSave}
+                        // Approval Workflow
+                        approvalRequired={approvalRequired}
+                        versionStatus={versionStatus}
+                        approvalsCount={approvalsCount}
+                        minApprovals={minApprovals}
+                        canRequestApproval={canRequestApproval}
+                        canApprove={canApprove}
+                        canReject={canReject}
+                        onRequestApproval={requestApproval}
+                        onApprove={approveVersion}
+                        onReject={rejectVersion}
+                        reviewerUserIds={reviewerUserIds}
+                        approvals={approvals}
+                        projectId={localWalkthrough.projectId}
+                        currentUserId={currentUserId}
+                    />
+
+                    <div className="flex-1 flex overflow-hidden">
+                        {/* Center Content (Scrollable) */}
+                        <div className="flex-1 overflow-y-auto bg-background custom-scrollbar">
+                            {children}
+                        </div>
+
+                        {/* Right Properties Panel */}
+                        <aside className="w-80 border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 overflow-hidden z-40">
+                            <div className="h-14 px-5 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm">
+                                <span className="text-[13px] font-bold uppercase tracking-wider text-foreground-muted/70 flex items-center gap-2">
+                                    <PanelRight className="h-4 w-4" />
+                                    Properties
+                                </span>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-6 text-center flex flex-col items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-background-secondary flex items-center justify-center mb-4">
+                                    <Layers className="h-6 w-6 text-foreground-muted/20" />
+                                </div>
+                                <p className="text-sm text-foreground-muted/60 max-w-[200px]">
+                                    Select a block to see its properties here.
+                                </p>
+                            </div>
+                        </aside>
                     </div>
                 </div>
 
-                {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.key;
-
-                    return (
-                        <Link
-                            key={tab.key}
-                            href={tab.href}
-                            className={cn(
-                                'flex items-center gap-3 px-3 py-2.5 rounded-md text-[13.5px] font-medium transition-colors',
-                                isActive
-                                    ? 'bg-accent-blue/10 text-accent-blue dark:bg-accent-blue/20'
-                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary dark:hover:bg-[#1a1a1e]',
-                            )}
-                        >
-                            <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-accent-blue" : "text-foreground-muted/60")} />
-                            <span className="flex-1 truncate">{tab.label}</span>
-                            {!!tab.badge && tab.badge > 0 && (
-                                <span
-                                    className={cn(
-                                        'h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full flex items-center justify-center shrink-0',
-                                        badgeColorMap[tab.badgeColor || 'muted'],
-                                    )}
-                                >
-                                    {tab.badge}
-                                </span>
-                            )}
-                        </Link>
-                    );
-                })}
-            </aside>
-
-            {/* Main Content Area */}
-            <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Top header bar — breadcrumb, version history, publish, save */}
-            <EditorHeader
-                hasVersions={versions.length > 0}
-                onOpenVersionHistory={openVersionHistory}
-                canEdit={canEdit}
-                canPublish={canPublish}
-                isPublished={localWalkthrough.isPublished}
-                isPending={isPending}
-                parentId={localWalkthrough.parentId}
-                onTogglePublish={togglePublish}
-                onSave={handleSave}
-                // Approval Workflow
-                // Approval Workflow
-                approvalRequired={approvalRequired}
-                versionStatus={versionStatus}
-                approvalsCount={approvalsCount}
-                minApprovals={minApprovals}
-                canRequestApproval={canRequestApproval}
-                canApprove={canApprove}
-                canReject={canReject}
-                onRequestApproval={requestApproval}
-                onApprove={approveVersion}
-                onReject={rejectVersion}
-                reviewerUserIds={reviewerUserIds}
-                approvals={approvals}
-                projectId={localWalkthrough.projectId}
-                currentUserId={currentUserId}
-            />
-
-                {/* Tab content — fills remaining space */}
-                <div className="flex-1 overflow-hidden bg-background relative flex flex-col">
-                    {children}
-                </div>
+                {/* Version history drawer */}
+                {showVersionHistory && (
+                    <VersionHistoryDrawer
+                        walkthroughId={id}
+                        onClose={closeVersionHistory}
+                    />
+                )}
             </div>
-
-            {/* Version history drawer */}
-            {showVersionHistory && (
-                <VersionHistoryDrawer
-                    walkthroughId={id}
-                    onClose={closeVersionHistory}
-                />
-            )}
-        </div>
+        </TooltipProvider>
     );
 }
 
