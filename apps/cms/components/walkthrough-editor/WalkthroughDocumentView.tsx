@@ -91,22 +91,22 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             ref={setNodeRef}
             style={style}
             className={cn(
-                "group relative flex flex-col rounded-xl px-4 py-3 transition-all duration-300",
+                "group relative flex flex-col rounded-lg px-4 py-2.5 transition-all duration-200",
                 isFocused 
-                    ? "bg-white dark:bg-[#111114] shadow-[0_8px_24px_rgba(0,0,0,0.04)] ring-1 ring-accent-blue/20 z-10" 
-                    : "hover:bg-background-secondary/40",
-                isDragging ? "opacity-50 z-50 bg-background shadow-xl ring-2 ring-accent-blue/30" : "opacity-100"
+                    ? "bg-accent-blue/[0.03] dark:bg-accent-blue/[0.05]" 
+                    : "hover:bg-background-secondary/30",
+                isDragging ? "opacity-50 z-50 bg-background border border-border shadow-md" : "opacity-100"
             )}
         >
             {/* Notion-style Block Drag Handle & Add Button */}
             <div className={cn(
-                "absolute -left-[54px] top-1/2 -translate-y-1/2 transition-all duration-300 flex items-center gap-1",
-                isFocused ? "opacity-100 translate-x-2" : "opacity-0 group-hover:opacity-100"
+                "absolute -left-[48px] top-3 transition-all duration-200 flex items-center gap-0.5",
+                isFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}>
                 {canEdit && (
                     <button
                         onClick={() => onAddStep(index + 1)}
-                        className="p-1.5 rounded-lg hover:bg-background-secondary text-foreground-muted/30 hover:text-accent-blue transition-all"
+                        className="p-1 rounded hover:bg-background-secondary text-foreground-muted/20 hover:text-foreground-muted transition-colors"
                     >
                         <Plus className="h-4 w-4" />
                     </button>
@@ -116,10 +116,10 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                     {...attributes}
                     {...listeners}
                     className={cn(
-                        "flex cursor-grab active:cursor-grabbing items-center justify-center p-1.5 rounded-lg transition-all",
+                        "flex cursor-grab active:cursor-grabbing items-center justify-center p-1 rounded transition-colors",
                         isFocused 
-                            ? "text-accent-blue bg-accent-blue/5" 
-                            : "text-foreground-muted/30 hover:text-foreground-muted hover:bg-background-secondary",
+                            ? "text-accent-blue" 
+                            : "text-foreground-muted/20 hover:text-foreground-muted",
                         !canEdit && "pointer-events-none"
                     )}
                 >
@@ -130,12 +130,6 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             <div className="flex flex-col gap-1">
                 {/* Step Title */}
                 <div className="flex items-center gap-3">
-                    <span className={cn(
-                        "text-[12px] font-bold font-mono transition-colors",
-                        isFocused ? "text-accent-blue" : "text-foreground-muted/20 group-hover:text-foreground-muted/40"
-                    )}>
-                        {(index + 1).toString().padStart(2, '0')}
-                    </span>
                     <input
                         ref={inputRef}
                         value={step.title || ''}
@@ -151,7 +145,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                 </div>
                 
                 {/* Step Description */}
-                <div className="pl-[31px]">
+                <div className="">
                     <textarea
                         value={step.description || ''}
                         onChange={(e) => {
@@ -169,8 +163,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                         placeholder={t('noDescription')}
                         rows={1}
                         className={cn(
-                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15px] leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/10",
-                            isFocused ? "text-foreground-subtle" : "text-foreground-subtle/70",
+                            "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15.5px] text-foreground-subtle/80 leading-relaxed resize-none overflow-hidden transition-all placeholder:text-foreground-muted/10",
                             canEdit ? "cursor-text" : "cursor-default"
                         )}
                     />
@@ -178,10 +171,8 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                     {/* Technical Target */}
                     {step.target && (
                         <div className={cn(
-                            "mt-3 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-300",
-                            isFocused 
-                                ? "bg-accent-blue/5 border-accent-blue/10 text-accent-blue opacity-100" 
-                                : "bg-background-secondary/40 border-transparent text-foreground-muted/50 opacity-0 group-hover:opacity-100"
+                            "mt-2 inline-flex items-center gap-1.5 px-0 text-foreground-muted/40 transition-opacity duration-200",
+                            isFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                         )}>
                             <Hash className="h-3 w-3" />
                             <code className="text-[11px] font-mono font-medium truncate max-w-[400px]">{step.target}</code>
@@ -193,19 +184,19 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
             {/* Actions Menu */}
             {canEdit && (
                 <div className={cn(
-                    "absolute top-3 right-3 transition-all duration-300",
-                    isFocused ? "opacity-100 scale-100" : "opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100"
+                    "absolute top-3 right-3 transition-opacity duration-200",
+                    isFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}>
                     <AlertDialog>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="p-1.5 rounded-lg hover:bg-background-secondary text-foreground-muted/40 hover:text-foreground-muted transition-all">
+                                <button className="p-1 rounded hover:bg-background-secondary text-foreground-muted/20 hover:text-foreground-muted transition-colors">
                                     <MoreVertical className="h-4 w-4" />
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl border-border/40">
+                            <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-xl border-border/40">
                                 <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive gap-2 cursor-pointer rounded-lg m-1">
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive gap-2 cursor-pointer m-0.5 rounded">
                                         <Trash2 className="h-4 w-4" />
                                         <span>{t('deleteStep')}</span>
                                     </DropdownMenuItem>
@@ -213,7 +204,7 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <AlertDialogContent className="rounded-2xl border-border/40">
+                        <AlertDialogContent className="rounded-xl border-border/40">
                             <AlertDialogHeader>
                                 <AlertDialogTitle>{t('deleteStepConfirmTitle') || 'Delete Step?'}</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -221,10 +212,10 @@ function SortableStepBlock({ step, index, canEdit, isFocused, onUpdateStep, onAd
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel className="rounded-xl">{t('cancel') || 'Cancel'}</AlertDialogCancel>
+                                <AlertDialogCancel className="rounded-lg">{t('cancel') || 'Cancel'}</AlertDialogCancel>
                                 <AlertDialogAction
                                     onClick={() => onRemoveStep(index)}
-                                    className="bg-destructive text-white hover:bg-destructive/90 rounded-xl"
+                                    className="bg-destructive text-white hover:bg-destructive/90 rounded-lg"
                                 >
                                     {t('delete') || 'Delete'}
                                 </AlertDialogAction>
