@@ -224,6 +224,20 @@ export function WalkthroughDocumentView({
     selectedStepIndex 
 }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
+    const titleRef = React.useRef<HTMLTextAreaElement>(null);
+    const descRef = React.useRef<HTMLTextAreaElement>(null);
+
+    // Auto-resize on mount
+    React.useEffect(() => {
+        if (titleRef.current) {
+            titleRef.current.style.height = 'auto';
+            titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
+        }
+        if (descRef.current) {
+            descRef.current.style.height = 'auto';
+            descRef.current.style.height = descRef.current.scrollHeight + 'px';
+        }
+    }, [title, description]);
 
     if (!steps) {
         return null;
@@ -247,6 +261,7 @@ export function WalkthroughDocumentView({
 
                 {/* Main Title */}
                 <textarea
+                    ref={titleRef}
                     value={title}
                     onChange={(e) => {
                         onTitleChange(e.target.value);
@@ -260,6 +275,7 @@ export function WalkthroughDocumentView({
 
                 {/* Walkthrough Description */}
                 <textarea
+                    ref={descRef}
                     value={description || ''}
                     onChange={(e) => {
                         onDescriptionChange(e.target.value);
