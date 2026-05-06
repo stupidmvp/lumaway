@@ -324,7 +324,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('spokenExtract', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('spokenIntentPlaceholder')}
-                            className="min-h-[90px] text-[13px] bg-muted/20 border-border/40 rounded-lg resize-none focus:ring-0 focus:border-border/60 placeholder:text-foreground-muted/20"
+                            className="min-h-[90px] text-[13px] bg-muted/20 border-none rounded-lg resize-none focus:ring-0 focus-visible:ring-0 shadow-none placeholder:text-foreground-muted/20"
                         />
                     </div>
                 </div>
@@ -372,7 +372,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                                 onValueChange={(value) => onUpdateStep(stepIndex, 'placement', value)}
                                 disabled={!canEdit}
                             >
-                                <SelectTrigger className="w-full h-8 px-2.5 rounded-md bg-muted/20 border-border/50 text-[11px]">
+                                <SelectTrigger className="w-full h-8 px-2.5 rounded-md bg-muted/20 border-none text-[11px] focus:ring-0 focus-visible:ring-0 shadow-none">
                                     <SelectValue placeholder={t('selectPlacement')} />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-lg border-border shadow-xl">
@@ -391,7 +391,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                                     value={step.target || ''}
                                     onChange={(e) => onUpdateStep(stepIndex, 'target', e.target.value)}
                                     readOnly={!canEdit}
-                                    className="h-8 text-[11px] bg-muted/20 border-border/50 font-mono pr-8"
+                                    className="h-8 text-[11px] bg-muted/20 border-none font-mono pr-8 focus:ring-0 focus-visible:ring-0 shadow-none"
                                     placeholder="#id o .clase"
                                 />
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground-muted/40">
@@ -428,7 +428,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('guidance.specificAction', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('specificActionPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
+                            className="h-9 text-[13px] bg-muted/20 border-none rounded-lg focus:ring-0 focus-visible:ring-0 shadow-none"
                         />
                     </div>
                     
@@ -439,7 +439,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('guidance.expectedResult', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('expectedResultPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
+                            className="h-9 text-[13px] bg-muted/20 border-none rounded-lg focus:ring-0 focus-visible:ring-0 shadow-none"
                         />
                     </div>
  
@@ -453,7 +453,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             onChange={(e) => updateMetadata('guidance.verification', e.target.value)}
                             readOnly={!canEdit}
                             placeholder={t('verificationPlaceholder')}
-                            className="h-9 text-[13px] bg-muted/20 border-border/40 rounded-lg focus:ring-0 focus:border-border/60"
+                            className="h-9 text-[13px] bg-muted/20 border-none rounded-lg focus:ring-0 focus-visible:ring-0 shadow-none"
                         />
                     </div>
                 </div>
