@@ -272,7 +272,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                     <div className="flex flex-col gap-2 w-full px-2">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
-                            const isActive = activeTab === tab.key;
+                            const isActive = activePageTab === tab.key;
 
                             return (
                                 <Tooltip key={tab.key}>
