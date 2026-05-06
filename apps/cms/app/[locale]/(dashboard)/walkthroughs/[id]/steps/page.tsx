@@ -4,6 +4,7 @@ import { useEditorContext } from '@/contexts/EditorContext';
 import { StepsSidebar } from '@/components/walkthrough-editor/StepsSidebar';
 import { StepEditorPanel } from '@/components/walkthrough-editor/StepEditorPanel';
 import { EmptyStepState } from '@/components/walkthrough-editor/EmptyStepState';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 export default function WalkthroughStepsPage() {
     const {
@@ -29,47 +30,66 @@ export default function WalkthroughStepsPage() {
     if (!localWalkthrough) return null;
 
     return (
-        <div className="flex flex-1 overflow-hidden">
-            <StepsSidebar
-                steps={localWalkthrough.steps}
-                selectedStepIndex={selectedStepIndex}
-                canEdit={canEdit}
-                sensors={sensors}
-                isExpanded={stepsExpanded}
-                onToggleExpand={toggleStepsPanel}
-                onAddStep={addStep}
-                onSelectStep={setSelectedStepIndex}
-                onDuplicateStep={duplicateStep}
-                onMoveStep={moveStep}
-                onRemoveStep={removeStep}
-                onDragEnd={handleDragEnd}
-            />
+        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+            <ResizablePanel 
+                defaultSize={25} 
+                minSize={15} 
+                maxSize={40} 
+                className="border-r border-border bg-background transition-all duration-300"
+                collapsible={true}
+                collapsedSize={4}
+                onCollapse={() => {
+                    if (stepsExpanded) toggleStepsPanel();
+                }}
+                onExpand={() => {
+                    if (!stepsExpanded) toggleStepsPanel();
+                }}
+            >
+                <StepsSidebar
+                    steps={localWalkthrough.steps}
+                    selectedStepIndex={selectedStepIndex}
+                    canEdit={canEdit}
+                    sensors={sensors}
+                    isExpanded={stepsExpanded}
+                    onToggleExpand={toggleStepsPanel}
+                    onAddStep={addStep}
+                    onSelectStep={setSelectedStepIndex}
+                    onDuplicateStep={duplicateStep}
+                    onMoveStep={moveStep}
+                    onRemoveStep={removeStep}
+                    onDragEnd={handleDragEnd}
+                />
+            </ResizablePanel>
 
-            <main className="flex-1 overflow-y-auto bg-background min-w-0">
-                <div className="max-w-4xl mx-auto px-5 py-5 min-h-full flex flex-col">
-                    {currentStep ? (
-                        <StepEditorPanel
-                            step={currentStep}
-                            stepIndex={selectedStepIndex}
-                            totalSteps={localWalkthrough.steps.length}
-                            projectId={localWalkthrough.projectId}
-                            walkthroughId={localWalkthrough.id}
-                            canEdit={canEdit}
-                            stepTitleRef={stepTitleRef}
-                            onUpdateStep={updateStep}
-                            onMoveStep={moveStep}
-                            onDuplicateStep={handleDuplicateCurrentStep}
-                            onRemoveStep={handleRemoveCurrentStep}
-                        />
-                    ) : (
-                        <EmptyStepState
-                            canEdit={canEdit}
-                            onAddStep={addStep}
-                        />
-                    )}
-                </div>
-            </main>
-        </div>
+            <ResizableHandle withHandle className="bg-border" />
+
+            <ResizablePanel defaultSize={75} className="bg-background relative min-w-0">
+                <main className="absolute inset-0 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto px-5 py-5 min-h-full flex flex-col">
+                        {currentStep ? (
+                            <StepEditorPanel
+                                step={currentStep}
+                                stepIndex={selectedStepIndex}
+                                totalSteps={localWalkthrough.steps.length}
+                                projectId={localWalkthrough.projectId}
+                                walkthroughId={localWalkthrough.id}
+                                canEdit={canEdit}
+                                stepTitleRef={stepTitleRef}
+                                onUpdateStep={updateStep}
+                                onMoveStep={moveStep}
+                                onDuplicateStep={handleDuplicateCurrentStep}
+                                onRemoveStep={handleRemoveCurrentStep}
+                            />
+                        ) : (
+                            <EmptyStepState
+                                canEdit={canEdit}
+                                onAddStep={addStep}
+                            />
+                        )}
+                    </div>
+                </main>
+            </ResizablePanel>
+        </ResizablePanelGroup>
     );
 }
 

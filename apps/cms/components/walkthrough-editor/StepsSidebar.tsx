@@ -145,7 +145,7 @@ export const StepsSidebar = React.memo(function StepsSidebar({
 
     // --- Expanded / full mode ---
     return (
-        <aside className="w-[260px] shrink-0 bg-background border-r border-border flex flex-col transition-all duration-200">
+        <aside className="w-full shrink-0 bg-background flex flex-col transition-all duration-200 h-full">
             <div className="flex flex-col border-b border-border bg-background-secondary/30">
                 <div className="px-3 h-11 flex justify-between items-center shrink-0">
                     <h3 className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider flex items-center gap-1.5">

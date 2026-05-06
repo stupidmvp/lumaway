@@ -250,8 +250,8 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
             />
 
             {/* Title + metadata + tabs */}
-            <div className="px-5 sm:px-6 pt-4 bg-background-secondary dark:bg-background shrink-0">
-                <div className="w-full">
+            <div className="px-5 sm:px-6 pt-4 pb-4 bg-background-secondary dark:bg-background shrink-0 border-b border-border">
+                <div className="w-full max-w-[1400px] mx-auto">
                     {/* Metadata bar */}
                     <MetadataBar />
 
@@ -263,50 +263,50 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                         onTitleChange={handleTitleChange}
                         onDescriptionChange={handleDescriptionChange}
                     />
-
-                    {/* Tabs */}
-                    <div className="flex items-center gap-1 border-b border-border mt-1">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.key;
-
-                            return (
-                                <Link
-                                    key={tab.key}
-                                    href={tab.href}
-                                    className={cn(
-                                        'relative px-4 py-2.5 text-sm font-medium transition-colors',
-                                        isActive
-                                            ? 'text-foreground'
-                                            : 'text-foreground-muted hover:text-foreground',
-                                    )}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Icon className="h-4 w-4" />
-                                        {tab.label}
-                                        {!!tab.badge && tab.badge > 0 && (
-                                            <span
-                                                className={cn(
-                                                    'h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full flex items-center justify-center',
-                                                    badgeColorMap[tab.badgeColor || 'muted'],
-                                                )}
-                                            >
-                                                {tab.badge}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {isActive && (
-                                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-t" />
-                                    )}
-                                </Link>
-                            );
-                        })}
-                    </div>
                 </div>
             </div>
 
-            {/* Tab content — fills remaining space */}
-            {children}
+            {/* Main Workspace: Sidebar + Content */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar Navigation */}
+                <div className="w-56 border-r border-border bg-background-secondary/50 dark:bg-background flex flex-col shrink-0 p-3 gap-1 overflow-y-auto">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.key;
+
+                        return (
+                            <Link
+                                key={tab.key}
+                                href={tab.href}
+                                className={cn(
+                                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                                    isActive
+                                        ? 'bg-accent-blue/10 text-accent-blue dark:bg-accent-blue/20'
+                                        : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary dark:hover:bg-[#1a1a1e]',
+                                )}
+                            >
+                                <Icon className="h-4 w-4 shrink-0" />
+                                <span className="flex-1 truncate">{tab.label}</span>
+                                {!!tab.badge && tab.badge > 0 && (
+                                    <span
+                                        className={cn(
+                                            'h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full flex items-center justify-center shrink-0',
+                                            badgeColorMap[tab.badgeColor || 'muted'],
+                                        )}
+                                    >
+                                        {tab.badge}
+                                    </span>
+                                )}
+                            </Link>
+                        );
+                    })}
+                </div>
+
+                {/* Tab content — fills remaining space */}
+                <div className="flex-1 overflow-hidden bg-background relative flex flex-col">
+                    {children}
+                </div>
+            </div>
 
             {/* Version history drawer */}
             {showVersionHistory && (
