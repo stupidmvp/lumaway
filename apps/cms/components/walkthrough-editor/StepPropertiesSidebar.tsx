@@ -20,7 +20,8 @@ import {
     Zap,
     ChevronDown,
     ChevronRight,
-    Search
+    Search,
+    Hand
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,37 @@ interface StepPropertiesSidebarProps {
     projectId: string;
     canEdit: boolean;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
+}
+
+function ToggleSwitch({
+    checked,
+    onChange,
+    disabled,
+}: {
+    checked: boolean;
+    onChange: (val: boolean) => void;
+    disabled?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={cn(
+                "relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                checked ? "bg-primary" : "bg-muted"
+            )}
+        >
+            <span
+                className={cn(
+                    "pointer-events-none block h-3.5 w-3.5 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                    checked ? "translate-x-3.5" : "translate-x-0"
+                )}
+            />
+        </button>
+    );
 }
 
 export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
@@ -163,7 +195,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                         }}
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-[10px] text-accent-blue hover:bg-accent-blue/5 rounded-md gap-1"
+                        className="h-6 px-2 text-[10px] text-foreground-muted hover:text-foreground hover:bg-foreground/5 rounded-md gap-1"
                     >
                         <Plus className="h-3 w-3" />
                         Add Item
@@ -364,6 +396,24 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                         </Tabs>
                     </div>
 
+                    {/* Human Intervention Toggle */}
+                    <div className="flex items-center justify-between py-1 px-0.5">
+                        <div className="space-y-0.5">
+                            <Label className="text-[11px] font-semibold text-foreground-muted flex items-center gap-1.5">
+                                <Hand className="h-3 w-3" />
+                                {t('requiresIntervention')}
+                            </Label>
+                            <p className="text-[10px] text-foreground-muted/50 leading-tight pr-4">
+                                {t('requiresInterventionDescription')}
+                            </p>
+                        </div>
+                        <ToggleSwitch 
+                            checked={!!runtime.requiresIntervention}
+                            disabled={!canEdit}
+                            onChange={(val) => updateMetadata('runtime.requiresIntervention', val)}
+                        />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-[11px] font-semibold text-foreground-muted">{t('placement')}</Label>
@@ -497,7 +547,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                                 }}
                                 variant="outline"
                                 size="sm"
-                                className="w-full h-8 text-[10px] gap-1.5 border-dashed border-border/60 hover:border-accent-blue/40"
+                                className="w-full h-8 text-[10px] gap-1.5 border-dashed border-border/60 hover:border-foreground/20 hover:bg-foreground/5"
                             >
                                 <Plus className="h-3 w-3" />
                                 Agregar Atributo Personalizado

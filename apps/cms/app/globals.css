@@ -204,4 +204,9 @@
   .text-tiny {
     @apply text-xs leading-normal;
   }
+
+  /* Force outline: none to avoid transparent border rendering in editor */
+  .outline-none {
+    outline: none !important;
+  }
 }
