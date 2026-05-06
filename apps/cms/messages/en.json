@@ -398,6 +398,8 @@
         "settings": "Settings",
         "addIcon": "Add icon",
         "addCover": "Add cover",
+        "configuration": "Configuration",
+        "step": "Step",
         "untitledStep": "Untitled Step",
         "deleteStepConfirmTitle": "Delete Step?",
         "deleteStepConfirmDescription": "This action cannot be undone. This step will be permanently removed from the walkthrough.",

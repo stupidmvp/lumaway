@@ -398,6 +398,8 @@
         "settings": "Configuración",
         "addIcon": "Agregar ícono",
         "addCover": "Agregar portada",
+        "configuration": "Configuración",
+        "step": "Paso",
         "untitledStep": "Paso sin título",
         "deleteStepConfirmTitle": "¿Eliminar paso?",
         "deleteStepConfirmDescription": "Esta acción no se puede deshacer. Este paso se eliminará permanentemente del recorrido.",
