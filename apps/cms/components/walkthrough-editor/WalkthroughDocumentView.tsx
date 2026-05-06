@@ -76,7 +76,7 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t
             ref={setNodeRef}
             style={style}
             className={cn(
-                "group relative flex flex-col gap-1 rounded-md px-2 py-1 hover:bg-background-secondary/40 transition-colors duration-200",
+                "group relative flex flex-col rounded-md px-2 py-0.5 hover:bg-background-secondary/40 transition-colors duration-150",
                 isDragging ? "opacity-50 z-50 bg-background shadow-lg ring-1 ring-border" : "opacity-100"
             )}
         >
@@ -86,7 +86,7 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t
                 {...attributes}
                 {...listeners}
                 className={cn(
-                    "absolute -left-6 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex cursor-grab active:cursor-grabbing items-center justify-center text-foreground-muted/40 hover:text-foreground-muted px-1 py-1 rounded",
+                    "absolute -left-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex cursor-grab active:cursor-grabbing items-center justify-center text-foreground-muted/30 hover:text-foreground-muted p-1 rounded",
                     !canEdit && "pointer-events-none"
                 )}
             >
@@ -94,21 +94,21 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t
             </div>
 
             {/* Step Title (H3 style in Notion) */}
-            <div className="flex items-start gap-2">
+            <div className="flex items-start">
                 <input
                     value={step.title || ''}
                     onChange={(e) => canEdit && onUpdateStep(index, 'title', e.target.value)}
                     readOnly={!canEdit}
                     placeholder={t('untitledStep')}
                     className={cn(
-                        "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] font-semibold text-foreground leading-snug placeholder:text-foreground-muted/30",
+                        "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[16px] font-semibold text-foreground leading-normal placeholder:text-foreground-muted/20",
                         canEdit ? "cursor-text" : "cursor-default"
                     )}
                 />
             </div>
             
             {/* Step Content */}
-            <div className="pl-0">
+            <div className="mt-[-2px]">
                 <textarea
                     value={step.description || ''}
                     onChange={(e) => {
@@ -126,16 +126,16 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, onRemoveStep, t
                     placeholder={t('noDescription')}
                     rows={1}
                     className={cn(
-                        "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[15px] text-foreground-subtle leading-[1.6] resize-none overflow-hidden placeholder:text-foreground-muted/20",
+                        "w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-[14.5px] text-foreground-subtle/90 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/10",
                         canEdit ? "cursor-text" : "cursor-default"
                     )}
                 />
 
                 {/* Technical Target - Kept subtle */}
                 {step.target && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-background-secondary/50 text-[11px] text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Hash className="h-3 w-3" />
-                        <code className="font-mono text-[10px] truncate max-w-[300px]">{step.target}</code>
+                    <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background-secondary/40 text-[10px] text-foreground-muted/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Hash className="h-2.5 w-2.5" />
+                        <code className="font-mono truncate max-w-[300px]">{step.target}</code>
                     </div>
                 )}
             </div>
@@ -192,7 +192,7 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
     }
 
     return (
-        <div className="py-8 px-2 max-w-[900px] mx-auto w-full">
+        <div className="py-10 px-4 max-w-[800px] mx-auto w-full">
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -202,7 +202,7 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
                     items={steps.map(s => s.id)}
                     strategy={verticalListSortingStrategy}
                 >
-                    <div className="space-y-6 font-sans">
+                    <div className="space-y-1 font-sans">
                         {steps.map((step, index) => (
                             <SortableStepBlock
                                 key={step.id}
@@ -222,12 +222,10 @@ export function WalkthroughDocumentView({ steps, canEdit, onUpdateStep, onAddSte
             {canEdit && (
                 <button
                     onClick={onAddStep}
-                    className="flex items-center gap-2 w-full px-2 py-2 mt-4 text-foreground-muted/50 hover:text-foreground-muted hover:bg-background-secondary/40 rounded-md transition-all duration-200 group"
+                    className="flex items-center gap-2 w-full px-2 py-2 mt-2 text-foreground-muted/40 hover:text-foreground-muted hover:bg-background-secondary/40 rounded-md transition-all duration-200 group"
                 >
-                    <div className="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-dashed border-foreground-muted/30 group-hover:border-foreground-muted/50">
-                        <Plus className="h-3 w-3" />
-                    </div>
-                    <span className="text-sm font-medium">{t('addStep')}</span>
+                    <Plus className="h-4 w-4 opacity-50 group-hover:opacity-100" />
+                    <span className="text-[15px]">{t('addStep')}</span>
                 </button>
             )}
         </div>
