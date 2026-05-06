@@ -3,7 +3,7 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Target, Plus, GripVertical } from 'lucide-react';
+import { Hash, Plus, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     DndContext,
@@ -115,7 +115,7 @@ function SortableStepBlock({ step, index, canEdit, onUpdateStep, t }: SortableSt
                 {/* Technical Target - Kept subtle */}
                 {step.target && (
                     <div className="mt-2 inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-background-secondary/50 text-[11px] text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Target className="h-3 w-3" />
+                        <Hash className="h-3 w-3" />
                         <code className="font-mono text-[10px] truncate max-w-[300px]">{step.target}</code>
                     </div>
                 )}
