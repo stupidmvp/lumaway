@@ -22,6 +22,8 @@ export interface WalkthroughActorEmbed {
 export interface Walkthrough {
     id: string;
     title: string;
+    icon?: string | null;
+    coverUrl?: string | null;
     description?: string | null; // Plain text summary — used for AI context
     content?: Record<string, any> | null; // Lexical editor state JSON
     projectId: string;

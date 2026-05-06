@@ -221,27 +221,32 @@ function RenderContent({
     content,
     mentions,
     members,
+    stepsMap,
+    projectId,
 }: {
     content: string;
     mentions?: Comment['mentions'];
     members: Map<string, { firstName: string; lastName: string; email?: string; avatar?: string; role?: string }>;
+    stepsMap?: Map<string, { title: string; index: number }>;
+    projectId?: string;
 }) {
     const parts = useMemo(() => {
-        const regex = /@\[([a-f0-9-]+)\]/g;
-        const result: { type: 'text' | 'mention'; value: string; userId?: string }[] = [];
+        const regex = /(@|#)\[([a-f0-9-]+)\]/g;
+        const result: { type: 'text' | 'mention' | 'step'; value: string; id: string }[] = [];
         let lastIndex = 0;
         let match;
 
         while ((match = regex.exec(content)) !== null) {
             if (match.index > lastIndex) {
-                result.push({ type: 'text', value: content.slice(lastIndex, match.index) });
+                result.push({ type: 'text', value: content.slice(lastIndex, match.index), id: '' });
             }
-            result.push({ type: 'mention', value: match[1] || '', userId: match[1] || '' });
+            const type = match[1] === '@' ? 'mention' : 'step';
+            result.push({ type, value: match[2] || '', id: match[2] || '' });
             lastIndex = regex.lastIndex;
         }
 
         if (lastIndex < content.length) {
-            result.push({ type: 'text', value: content.slice(lastIndex) });
+            result.push({ type: 'text', value: content.slice(lastIndex), id: '' });
         }
 
         return result;
@@ -250,9 +255,9 @@ function RenderContent({
     return (
         <span className="whitespace-pre-wrap break-words">
             {parts.map((part, i) => {
-                if (part.type === 'mention' && part.userId) {
-                    const mentionUser = mentions?.find((m) => m.mentionedUserId === part.userId)?.user;
-                    const memberInfo = members.get(part.userId);
+                if (part.type === 'mention' && part.id) {
+                    const mentionUser = mentions?.find((m) => m.mentionedUserId === part.id)?.user;
+                    const memberInfo = members.get(part.id);
 
                     const firstName = mentionUser?.firstName ?? memberInfo?.firstName ?? '';
                     const lastName = mentionUser?.lastName ?? memberInfo?.lastName ?? '';
@@ -273,8 +278,8 @@ function RenderContent({
                             </PopoverTrigger>
                             <PopoverContent side="bottom" align="start" sideOffset={6} className="w-auto p-0">
                                 <div className="flex items-center gap-3 p-3">
-                                    {part.userId ? (
-                                        <Link href={`/users/${part.userId}`} className="shrink-0">
+                                    {part.id ? (
+                                        <Link href={`/users/${part.id}`} className="shrink-0">
                                             <UserAvatar
                                                 firstName={firstName}
                                                 lastName={lastName}
@@ -294,9 +299,9 @@ function RenderContent({
                                     )}
                                     <div className="flex flex-col min-w-0">
                                         {name !== 'Unknown' && (
-                                            part.userId ? (
+                                            part.id ? (
                                                 <Link
-                                                    href={`/users/${part.userId}`}
+                                                    href={`/users/${part.id}`}
                                                     className="text-sm font-semibold text-foreground truncate hover:text-accent-blue transition-colors"
                                                 >
                                                     {name}
@@ -321,10 +326,10 @@ function RenderContent({
                                         </span>
                                     </div>
                                 )}
-                                {part.userId && (
+                                {part.id && (
                                     <div className="border-t border-border px-3 py-2">
                                         <Link
-                                            href={`/users/${part.userId}`}
+                                            href={`/users/${part.id}`}
                                             className="flex items-center gap-1.5 text-[11px] font-medium text-accent-blue hover:text-accent-blue/80 transition-colors"
                                         >
                                             <ExternalLink className="h-3 w-3" />
@@ -336,6 +341,22 @@ function RenderContent({
                         </Popover>
                     );
                 }
+
+                if (part.type === 'step' && part.id) {
+                    const step = stepsMap?.get(part.id);
+                    const title = step?.title || `Paso ${part.id.slice(0, 4)}`;
+
+                    return (
+                        <Link
+                            key={i}
+                            href={`/walkthroughs/${projectId}/steps?stepId=${part.id}`}
+                            className="inline-flex items-center gap-0.5 text-purple-600 dark:text-purple-400 font-medium bg-purple-500/10 hover:bg-purple-500/20 rounded px-1 py-0 mx-0.5 cursor-pointer transition-colors"
+                        >
+                            #{title}
+                        </Link>
+                    );
+                }
+
                 return <span key={i}>{part.value}</span>;
             })}
         </span>
@@ -564,6 +585,8 @@ export function CommentItem({
                                 content={comment.content}
                                 mentions={comment.mentions}
                                 members={membersMap}
+                                stepsMap={stepsMap}
+                                projectId={projectId}
                             />
                         </div>
                     )}

@@ -509,7 +509,9 @@
         "verification": "Success Verification",
         "verificationPlaceholder": "e.g. Ensure the status is 'Completed'",
         "advancedData": "Advanced Technical Data",
-        "advancedDataDescription": "Raw metadata captured during recording."
+        "advancedDataDescription": "Raw metadata captured during recording.",
+        "requiresIntervention": "Requires Intervention",
+        "requiresInterventionDescription": "Force manual interaction before proceeding (disables auto-execution)."
     },
     "VersionHistory": {
         "title": "Version History",
@@ -1135,11 +1137,13 @@
         "deleteConfirmTitle": "Delete this comment?",
         "deleteConfirmDescription": "This will hide the comment content. Replies will still be visible.",
         "mentionSuggestion": "Mention a team member",
+        "tagStep": "Tag step",
         "emoji": "Emoji",
         "attachFile": "Attach file",
         "attachmentUploadFailed": "Failed to upload file",
         "stepLabel": "Step {number}: {title}",
         "noMembersToMention": "No members found",
+        "noStepsToTag": "No steps found",
         "projectDiscussion": "Project Activity",
         "walkthroughDiscussion": "Walkthrough Activity",
         "stepDiscussion": "Step Activity",

@@ -3,8 +3,9 @@
 import React from 'react';
 import { Step } from '@luma/infra';
 import { useTranslations } from 'next-intl';
-import { Hash, Plus, GripVertical, MoreVertical, Trash2, Smile, Image as ImageIcon, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react';
+import { Hash, Plus, GripVertical, MoreVertical, Trash2, Smile, Image as ImageIcon, MessageSquare, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { CommentsPanel } from '@/components/comments/CommentsPanel';
 import {
     DropdownMenu,
@@ -12,6 +13,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { FileUpload } from '@/components/ui/file-upload';
+import data from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
+import { useTheme } from 'next-themes';
+import { ENV } from '@/lib/env';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -40,10 +51,14 @@ interface WalkthroughDocumentViewProps {
     projectId: string;
     walkthroughId: string;
     title: string;
+    icon: string | null;
+    coverUrl: string | null;
     description: string | null;
     steps: Step[];
     canEdit: boolean;
     onTitleChange: (title: string) => void;
+    onIconChange: (icon: string | null) => void;
+    onCoverChange: (coverUrl: string | null) => void;
     onDescriptionChange: (description: string) => void;
     onUpdateStep: (index: number, field: keyof Step, value: any) => void;
     onAddStep: (index?: number) => void;
@@ -250,10 +265,14 @@ export function WalkthroughDocumentView({
     projectId,
     walkthroughId,
     title, 
+    icon,
+    coverUrl,
     description, 
     steps, 
     canEdit, 
     onTitleChange,
+    onIconChange,
+    onCoverChange,
     onDescriptionChange,
     onUpdateStep, 
     onAddStep, 
@@ -264,6 +283,7 @@ export function WalkthroughDocumentView({
     onSelectStep
 }: WalkthroughDocumentViewProps) {
     const t = useTranslations('Editor');
+    const { theme } = useTheme();
     const titleRef = React.useRef<HTMLTextAreaElement>(null);
     const descRef = React.useRef<HTMLTextAreaElement>(null);
     const [isCommentsExpanded, setIsCommentsExpanded] = React.useState(true);
@@ -280,39 +300,147 @@ export function WalkthroughDocumentView({
         }
     }, [title, description]);
 
-    if (!steps) {
-        return null;
-    }
-
     return (
-        <div className="py-12 px-8 max-w-[850px] mx-auto w-full min-h-full">
-            {/* Notion-style Page Header */}
-            <div className="mb-10 group/header">
-                {/* Actions (Icon/Cover) */}
-                <div className="flex items-center gap-4 mb-4 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted/60 hover:text-foreground transition-colors">
-                        <Smile className="h-3.5 w-3.5" />
-                        <span>{t('addIcon') || 'Add icon'}</span>
-                    </button>
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted/60 hover:text-foreground transition-colors">
-                        <ImageIcon className="h-3.5 w-3.5" />
-                        <span>{t('addCover') || 'Add cover'}</span>
-                    </button>
+        <div className="flex-1 flex flex-col pb-32">
+            {/* Cover Area */}
+            <div className="relative group/cover w-full">
+                {coverUrl ? (
+                    <div className="relative h-[30vh] min-h-[200px] max-h-[300px] w-full overflow-hidden">
+                        <img 
+                            src={`${ENV.S3_URL_BASE}/${coverUrl}`} 
+                            alt="Cover" 
+                            className="w-full h-full object-cover"
+                        />
+                        {canEdit && (
+                            <>
+                                <div className="absolute bottom-4 right-4 opacity-0 group-hover/cover:opacity-100 transition-opacity z-10">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="secondary" size="sm" className="bg-background/80 backdrop-blur-md border-none text-xs h-7 hover:bg-background/90 transition-all shadow-sm">
+                                                Change cover
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-64 p-4">
+                                            <FileUpload 
+                                                s3Type="walkthrough-cover"
+                                                uploadPath={`projects/${projectId}/walkthroughs/${walkthroughId}/cover`}
+                                                onUploadSuccess={(files) => {
+                                                    if (files[0]?.fileUrl) onCoverChange(files[0].fileUrl);
+                                                }}
+                                                showDropzone={true}
+                                                placeholder="Upload new cover"
+                                            />
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+
+                                <button 
+                                    onClick={() => onCoverChange(null)}
+                                    className="absolute top-4 right-4 p-1.5 bg-background/60 backdrop-blur-md border border-white/20 rounded-full shadow-sm opacity-0 group-hover/cover:opacity-100 transition-all hover:bg-destructive/20 hover:text-destructive z-20 text-white"
+                                    title="Remove cover"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <div className="h-12 w-full" />
+                )}
+            </div>
+
+            {/* Content Container */}
+            <div className="max-w-[800px] mx-auto w-full px-12 relative">
+                {/* Icon / Emoji Area (overlapping cover) */}
+                <div className={cn(
+                    "relative z-20 group/icon inline-block",
+                    coverUrl ? "-mt-[60px]" : "mt-2"
+                )}>
+                    {icon ? (
+                        <div className="relative inline-block">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button className="text-[78px] leading-none hover:bg-foreground/5 rounded-2xl p-2 transition-all -ml-2 select-none outline-none">
+                                        {icon}
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 border-none bg-transparent shadow-none" side="bottom" align="start">
+                                    <Picker 
+                                        data={data} 
+                                        onEmojiSelect={(emoji: any) => onIconChange(emoji.native)}
+                                        theme={theme === 'dark' ? 'dark' : 'light'}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            {canEdit && (
+                                <button 
+                                    onClick={() => onIconChange(null)}
+                                    className="absolute -top-1 -right-1 p-1.5 bg-background border border-border rounded-full shadow-sm opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-muted"
+                                >
+                                    <X className="h-3 w-3 text-foreground-muted" />
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        canEdit && (
+                            <div className="flex items-center gap-4 h-8 mb-4 opacity-0 hover:opacity-100 transition-opacity">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button className="text-[14px] font-medium text-foreground-muted/60 hover:text-foreground flex items-center gap-1.5 transition-colors">
+                                            <Smile className="h-4 w-4" />
+                                            Add icon
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 border-none bg-transparent shadow-none" side="bottom" align="start">
+                                        <Picker 
+                                            data={data} 
+                                            onEmojiSelect={(emoji: any) => onIconChange(emoji.native)}
+                                            theme={theme === 'dark' ? 'dark' : 'light'}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                
+                                {!coverUrl && (
+                                     <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="text-[14px] font-medium text-foreground-muted/60 hover:text-foreground flex items-center gap-1.5 transition-colors">
+                                                <ImageIcon className="h-4 w-4" />
+                                                Add cover
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-64 p-4">
+                                            <FileUpload 
+                                                s3Type="walkthrough-cover"
+                                                uploadPath={`projects/${projectId}/walkthroughs/${walkthroughId}/cover`}
+                                                onUploadSuccess={(files) => {
+                                                    if (files[0]?.fileUrl) onCoverChange(files[0].fileUrl);
+                                                }}
+                                                showDropzone={true}
+                                                placeholder="Upload cover image"
+                                            />
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                            </div>
+                        )
+                    )}
                 </div>
 
                 {/* Main Title */}
-                <textarea
-                    ref={titleRef}
-                    value={title}
-                    onChange={(e) => {
-                        onTitleChange(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    placeholder={t('walkthroughTitlePlaceholder') || 'Untitled Walkthrough'}
-                    rows={1}
-                    className="w-full bg-transparent border-transparent outline-none focus:bg-transparent focus:border-transparent focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none shadow-none focus:shadow-none p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-2"
-                />
+                <div className="mt-0">
+                    <textarea
+                        ref={titleRef}
+                        value={title}
+                        onChange={(e) => {
+                            onTitleChange(e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        placeholder={t('walkthroughTitlePlaceholder') || 'Untitled Walkthrough'}
+                        rows={1}
+                        className="w-full bg-transparent border-transparent outline-none focus:bg-transparent focus:border-transparent focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none shadow-none focus:shadow-none p-0 text-[40px] font-bold text-foreground leading-[1.2] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-2"
+                    />
+                </div>
 
                 {/* Walkthrough Description */}
                 <textarea
@@ -325,15 +453,14 @@ export function WalkthroughDocumentView({
                     }}
                     placeholder={t('descriptionPlaceholder') || 'Add a description...'}
                     rows={1}
-                    className="w-full bg-transparent border-transparent outline-none focus:bg-transparent focus:border-transparent focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none shadow-none focus:shadow-none p-0 text-[16px] text-foreground/80 dark:text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/20"
+                    className="w-full bg-transparent border-transparent outline-none focus:bg-transparent focus:border-transparent focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none shadow-none focus:shadow-none p-0 text-[16px] text-foreground/80 dark:text-foreground-subtle/80 leading-[1.5] resize-none overflow-hidden placeholder:text-foreground-muted/20 mb-8"
                 />
-            </div>
 
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={onDragEnd}
-            >
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={onDragEnd}
+                >
                 <SortableContext
                     items={steps.map(s => s.id)}
                     strategy={verticalListSortingStrategy}
@@ -399,5 +526,6 @@ export function WalkthroughDocumentView({
                 )}
             </div>
         </div>
+    </div>
     );
 }

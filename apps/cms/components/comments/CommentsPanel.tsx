@@ -781,6 +781,7 @@ export function CommentsPanel({
                         compact
                         editingComment={editingComment}
                         onCancelEdit={handleCancelEdit}
+                        steps={steps}
                     />
                 </div>
             )}
@@ -792,6 +793,7 @@ export function CommentsPanel({
                 replies={activeThreadReplies}
                 projectId={projectId}
                 stepsMap={stepsMap}
+                steps={steps}
                 canComment={canComment}
                 isSubmitting={createComment.isPending}
                 isEditSubmitting={updateComment.isPending}

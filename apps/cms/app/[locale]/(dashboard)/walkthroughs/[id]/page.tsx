@@ -18,6 +18,8 @@ export default function WalkthroughGeneralPage() {
         handleNextChange,
         handleTitleChange,
         handleDescriptionChange,
+        handleIconChange,
+        handleCoverUrlChange,
         addStep,
         updateStep,
         removeStep,
@@ -30,31 +32,32 @@ export default function WalkthroughGeneralPage() {
     if (!localWalkthrough) return null;
 
     return (
-        <main className="flex-1 overflow-y-auto bg-background min-w-0 custom-scrollbar">
-            <div className="w-full px-5 sm:px-6 py-5 min-h-full flex flex-col">
-                {/* Notion-style Document View */}
-                {localWalkthrough.steps && localWalkthrough.steps.length > 0 && (
-                    <div className="mt-4">
-                        <WalkthroughDocumentView 
-                            projectId={localWalkthrough.projectId}
-                            walkthroughId={id}
-                            title={localWalkthrough.title}
-                            description={localWalkthrough.description ?? null}
-                            steps={localWalkthrough.steps} 
-                            canEdit={canEdit}
-                            onTitleChange={handleTitleChange}
-                            onDescriptionChange={handleDescriptionChange}
-                            onUpdateStep={updateStep}
-                            onAddStep={addStep}
-                            onRemoveStep={removeStep}
-                            onDragEnd={handleDragEnd}
-                            sensors={sensors}
-                            selectedStepIndex={selectedStepIndex}
-                            onSelectStep={setSelectedStepIndex}
-                        />
-                    </div>
-                )}
+        <div className="w-full min-h-full flex flex-col">
+            {/* Notion-style Document View */}
+            <WalkthroughDocumentView 
+                projectId={localWalkthrough.projectId}
+                walkthroughId={id}
+                title={localWalkthrough.title}
+                icon={localWalkthrough.icon ?? null}
+                coverUrl={localWalkthrough.coverUrl ?? null}
+                description={localWalkthrough.description ?? null}
+                steps={localWalkthrough.steps} 
+                canEdit={canEdit}
+                onTitleChange={handleTitleChange}
+                onIconChange={handleIconChange}
+                onCoverChange={handleCoverUrlChange}
+                onDescriptionChange={handleDescriptionChange}
+                onUpdateStep={updateStep}
+                onAddStep={addStep}
+                onRemoveStep={removeStep}
+                onDragEnd={handleDragEnd}
+                sensors={sensors}
+                selectedStepIndex={selectedStepIndex}
+                onSelectStep={setSelectedStepIndex}
+            />
 
+            {/* Additional content below document */}
+            <div className="max-w-[800px] mx-auto w-full px-12 pb-24">
                 {/* Divider */}
                 <div className="border-t border-border/40 my-8" />
 
@@ -65,7 +68,7 @@ export default function WalkthroughGeneralPage() {
                     canEdit={canEdit}
                 />
             </div>
-        </main>
+        </div>
     );
 }
 

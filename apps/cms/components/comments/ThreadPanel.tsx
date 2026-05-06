@@ -24,6 +24,8 @@ export interface ThreadPanelProps {
     projectId: string;
     /** Map of stepId → { title, index } for step labels */
     stepsMap?: Map<string, { title: string; index: number }>;
+    /** Raw steps list for tagging (#) */
+    steps?: any[];
     /** Whether the user can write replies */
     canComment?: boolean;
     isSubmitting?: boolean;
@@ -45,6 +47,7 @@ export function ThreadPanel({
     replies,
     projectId,
     stepsMap,
+    steps = [],
     canComment = true,
     isSubmitting = false,
     isEditSubmitting = false,
@@ -196,6 +199,7 @@ export function ThreadPanel({
                             compact
                             editingComment={editingComment}
                             onCancelEdit={handleCancelEdit}
+                            steps={steps}
                         />
                     </div>
                 )}

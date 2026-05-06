@@ -169,6 +169,8 @@ export function useEditorState(id: string) {
                 id: localWalkthrough.id,
                 data: {
                     title: localWalkthrough.title,
+                    icon: localWalkthrough.icon || null,
+                    coverUrl: localWalkthrough.coverUrl || null,
                     description: localWalkthrough.description || null,
                     steps: localWalkthrough.steps,
                     tags: localWalkthrough.tags,

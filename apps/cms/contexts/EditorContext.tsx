@@ -10,6 +10,8 @@ type EditorContextValue = ReturnType<typeof useEditorState> & {
     handleNextChange: (value: string | null) => void;
     handleTitleChange: (title: string) => void;
     handleDescriptionChange: (description: string) => void;
+    handleIconChange: (icon: string | null) => void;
+    handleCoverUrlChange: (coverUrl: string | null) => void;
     handleTagsChange: (tags: string[]) => void;
     handleDuplicateCurrentStep: () => void;
     handleRemoveCurrentStep: () => void;
@@ -60,6 +62,14 @@ export function EditorProvider({ id, children }: EditorProviderProps) {
         updateLocalWalkthrough({ description });
     }, [updateLocalWalkthrough]);
 
+    const handleIconChange = useCallback((icon: string | null) => {
+        updateLocalWalkthrough({ icon });
+    }, [updateLocalWalkthrough]);
+
+    const handleCoverUrlChange = useCallback((coverUrl: string | null) => {
+        updateLocalWalkthrough({ coverUrl });
+    }, [updateLocalWalkthrough]);
+
     const handleTagsChange = useCallback((tags: string[]) => {
         updateLocalWalkthrough({ tags });
     }, [updateLocalWalkthrough]);
@@ -82,6 +92,8 @@ export function EditorProvider({ id, children }: EditorProviderProps) {
                 handleNextChange,
                 handleTitleChange,
                 handleDescriptionChange,
+                handleIconChange,
+                handleCoverUrlChange,
                 handleTagsChange,
                 handleDuplicateCurrentStep,
                 handleRemoveCurrentStep,

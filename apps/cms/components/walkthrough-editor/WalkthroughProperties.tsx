@@ -67,14 +67,14 @@ export const WalkthroughProperties = React.memo(function WalkthroughProperties({
                 {tags.map((tag) => (
                     <span
                         key={tag}
-                        className="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-medium bg-accent-blue/8 text-accent-blue border border-accent-blue/15"
+                        className="inline-flex items-center gap-1 px-1.5 py-0 rounded text-[11px] font-medium bg-secondary text-secondary-foreground border border-border/40"
                     >
                         {tag}
                         {canEdit && (
                             <button
                                 type="button"
                                 onClick={() => removeTag(tag)}
-                                className="ml-0.5 rounded-full hover:bg-accent-blue/20 p-0.5 transition-colors"
+                                className="ml-0.5 rounded-full hover:bg-foreground/10 p-0.5 transition-colors"
                             >
                                 <X className="h-2 w-2" />
                             </button>
@@ -91,7 +91,7 @@ export const WalkthroughProperties = React.memo(function WalkthroughProperties({
                             onBlur={handleTagInputBlur}
                             autoFocus
                             placeholder={tw('tagPlaceholder')}
-                            className="h-5 text-[11px] px-1.5 py-0 bg-transparent border border-border/50 rounded outline-none focus:border-accent-blue/40 text-foreground placeholder:text-foreground-subtle w-24"
+                            className="h-5 text-[11px] px-1.5 py-0 bg-transparent border border-border/50 rounded outline-none focus:border-border text-foreground placeholder:text-foreground-subtle w-24"
                         />
                     ) : (
                         <button

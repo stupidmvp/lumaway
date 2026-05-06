@@ -71,6 +71,7 @@ export default function WalkthroughStepsPage() {
                                 onMoveStep={moveStep}
                                 onDuplicateStep={handleDuplicateCurrentStep}
                                 onRemoveStep={handleRemoveCurrentStep}
+                                steps={localWalkthrough.steps}
                             />
                         ) : (
                             <EmptyStepState

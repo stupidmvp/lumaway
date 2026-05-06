@@ -43,6 +43,7 @@ interface StepEditorPanelProps {
     onMoveStep: (index: number, direction: 'up' | 'down') => void;
     onDuplicateStep: () => void;
     onRemoveStep: () => void;
+    steps?: Step[];
 }
 
 export const StepEditorPanel = React.memo(function StepEditorPanel({
@@ -57,6 +58,7 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
     onMoveStep,
     onDuplicateStep,
     onRemoveStep,
+    steps = [],
 }: StepEditorPanelProps) {
     const t = useTranslations('Editor');
     const tc = useTranslations('Common');
@@ -474,6 +476,11 @@ export const StepEditorPanel = React.memo(function StepEditorPanel({
                         showHeader={false}
                         canComment={canEdit}
                         className="py-2"
+                        steps={steps.map((s, idx) => ({ 
+                            id: s.id, 
+                            title: s.title || `${t('step') || 'Step'} ${idx + 1}`, 
+                            index: idx + 1 
+                        }))}
                     />
                 </div>
             )}

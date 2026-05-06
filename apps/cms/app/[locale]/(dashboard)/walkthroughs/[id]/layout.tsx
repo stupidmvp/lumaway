@@ -202,10 +202,15 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
 
     const [activePropertiesTab, setActivePropertiesTab] = useState('configuration');
 
-    // Auto-switch to "step" tab when a step is selected
+    // Auto-switch to "step" tab and expand panel when a step is selected
     useEffect(() => {
         if (selectedStepIndex >= 0) {
             setActivePropertiesTab('step');
+            
+            // Expand panel if it's collapsed
+            if (propertiesPanelRef.current?.isCollapsed()) {
+                propertiesPanelRef.current.expand();
+            }
         }
     }, [selectedStepIndex]);
 
@@ -260,63 +265,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
     return (
         <TooltipProvider delayDuration={0}>
             <div className="flex h-full bg-background dark:bg-[#191919] font-sans transition-colors duration-300">
-                {/* Slim Icon Sidebar — Left */}
-                <aside className="w-[68px] border-r border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col shrink-0 py-4 gap-2 items-center z-50">
-                    {/* App Logo */}
-                    <div className="mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue">
-                            <Route className="h-5 w-5" />
-                        </div>
-                    </div>
 
-                    <div className="flex flex-col gap-2 w-full px-2">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activePageTab === tab.key;
-
-                            return (
-                                <Tooltip key={tab.key}>
-                                    <TooltipTrigger asChild>
-                                        <Link
-                                            href={tab.href}
-                                            className={cn(
-                                                'relative flex items-center justify-center h-12 w-full rounded-xl transition-all duration-200 group',
-                                                isActive
-                                                    ? 'bg-accent-blue text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)]'
-                                                    : 'text-foreground-muted hover:text-foreground hover:bg-background-secondary'
-                                            )}
-                                        >
-                                            <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-white" : "text-foreground-muted group-hover:text-foreground")} />
-                                            
-                                            {/* Badge */}
-                                            {!!tab.badge && tab.badge > 0 && (
-                                                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-background shadow-sm">
-                                                    {tab.badge}
-                                                </span>
-                                            )}
-                                        </Link>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5">
-                                        {tab.label}
-                                    </TooltipContent>
-                                </Tooltip>
-                            );
-                        })}
-                    </div>
-
-                    <div className="mt-auto flex flex-col gap-2 w-full px-2">
-                         <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button className="flex items-center justify-center h-12 w-full rounded-xl text-foreground-muted hover:text-foreground hover:bg-background-secondary transition-all">
-                                    <Settings className="h-5 w-5" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5">
-                                {t('settings') || 'Settings'}
-                            </TooltipContent>
-                        </Tooltip>
-                    </div>
-                </aside>
 
                 {/* Main Workspace Area */}
                 <div className="flex flex-1 flex-col overflow-hidden relative">
@@ -351,7 +300,7 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                         <ResizablePanelGroup direction="horizontal">
                             {/* Center Content (Scrollable) */}
                             <ResizablePanel defaultSize={75} minSize={40}>
-                                <div className="h-full overflow-y-auto bg-background dark:bg-[#191919] custom-scrollbar">
+                                <div className="h-full overflow-y-auto overflow-x-hidden bg-background dark:bg-[#191919] no-scrollbar">
                                     {children}
                                 </div>
                             </ResizablePanel>

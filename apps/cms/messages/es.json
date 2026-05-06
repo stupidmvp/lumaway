@@ -509,7 +509,9 @@
         "verification": "Verificación de Éxito",
         "verificationPlaceholder": "ej. Asegúrate de que el estado sea 'Completado'",
         "advancedData": "Datos Técnicos Avanzados",
-        "advancedDataDescription": "Metadatos crudos capturados durante la grabación."
+        "advancedDataDescription": "Metadatos crudos capturados durante la grabación.",
+        "requiresIntervention": "Requiere Intervención",
+        "requiresInterventionDescription": "Forzar interacción manual antes de continuar (desactiva auto-ejecución)."
     },
     "VersionHistory": {
         "title": "Historial de versiones",
@@ -1138,11 +1140,13 @@
         "deleteConfirmTitle": "Eliminar este comentario?",
         "deleteConfirmDescription": "Esto ocultara el contenido del comentario. Las respuestas seguiran visibles.",
         "mentionSuggestion": "Mencionar a un miembro",
+        "tagStep": "Etiquetar paso",
         "emoji": "Emoji",
         "attachFile": "Adjuntar archivo",
         "attachmentUploadFailed": "Error al subir el archivo",
         "stepLabel": "Paso {number}: {title}",
         "noMembersToMention": "No se encontraron miembros",
+        "noStepsToTag": "No se encontraron pasos",
         "projectDiscussion": "Actividad del proyecto",
         "walkthroughDiscussion": "Actividad del recorrido",
         "stepDiscussion": "Actividad del paso",

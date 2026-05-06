@@ -25,6 +25,12 @@ import { toast } from 'sonner';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+export interface WalkthroughStepInfo {
+    id: string;
+    title: string;
+    index?: number;
+}
+
 interface MemberSuggestion {
     id: string;
     userId: string;
@@ -74,19 +80,33 @@ interface CommentInputProps {
     editingComment?: EditingComment | null;
     /** Callback to cancel editing */
     onCancelEdit?: () => void;
+    /** Steps data for step tagging (#) */
+    steps?: WalkthroughStepInfo[];
 }
 
 /**
  * Converts display content (with @FirstName LastName) back to wire format (@[userId])
  * before sending to the API.
  */
-function toWireFormat(displayContent: string, mentionMap: Map<string, string>): string {
+function toWireFormat(
+    displayContent: string, 
+    mentionMap: Map<string, string>,
+    stepMap: Map<string, string>
+): string {
     let result = displayContent;
-    // Sort by longest name first to avoid partial replacements
-    const entries = Array.from(mentionMap.entries()).sort((a, b) => b[0].length - a[0].length);
-    for (const [displayName, userId] of entries) {
+    
+    // 1. Handle user mentions (@)
+    const mentionEntries = Array.from(mentionMap.entries()).sort((a, b) => b[0].length - a[0].length);
+    for (const [displayName, userId] of mentionEntries) {
         result = result.replaceAll(`@${displayName}`, `@[${userId}]`);
     }
+
+    // 2. Handle step mentions (#)
+    const stepEntries = Array.from(stepMap.entries()).sort((a, b) => b[0].length - a[0].length);
+    for (const [stepTitle, stepId] of stepEntries) {
+        result = result.replaceAll(`#${stepTitle}`, `#[${stepId}]`);
+    }
+
     return result;
 }
 
@@ -103,6 +123,7 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
     onCancelReply,
     editingComment,
     onCancelEdit,
+    steps = [],
 }, ref) {
     const t = useTranslations('Comments');
     const { data: currentUser } = useCurrentUser();
@@ -113,14 +134,19 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
     const [content, setContent] = useState('');
     const [commentType, setCommentType] = useState<CommentType>(defaultType);
     const [showMentions, setShowMentions] = useState(false);
+    const [showStepMentions, setShowStepMentions] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [mentionQuery, setMentionQuery] = useState('');
+    const [stepQuery, setStepQuery] = useState('');
     const [mentionIndex, setMentionIndex] = useState(0);
+    const [stepIndex, setStepIndex] = useState(0);
     const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     // Maps display name -> userId for converting back on submit
     const mentionMapRef = useRef<Map<string, string>>(new Map());
+    // Maps step title -> stepId for converting back on submit
+    const stepMapRef = useRef<Map<string, string>>(new Map());
 
     // Expose focus & startEditing methods to parent
     useImperativeHandle(ref, () => ({
@@ -169,6 +195,12 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
         );
     });
 
+    const filteredSteps = steps.filter((s) => {
+        if (!stepQuery) return true;
+        const q = stepQuery.toLowerCase();
+        return s.title.toLowerCase().includes(q);
+    });
+
     const handleContentChange = (value: string) => {
         setContent(value);
 
@@ -182,11 +214,25 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
 
         if (atMatch) {
             setShowMentions(true);
+            setShowStepMentions(false);
             setMentionQuery(atMatch[1] || '');
             setMentionIndex(0);
+            return;
         } else {
             setShowMentions(false);
             setMentionQuery('');
+        }
+
+        // Detect #step trigger
+        const stepMatch = textBeforeCursor.match(/#([\w\s]*)$/);
+        if (stepMatch) {
+            setShowStepMentions(true);
+            setShowMentions(false);
+            setStepQuery(stepMatch[1] || '');
+            setStepIndex(0);
+        } else {
+            setShowStepMentions(false);
+            setStepQuery('');
         }
     };
 
@@ -213,6 +259,37 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
         [content],
     );
 
+    const insertStepMention = useCallback(
+        (step: WalkthroughStepInfo) => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+
+            const cursorPos = textarea.selectionStart;
+            const textBeforeCursor = content.substring(0, cursorPos);
+            const textAfterCursor = content.substring(cursorPos);
+            const hashIndex = textBeforeCursor.lastIndexOf('#');
+
+            const stepTitle = step.title.trim();
+            const mentionText = `#${stepTitle} `;
+            const newContent =
+                textBeforeCursor.substring(0, hashIndex) + mentionText + textAfterCursor;
+
+            // Store the mapping for submit conversion
+            stepMapRef.current.set(stepTitle, step.id);
+
+            setContent(newContent);
+            setShowStepMentions(false);
+            setStepQuery('');
+
+            // Focus back and set cursor position
+            setTimeout(() => {
+                textarea.focus();
+                const newPos = hashIndex + mentionText.length;
+                textarea.setSelectionRange(newPos, newPos);
+            }, 0);
+        },
+        [content],
+    );
     const insertMention = useCallback(
         (member: MemberSuggestion) => {
             const textarea = textareaRef.current;
@@ -274,6 +351,25 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (showStepMentions && filteredSteps.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setStepIndex((prev) =>
+                    Math.min(prev + 1, filteredSteps.length - 1),
+                );
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setStepIndex((prev) => Math.max(prev - 1, 0));
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                const step = filteredSteps[stepIndex];
+                if (step) insertStepMention(step);
+            } else if (e.key === 'Escape') {
+                setShowStepMentions(false);
+            }
+            return;
+        }
+
         if (showMentions && filteredMembers.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
@@ -315,8 +411,8 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
         const trimmed = content.trim();
         if ((!trimmed && pendingAttachments.length === 0) || isSubmitting) return;
 
-        // Convert display names back to @[userId] wire format
-        const wireContent = toWireFormat(trimmed, mentionMapRef.current);
+        // Convert display names back to @[userId] or #[stepId] wire format
+        const wireContent = toWireFormat(trimmed, mentionMapRef.current, stepMapRef.current);
 
         // If editing, call the edit handler instead of create
         if (editingComment && onEditSubmit) {
@@ -334,6 +430,7 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
         setCommentType(defaultType);
         setPendingAttachments([]);
         mentionMapRef.current.clear();
+        stepMapRef.current.clear();
 
         // Reset textarea height
         if (textareaRef.current) {
@@ -380,7 +477,12 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
         ];
 
     return (
-        <Popover open={showMentions} onOpenChange={(open) => !open && setShowMentions(false)}>
+        <Popover open={showMentions || showStepMentions} onOpenChange={(open) => {
+            if (!open) {
+                setShowMentions(false);
+                setShowStepMentions(false);
+            }
+        }}>
             <PopoverAnchor asChild>
                 <div
                     className={cn(
@@ -665,47 +767,94 @@ export const CommentInput = forwardRef<CommentInputHandle, CommentInputProps>(fu
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onCloseAutoFocus={(e) => e.preventDefault()}
             >
-                <div className="px-3 py-2 border-b border-border/40">
-                    <p className="text-[11px] font-medium text-foreground-muted">
-                        {t('mentionSuggestion')}
-                    </p>
-                </div>
-                <div className="max-h-[200px] overflow-y-auto py-1">
-                    {filteredMembers.length === 0 ? (
-                        <div className="px-3 py-4 text-center">
-                            <p className="text-xs text-foreground-muted">{t('noMembersToMention')}</p>
+                {showStepMentions ? (
+                    <>
+                        <div className="px-3 py-2 border-b border-border/40">
+                            <p className="text-[11px] font-medium text-foreground-muted">
+                                {t('tagStep')}
+                            </p>
                         </div>
-                    ) : (
-                        filteredMembers.map((member, idx) => (
-                            <button
-                                key={member.userId}
-                                onClick={() => insertMention(member)}
-                                onMouseEnter={() => setMentionIndex(idx)}
-                                className={cn(
-                                    'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer',
-                                    idx === mentionIndex
-                                        ? 'bg-accent'
-                                        : 'hover:bg-accent/50',
-                                )}
-                            >
-                                <UserAvatar
-                                    firstName={member.firstName}
-                                    lastName={member.lastName}
-                                    avatar={member.avatar}
-                                    size="xs"
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <span className="text-sm font-medium text-foreground truncate block">
-                                        {member.firstName} {member.lastName}
-                                    </span>
-                                    <span className="text-[11px] text-foreground-muted truncate block">
-                                        {member.email}
-                                    </span>
+                        <div className="max-h-[200px] overflow-y-auto py-1">
+                            {filteredSteps.length === 0 ? (
+                                <div className="px-3 py-4 text-center">
+                                    <p className="text-xs text-foreground-muted">{t('noStepsToTag')}</p>
                                 </div>
-                            </button>
-                        ))
-                    )}
-                </div>
+                            ) : (
+                                filteredSteps.map((step, idx) => (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => insertStepMention(step)}
+                                        onMouseEnter={() => setStepIndex(idx)}
+                                        className={cn(
+                                            'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer',
+                                            idx === stepIndex
+                                                ? 'bg-accent'
+                                                : 'hover:bg-accent/50',
+                                        )}
+                                    >
+                                        <div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
+                                            <Hash className="h-3.5 w-3.5 text-foreground-muted/60" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-medium text-foreground truncate block">
+                                                {step.title || `Paso ${step.index != null ? step.index + 1 : idx + 1}`}
+                                            </span>
+                                            {step.index != null && (
+                                                <span className="text-[10px] text-foreground-muted truncate block">
+                                                    Step {step.index + 1}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="px-3 py-2 border-b border-border/40">
+                            <p className="text-[11px] font-medium text-foreground-muted">
+                                {t('mentionSuggestion')}
+                            </p>
+                        </div>
+                        <div className="max-h-[200px] overflow-y-auto py-1">
+                            {filteredMembers.length === 0 ? (
+                                <div className="px-3 py-4 text-center">
+                                    <p className="text-xs text-foreground-muted">{t('noMembersToMention')}</p>
+                                </div>
+                            ) : (
+                                filteredMembers.map((member, idx) => (
+                                    <button
+                                        key={member.userId}
+                                        onClick={() => insertMention(member)}
+                                        onMouseEnter={() => setMentionIndex(idx)}
+                                        className={cn(
+                                            'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer',
+                                            idx === mentionIndex
+                                                ? 'bg-accent'
+                                                : 'hover:bg-accent/50',
+                                        )}
+                                    >
+                                        <UserAvatar
+                                            firstName={member.firstName}
+                                            lastName={member.lastName}
+                                            avatar={member.avatar}
+                                            size="xs"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-medium text-foreground truncate block">
+                                                {member.firstName} {member.lastName}
+                                            </span>
+                                            <span className="text-[11px] text-foreground-muted truncate block">
+                                                {member.email}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </>
+                )}
             </PopoverContent>
         </Popover>
     );
