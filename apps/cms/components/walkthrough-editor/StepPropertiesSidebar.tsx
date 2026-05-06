@@ -38,6 +38,110 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
         return Object.prototype.toString.call(value) === '[object Object]';
     }, []);
 
+    const renderArrayFields = useCallback((
+        arrayValue: any[],
+        onArrayChange: (nextArray: any[]) => void,
+        depth: number = 0
+    ): React.ReactNode => {
+        return (
+            <div className="space-y-3">
+                {arrayValue.map((item, index) => {
+                    const itemIsObject = isPlainObject(item);
+                    const itemIsArray = Array.isArray(item);
+
+                    return (
+                        <div key={`${depth}-item-${index}`} className="space-y-2">
+                            <div className="flex items-center gap-2 group">
+                                <div className="text-[10px] font-bold text-foreground-muted/40 w-12 shrink-0">
+                                    #{index}
+                                </div>
+                                {!itemIsObject && !itemIsArray ? (
+                                    <Input
+                                        className="font-mono text-[10px] bg-background-secondary/30 h-7 px-2 rounded-md border-transparent focus:border-border/50 transition-all flex-1"
+                                        value={item == null ? '' : String(item)}
+                                        onChange={(e) => {
+                                            const nextArray = [...arrayValue];
+                                            nextArray[index] = e.target.value;
+                                            onArrayChange(nextArray);
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="font-mono text-[10px] text-foreground-muted/60 px-2 h-7 flex items-center rounded-md bg-background-secondary/30 border border-transparent flex-1">
+                                        {itemIsObject
+                                            ? `Object (${Object.keys(item).length})`
+                                            : `Array (${item.length})`}
+                                    </div>
+                                )}
+                                {canEdit && (
+                                    <button
+                                        onClick={() => {
+                                            const nextArray = arrayValue.filter((_, i) => i !== index);
+                                            onArrayChange(nextArray);
+                                        }}
+                                        className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive rounded text-foreground-muted/40"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {itemIsObject && (
+                                <details className="ml-3 pl-3 border-l border-border/40 space-y-2" open={depth < 1}>
+                                    <summary className="cursor-pointer text-[10px] text-foreground-muted/50 hover:text-foreground-muted select-none transition-colors">
+                                        Ver atributos
+                                    </summary>
+                                    <div className="pt-1">
+                                        {renderObjectFields(
+                                            item,
+                                            (nextItem) => {
+                                                const nextArray = [...arrayValue];
+                                                nextArray[index] = nextItem;
+                                                onArrayChange(nextArray);
+                                            },
+                                            depth + 1
+                                        )}
+                                    </div>
+                                </details>
+                            )}
+
+                            {itemIsArray && (
+                                <details className="ml-3 pl-3 border-l border-border/40 space-y-2">
+                                    <summary className="cursor-pointer text-[10px] text-foreground-muted/50 hover:text-foreground-muted select-none transition-colors">
+                                        Ver contenido
+                                    </summary>
+                                    <div className="pt-1">
+                                        {renderArrayFields(
+                                            item,
+                                            (nextItem) => {
+                                                const nextArray = [...arrayValue];
+                                                nextArray[index] = nextItem;
+                                                onArrayChange(nextArray);
+                                            },
+                                            depth + 1
+                                        )}
+                                    </div>
+                                </details>
+                            )}
+                        </div>
+                    );
+                })}
+                {canEdit && (
+                    <Button
+                        onClick={() => {
+                            onArrayChange([...arrayValue, '']);
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-accent-blue hover:bg-accent-blue/5 rounded-md gap-1"
+                    >
+                        <Plus className="h-3 w-3" />
+                        Add Item
+                    </Button>
+                )}
+            </div>
+        );
+    }, [isPlainObject, canEdit]);
+
     const renderObjectFields = useCallback((
         objectValue: Record<string, any>,
         onObjectChange: (nextObject: Record<string, any>) => void,
@@ -46,7 +150,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
         const entries = Object.entries(objectValue || {});
 
         return (
-            <div className="space-y-2">
+            <div className="space-y-4">
                 {entries.map(([childKey, childValue], childIndex) => {
                     const childIsObject = isPlainObject(childValue);
                     const childIsArray = Array.isArray(childValue);
@@ -106,7 +210,7 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                             </div>
 
                             {childIsObject && (
-                                <details className="ml-3 pl-3 border-l border-border/40 space-y-2">
+                                <details className="ml-3 pl-3 border-l border-border/40 space-y-2" open={depth < 1}>
                                     <summary className="cursor-pointer text-[10px] text-foreground-muted/50 hover:text-foreground-muted select-none transition-colors">
                                         Ver atributos
                                     </summary>
@@ -123,12 +227,31 @@ export const StepPropertiesSidebar = React.memo(function StepPropertiesSidebar({
                                     </div>
                                 </details>
                             )}
+
+                            {childIsArray && (
+                                <details className="ml-3 pl-3 border-l border-border/40 space-y-2">
+                                    <summary className="cursor-pointer text-[10px] text-foreground-muted/50 hover:text-foreground-muted select-none transition-colors">
+                                        Ver elementos
+                                    </summary>
+                                    <div className="pt-1">
+                                        {renderArrayFields(
+                                            childValue as any[],
+                                            (nextArray) => {
+                                                const nextObject = { ...objectValue };
+                                                nextObject[childKey] = nextArray;
+                                                onObjectChange(nextObject);
+                                            },
+                                            depth + 1
+                                        )}
+                                    </div>
+                                </details>
+                            )}
                         </div>
                     );
                 })}
             </div>
         );
-    }, [isPlainObject, canEdit]);
+    }, [isPlainObject, canEdit, renderArrayFields]);
 
     if (!step) {
         return (
