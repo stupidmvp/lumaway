@@ -3,7 +3,9 @@
 import { use, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Info, Route, MessageCircle, Settings, Layers, PanelRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Info, Route, MessageCircle, Settings, Layers, PanelRight, ChevronLeft, ChevronRight, SlidersHorizontal, MousePointer2, Component, Bot } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
@@ -29,6 +31,7 @@ import {
 import { WalkthroughProperties } from '@/components/walkthrough-editor/WalkthroughProperties';
 import { ActorAssignment } from '@/components/walkthrough-editor/ActorAssignment';
 import { WalkthroughFlowSection } from '@/components/walkthrough-editor/WalkthroughFlowSection';
+import { StepPropertiesSidebar } from '@/components/walkthrough-editor/StepPropertiesSidebar';
 
 /* ─── Tab types ─── */
 
@@ -174,7 +177,13 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         handleParentChange,
         handlePreviousChange,
         handleNextChange,
+        currentStep,
+        updateStep,
+        selectedStepIndex,
+        localWalkthrough,
     } = useEditorContext();
+
+    const totalSteps = localWalkthrough?.steps.length ?? 0;
 
     const { data: user } = useCurrentUser();
     const currentUserId = user?.id;
@@ -336,67 +345,106 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                             <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors" />
 
                             {/* Right Properties Panel */}
-                            <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+                            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
                                 <aside className="h-full border-l border-border bg-[#f9fafb] dark:bg-[#09090b] flex flex-col overflow-hidden z-40">
-                                    <div className="h-14 px-5 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm shrink-0">
-                                        <span className="text-[13px] font-bold uppercase tracking-wider text-foreground-muted/70 flex items-center gap-2">
-                                            <PanelRight className="h-4 w-4" />
-                                            Properties
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                        <div className="p-6 space-y-8">
-                                            {/* Page Info Section */}
-                                            <div className="space-y-4">
-                                                <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                                    Page Configuration
-                                                </h3>
-                                                <div className="space-y-4">
-                                                    <WalkthroughProperties
-                                                        tags={localWalkthrough.tags ?? []}
-                                                        canEdit={canEdit}
-                                                        onTagsChange={handleTagsChange}
-                                                    />
-
-                                                    <ActorAssignment
-                                                        walkthroughId={id}
-                                                        projectId={localWalkthrough.projectId}
-                                                        canEdit={canEdit}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Navigation Flow Section */}
-                                            <div className="space-y-4 pt-6 border-t border-border/40">
-                                                <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
-                                                    Workflow & Logic
-                                                </h3>
-                                                <div className="space-y-4">
-                                                    <WalkthroughFlowSection
-                                                        walkthroughId={id}
-                                                        projectId={localWalkthrough.projectId}
-                                                        parentId={localWalkthrough.parentId}
-                                                        previousWalkthroughId={localWalkthrough.previousWalkthroughId}
-                                                        nextWalkthroughId={localWalkthrough.nextWalkthroughId}
-                                                        onParentChange={handleParentChange}
-                                                        onPreviousChange={handlePreviousChange}
-                                                        onNextChange={handleNextChange}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Contextual help or info */}
-                                            <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
-                                                <div className="flex items-start gap-3">
-                                                    <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
-                                                    <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
-                                                        These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
-                                                    </p>
-                                                </div>
-                                            </div>
+                                    <Tabs defaultValue="configuration" className="flex-1 flex flex-col overflow-hidden">
+                                        <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-white/50 dark:bg-background/50 backdrop-blur-sm shrink-0">
+                                            <TabsList className="bg-transparent h-9 gap-1 p-0">
+                                                <TabsTrigger 
+                                                    value="configuration"
+                                                    className="data-[state=active]:bg-background-secondary data-[state=active]:text-foreground text-[12px] font-medium px-3 h-8 rounded-md transition-all gap-2"
+                                                >
+                                                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                                                    {t('configuration') || 'Config'}
+                                                </TabsTrigger>
+                                                <TabsTrigger 
+                                                    value="step"
+                                                    className="data-[state=active]:bg-background-secondary data-[state=active]:text-foreground text-[12px] font-medium px-3 h-8 rounded-md transition-all gap-2"
+                                                >
+                                                    <MousePointer2 className="h-3.5 w-3.5" />
+                                                    {t('step') || 'Step'}
+                                                </TabsTrigger>
+                                            </TabsList>
+                                            
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted/40 hover:text-foreground-muted">
+                                                            <PanelRight className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom" className="text-[11px]">
+                                                        Hide panel
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
-                                    </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                            <TabsContent value="configuration" className="m-0 focus-visible:outline-none">
+                                                <div className="p-6 space-y-8">
+                                                    {/* Page Info Section */}
+                                                    <div className="space-y-4">
+                                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                                            Page Configuration
+                                                        </h3>
+                                                        <div className="space-y-4">
+                                                            <WalkthroughProperties
+                                                                tags={localWalkthrough.tags ?? []}
+                                                                canEdit={canEdit}
+                                                                onTagsChange={handleTagsChange}
+                                                            />
+
+                                                            <ActorAssignment
+                                                                walkthroughId={id}
+                                                                projectId={localWalkthrough.projectId}
+                                                                canEdit={canEdit}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Navigation Flow Section */}
+                                                    <div className="space-y-4 pt-6 border-t border-border/40">
+                                                        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground-muted/50 px-0.5">
+                                                            Workflow & Logic
+                                                        </h3>
+                                                        <div className="space-y-4">
+                                                            <WalkthroughFlowSection
+                                                                walkthroughId={id}
+                                                                projectId={localWalkthrough.projectId}
+                                                                parentId={localWalkthrough.parentId}
+                                                                previousWalkthroughId={localWalkthrough.previousWalkthroughId}
+                                                                nextWalkthroughId={localWalkthrough.nextWalkthroughId}
+                                                                onParentChange={handleParentChange}
+                                                                onPreviousChange={handlePreviousChange}
+                                                                onNextChange={handleNextChange}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Contextual help or info */}
+                                                    <div className="mt-8 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
+                                                        <div className="flex items-start gap-3">
+                                                            <Info className="h-4 w-4 text-accent-blue mt-0.5 shrink-0" />
+                                                            <p className="text-[12px] text-foreground-muted/80 leading-relaxed">
+                                                                These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </TabsContent>
+
+                                            <TabsContent value="step" className="m-0 focus-visible:outline-none">
+                                                <StepPropertiesSidebar 
+                                                    step={currentStep}
+                                                    stepIndex={selectedStepIndex}
+                                                    projectId={localWalkthrough.projectId}
+                                                    canEdit={canEdit}
+                                                    onUpdateStep={updateStep}
+                                                />
+                                            </TabsContent>
+                                        </div>
+                                    </Tabs>
                                 </aside>
                             </ResizablePanel>
                         </ResizablePanelGroup>
