@@ -141,9 +141,25 @@ function SortableStepItem({
     const isStepActive = selectedSegmentId === step.id || isStepSelected;
     const isEven = index % 2 === 0;
 
+    const localRef = useRef<HTMLDivElement | null>(null);
+
+    const setRefs = (node: HTMLDivElement | null) => {
+        setNodeRef(node);
+        localRef.current = node;
+    };
+
+    useEffect(() => {
+        if (isStepActive && localRef.current) {
+            localRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }
+    }, [isStepActive]);
+
     return (
         <div
-            ref={setNodeRef}
+            ref={setRefs}
             style={style}
             className={cn(
                 "h-12 flex items-center transition-all text-left shrink-0 overflow-hidden relative border-b border-border/50 group outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none",
