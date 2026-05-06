@@ -31,8 +31,8 @@ export const WalkthroughFlowSection = React.memo(function WalkthroughFlowSection
     return (
         <div className="space-y-4">
             {/* Parent walkthrough */}
-            <div className="flex items-center min-h-[28px]">
-                <div className="w-[100px] shrink-0 flex items-center gap-2 text-foreground-muted">
+            <div className="flex items-center min-h-[32px]">
+                <div className="w-28 shrink-0 flex items-center gap-2 text-foreground-muted">
                     <GitPullRequest className="h-3.5 w-3.5" />
                     <span className="text-xs">{t('parent')}</span>
                 </div>
@@ -51,8 +51,8 @@ export const WalkthroughFlowSection = React.memo(function WalkthroughFlowSection
             </div>
 
             {/* Previous walkthrough */}
-            <div className="flex items-center min-h-[28px]">
-                <div className="w-[100px] shrink-0 flex items-center gap-2 text-foreground-muted">
+            <div className="flex items-center min-h-[32px]">
+                <div className="w-28 shrink-0 flex items-center gap-2 text-foreground-muted">
                     <ArrowLeft className="h-3.5 w-3.5" />
                     <span className="text-xs">{t('previous')}</span>
                 </div>
@@ -71,8 +71,8 @@ export const WalkthroughFlowSection = React.memo(function WalkthroughFlowSection
             </div>
 
             {/* Next walkthrough */}
-            <div className="flex items-center min-h-[28px]">
-                <div className="w-[100px] shrink-0 flex items-center gap-2 text-foreground-muted">
+            <div className="flex items-center min-h-[32px]">
+                <div className="w-28 shrink-0 flex items-center gap-2 text-foreground-muted">
                     <ArrowRight className="h-3.5 w-3.5" />
                     <span className="text-xs">{t('next')}</span>
                 </div>

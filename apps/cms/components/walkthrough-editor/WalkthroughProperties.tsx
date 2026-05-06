@@ -58,8 +58,8 @@ export const WalkthroughProperties = React.memo(function WalkthroughProperties({
     }, [tagInput, addTag]);
 
     return (
-        <div className="flex items-center min-h-[28px] py-0.5">
-            <div className="w-[100px] shrink-0 flex items-center gap-2 text-foreground-muted">
+        <div className="flex items-center min-h-[32px]">
+            <div className="w-28 shrink-0 flex items-center gap-2 text-foreground-muted">
                 <Tag className="h-3.5 w-3.5" />
                 <span className="text-xs">{tw('filterByTags')}</span>
             </div>

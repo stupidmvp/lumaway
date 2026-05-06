@@ -63,8 +63,8 @@ export const ActorAssignment = React.memo(function ActorAssignment({
     const hasAssignedActors = assignedList.length > 0;
 
     return (
-        <div className="flex items-center min-h-[28px] py-0.5">
-            <div className="w-[100px] shrink-0 flex items-center gap-2 text-foreground-muted">
+        <div className="flex items-center min-h-[32px]">
+            <div className="w-28 shrink-0 flex items-center gap-2 text-foreground-muted">
                 <UserCog className="h-3.5 w-3.5" />
                 <span className="text-xs">{t('title')}</span>
             </div>
