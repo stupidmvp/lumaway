@@ -17,50 +17,58 @@ export function WalkthroughDocumentView({ steps }: WalkthroughDocumentViewProps)
     }
 
     return (
-        <div className="bg-background rounded-xl border border-border/60 shadow-sm overflow-hidden mb-6">
-            <div className="px-5 py-3.5 border-b border-border/40 bg-background-secondary/20 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-foreground-muted" />
-                <h3 className="text-sm font-medium text-foreground">
-                    {t('documentView') || 'Document View'}
-                </h3>
-            </div>
-            
-            <div className="p-6 sm:p-8 max-w-3xl mx-auto">
-                <div className="space-y-8">
-                    {steps.map((step, index) => (
-                        <div key={step.id} className="flex items-start gap-4 group">
-                            {/* Step Number */}
-                            <div className="flex-shrink-0 mt-0.5 w-7 h-7 rounded-md flex items-center justify-center bg-background-secondary text-foreground-muted text-xs font-semibold border border-border/50 select-none">
-                                {index + 1}
+        <div className="py-8 px-2 max-w-[900px] mx-auto w-full">
+            <div className="space-y-6 font-sans">
+                {steps.map((step, index) => (
+                    <div key={step.id} className="group relative flex flex-col gap-1 rounded-md px-2 py-1 hover:bg-background-secondary/40 transition-colors duration-200">
+                        {/* Notion-style Block Drag Handle (Aesthetic only for preview) */}
+                        <div className="absolute -left-6 top-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-[2px] cursor-default items-center justify-center text-foreground-muted/40 px-1 py-1">
+                            <div className="flex gap-[2px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
                             </div>
-                            
-                            {/* Step Content */}
-                            <div className="flex-1 min-w-0">
-                                <h4 className="text-[15px] font-semibold text-foreground leading-snug tracking-tight">
-                                    {step.title || t('untitledStep')}
-                                </h4>
-                                
-                                {step.description ? (
-                                    <p className="mt-2 text-[14px] text-foreground-subtle leading-relaxed whitespace-pre-wrap">
-                                        {step.description}
-                                    </p>
-                                ) : (
-                                    <p className="mt-2 text-[13px] text-foreground-muted/50 italic leading-relaxed">
-                                        {t('noDescription')}
-                                    </p>
-                                )}
-
-                                {/* Subtle Technical Target */}
-                                {step.target && (
-                                    <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-1 rounded border border-border/30 bg-background-secondary/30 text-[10px] text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <Target className="h-2.5 w-2.5" />
-                                        <code className="font-mono truncate max-w-[300px]">{step.target}</code>
-                                    </div>
-                                )}
+                            <div className="flex gap-[2px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
+                            </div>
+                            <div className="flex gap-[2px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
+                                <div className="w-[3px] h-[3px] rounded-full bg-current"></div>
                             </div>
                         </div>
-                    ))}
-                </div>
+
+                        {/* Step Title (H3 style in Notion) */}
+                        <div className="flex items-start gap-2">
+                            <span className="mt-[2px] font-mono text-foreground-muted/60 select-none text-[13px]">
+                                {index + 1}.
+                            </span>
+                            <h3 className="text-[16px] font-semibold text-foreground leading-snug outline-none">
+                                {step.title || t('untitledStep')}
+                            </h3>
+                        </div>
+                        
+                        {/* Step Content */}
+                        <div className="pl-[22px]">
+                            {step.description ? (
+                                <p className="text-[15px] text-foreground-subtle leading-[1.6] whitespace-pre-wrap outline-none">
+                                    {step.description}
+                                </p>
+                            ) : (
+                                <p className="text-[15px] text-foreground-muted/40 italic leading-[1.6] outline-none">
+                                    {t('noDescription')}
+                                </p>
+                            )}
+
+                            {/* Technical Target - Kept subtle */}
+                            {step.target && (
+                                <div className="mt-2 inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-background-secondary/50 text-[11px] text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <Target className="h-3 w-3" />
+                                    <code className="font-mono text-[10px] truncate max-w-[300px]">{step.target}</code>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
