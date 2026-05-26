@@ -2,10 +2,16 @@ import type { GuidancePlan } from "../public-types.js";
 import type { SdkI18nStrings } from "../i18n.js";
 import { resolveSdkStrings } from "../i18n.js";
 
+export interface ChatMedia {
+    url: string;
+    type: "image" | "gif";
+}
+
 export interface ChatMessage {
     role: "user" | "bot";
     text: string;
     actions?: Array<{ label: string; action?: string; walkthroughId?: string; stepId?: string }>;
+    media?: ChatMedia;
 }
 
 export interface AssistantOptions {
@@ -778,7 +784,8 @@ export class Assistant {
         text: string,
         actions?: Array<{ label: string; action?: string; walkthroughId?: string; stepId?: string }>,
         skipPersist?: boolean,
-        routeBadge?: string
+        routeBadge?: string,
+        media?: ChatMedia
     ) {
         if (role === "bot") {
             this.setTyping(false);
@@ -794,6 +801,16 @@ export class Assistant {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
         `;
 
+        // Render media if present
+        let mediaHtml = '';
+        if (media?.url) {
+            mediaHtml = `
+                <div class="luma-msg-media" style="margin-bottom: 8px; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; background: #f9fafb; line-height: 0;">
+                    <img src="${media.url}" style="width: 100%; height: auto; display: block;" alt="Step visual" />
+                </div>
+            `;
+        }
+
         // Render markdown for bot messages
         const content = role === "bot" ? this.renderMarkdown(text) : this.escapeHtml(text);
 
@@ -801,7 +818,10 @@ export class Assistant {
             <div class="luma-msg-wrapper">
                 <div class="luma-msg-wrapper-top">
                     <div class="luma-msg-avatar">${icon}</div>
-                    <div class="luma-msg-bubble">${content}</div>
+                    <div class="luma-msg-bubble">
+                        ${mediaHtml}
+                        ${content}
+                    </div>
                 </div>
             </div>
         `;
@@ -878,7 +898,7 @@ export class Assistant {
         this.messagesList.scrollTop = this.messagesList.scrollHeight;
 
         if (!skipPersist && this.onMessageAdded) {
-            this.onMessageAdded({ role, text, actions });
+            this.onMessageAdded({ role, text, actions, media });
         }
     }
 
@@ -1199,14 +1219,17 @@ export class Assistant {
         const walkthroughId = plan.metadata?.walkthroughId;
         const isNewStep = stepId !== this.lastStepId;
 
+        const mediaUrl = plan.metadata?.gifUrl || plan.metadata?.coverUrl;
+        const media = mediaUrl ? { url: mediaUrl, type: plan.metadata?.gifUrl ? "gif" : "image" } as ChatMedia : undefined;
+
         const lastMsg = this.messagesList.lastElementChild?.querySelector(".luma-msg-bubble")?.textContent;
 
-        if (lastMsg !== plan.message) {
+        if (lastMsg !== plan.message || (isNewStep && media)) {
             // Chat shows universal messages only.
             // Guided steps are navigated through the Tooltip. Start/completion messages
             // are injected by LumaSDK.handleWalkthroughCompleted.
             if (isUniversal) {
-                this.addMessage("bot", plan.message);
+                this.addMessage("bot", plan.message, undefined, false, undefined, media);
                 if (!this.isOpen) {
                     const dot = this.triggerButton.querySelector(".luma-notification-dot") as HTMLElement;
                     dot.style.display = "block";

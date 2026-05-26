@@ -337,6 +337,20 @@ export class Tooltip {
                 color: #ef4444;
             }
 
+            .luma-tooltip-media {
+                margin-bottom: 12px;
+                border-radius: 8px;
+                overflow: hidden;
+                border: 1px solid var(--luma-border);
+                background: #f9fafb;
+                line-height: 0;
+            }
+            .luma-tooltip-media img {
+                width: 100%;
+                height: auto;
+                display: block;
+            }
+
             /* Step counter & progress */
             .luma-step-name {
                 font-size: 13px;
@@ -540,6 +554,16 @@ export class Tooltip {
 
         // ---- Build Content ----
         let contentHtml = '';
+
+        // Media (Cover or GIF)
+        const mediaUrl = plan.metadata?.gifUrl || plan.metadata?.coverUrl;
+        if (mediaUrl) {
+            contentHtml += `
+                <div class="luma-tooltip-media">
+                    <img src="${mediaUrl}" alt="Step visual" />
+                </div>
+            `;
+        }
 
         // Progress bar
         if (hasCounter) {

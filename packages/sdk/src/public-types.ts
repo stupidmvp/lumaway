@@ -106,6 +106,8 @@ export interface Step {
     purpose?: string;
     target?: string;
     placement?: "top" | "bottom" | "left" | "right" | "center";
+    coverUrl?: string | null;
+    gifUrl?: string | null;
     conditions?: StepCondition[];
     metadata?: any;
 }

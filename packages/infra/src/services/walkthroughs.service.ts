@@ -7,6 +7,10 @@ export interface Step {
     purpose?: string;
     target?: string;
     placement?: 'auto' | 'top' | 'top-start' | 'top-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end' | 'right' | 'right-start' | 'right-end';
+    coverUrl?: string | null;
+    gifUrl?: string | null;
+    startMs?: number | null;
+    endMs?: number | null;
     roles?: string[];
     metadata?: Record<string, any>;
 }
@@ -24,6 +28,7 @@ export interface Walkthrough {
     title: string;
     icon?: string | null;
     coverUrl?: string | null;
+    observerSessionId?: string | null;
     description?: string | null; // Plain text summary — used for AI context
     content?: Record<string, any> | null; // Lexical editor state JSON
     projectId: string;
@@ -66,5 +71,25 @@ export const WalkthroughsService = {
 
     async delete(id: string): Promise<void> {
         await httpClient.delete(`/walkthroughs/${id}`);
+    },
+
+    async generateGifs(walkthroughId: string): Promise<{ walkthroughId: string, generatedCount: number }> {
+        const { data } = await httpClient.post('/walkthrough-generate-gifs', { walkthroughId });
+        return data;
+    },
+
+    async generateStepGif(
+        walkthroughId: string,
+        stepId: string,
+        startMs: number,
+        endMs: number
+    ): Promise<{ stepId: string; gifUrl: string; startMs: number; endMs: number }> {
+        const { data } = await httpClient.post('/walkthrough-generate-step-gif', {
+            walkthroughId,
+            stepId,
+            startMs,
+            endMs,
+        });
+        return data;
     }
 };

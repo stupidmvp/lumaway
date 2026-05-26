@@ -511,7 +511,9 @@
         "advancedData": "Datos Técnicos Avanzados",
         "advancedDataDescription": "Metadatos crudos capturados durante la grabación.",
         "requiresIntervention": "Requiere Intervención",
-        "requiresInterventionDescription": "Forzar interacción manual antes de continuar (desactiva auto-ejecución)."
+        "requiresInterventionDescription": "Forzar interacción manual antes de continuar (desactiva auto-ejecución).",
+        "gifsGenerated": "GIFs de los pasos generados exitosamente",
+        "gifsGenerationFailed": "Error al generar los GIFs de los pasos"
     },
     "VersionHistory": {
         "title": "Historial de versiones",

@@ -5,7 +5,8 @@ import type {
     GuidancePlan,
     LumaEvent,
     LumaUserContext,
-    Walkthrough
+    Walkthrough,
+    Step
 } from "./public-types.js";
 import { LumaClient } from "./LumaClient.js";
 import type { AssistPlan, BrowserFlowPlan, LumaClientConfig, ObserverCapturedEvent } from "./LumaClient.js";
@@ -2274,6 +2275,12 @@ export class LumaSDK {
         return null;
     }
 
+    private getWalkthroughStep(walkthroughId: string, stepId: string): Step | null {
+        const wt = this.walkthroughs.find((w) => String(w.id) === walkthroughId);
+        if (!wt) return null;
+        return (wt.steps || []).find((s) => String(s.id) === stepId) || null;
+    }
+
     private scheduleNotify(plan: GuidancePlan | null, forceRender = false) {
         this.pendingPlan = plan;
         this.pendingForceRender = this.pendingForceRender || forceRender;
@@ -2309,7 +2316,23 @@ export class LumaSDK {
         }
 
         this.lastPlan = fingerprint;
-        const planWithConfig = plan ? { ...plan, config: this.projectConfig } : (this.projectConfig ? { message: "", canIgnore: true, config: this.projectConfig } as GuidancePlan : null);
+
+        const enrichedPlan = plan ? { ...plan } : null;
+        if (enrichedPlan?.metadata?.walkthroughId && enrichedPlan?.metadata?.stepId) {
+            const step = this.getWalkthroughStep(
+                String(enrichedPlan.metadata.walkthroughId),
+                String(enrichedPlan.metadata.stepId)
+            );
+            if (step) {
+                enrichedPlan.metadata = {
+                    ...enrichedPlan.metadata,
+                    coverUrl: step.coverUrl,
+                    gifUrl: step.gifUrl,
+                };
+            }
+        }
+
+        const planWithConfig = enrichedPlan ? { ...enrichedPlan, config: this.projectConfig } : (this.projectConfig ? { message: "", canIgnore: true, config: this.projectConfig } as GuidancePlan : null);
 
         this.logStep("6. Notify", { hasPlan: !!plan, stepId: plan?.metadata?.stepId, walkthroughId: plan?.metadata?.walkthroughId });
         this.tooltip.render(planWithConfig);

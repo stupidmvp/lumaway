@@ -27,6 +27,11 @@ export default function WalkthroughGeneralPage() {
         sensors,
         selectedStepIndex,
         setSelectedStepIndex,
+        generateGifs,
+        isGeneratingGifs,
+        handleObserverSessionChange,
+        toggleMediaLibrary,
+        syncRecordingTimings,
     } = useEditorContext();
 
     if (!localWalkthrough) return null;
@@ -40,12 +45,14 @@ export default function WalkthroughGeneralPage() {
                 title={localWalkthrough.title}
                 icon={localWalkthrough.icon ?? null}
                 coverUrl={localWalkthrough.coverUrl ?? null}
+                observerSessionId={localWalkthrough.observerSessionId ?? null}
                 description={localWalkthrough.description ?? null}
                 steps={localWalkthrough.steps} 
                 canEdit={canEdit}
                 onTitleChange={handleTitleChange}
                 onIconChange={handleIconChange}
                 onCoverChange={handleCoverUrlChange}
+                onObserverSessionChange={handleObserverSessionChange}
                 onDescriptionChange={handleDescriptionChange}
                 onUpdateStep={updateStep}
                 onAddStep={addStep}
@@ -54,6 +61,10 @@ export default function WalkthroughGeneralPage() {
                 sensors={sensors}
                 selectedStepIndex={selectedStepIndex}
                 onSelectStep={setSelectedStepIndex}
+                onGenerateGifs={generateGifs}
+                isGeneratingGifs={isGeneratingGifs}
+                onSyncTimings={syncRecordingTimings}
+                toggleMediaLibrary={toggleMediaLibrary}
             />
 
             {/* Additional content below document */}

@@ -511,7 +511,9 @@
         "advancedData": "Advanced Technical Data",
         "advancedDataDescription": "Raw metadata captured during recording.",
         "requiresIntervention": "Requires Intervention",
-        "requiresInterventionDescription": "Force manual interaction before proceeding (disables auto-execution)."
+        "requiresInterventionDescription": "Force manual interaction before proceeding (disables auto-execution).",
+        "gifsGenerated": "Step GIFs generated successfully",
+        "gifsGenerationFailed": "Failed to generate step GIFs"
     },
     "VersionHistory": {
         "title": "Version History",

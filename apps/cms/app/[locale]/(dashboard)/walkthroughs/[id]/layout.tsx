@@ -4,9 +4,8 @@ import React, { use, useMemo, useRef, useState, useEffect } from 'react';
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Info, Route, MessageCircle, Settings, Layers, PanelRight, ChevronLeft, ChevronRight, SlidersHorizontal, MousePointer2, Component, Bot } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Info, Route, MessageCircle, Settings, Layers, PanelRight, SlidersHorizontal, MousePointer2, Component, Bot, Video, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
@@ -28,11 +27,7 @@ import {
     ResizablePanelGroup,
 } from '@/components/ui/resizable';
 
-// Properties Panel Components
-import { WalkthroughProperties } from '@/components/walkthrough-editor/WalkthroughProperties';
-import { ActorAssignment } from '@/components/walkthrough-editor/ActorAssignment';
-import { WalkthroughFlowSection } from '@/components/walkthrough-editor/WalkthroughFlowSection';
-import { StepPropertiesSidebar } from '@/components/walkthrough-editor/StepPropertiesSidebar';
+import { EditorSidebar, type EditorSidebarTab } from '@/components/walkthrough-editor/EditorSidebar';
 
 /* ─── Tab types ─── */
 
@@ -183,15 +178,50 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         currentStep,
         updateStep,
         selectedStepIndex,
+        handleObserverSessionChange,
+        mediaLibraryExpanded,
+        toggleMediaLibrary,
+        generateGifs,
     } = useEditorContext();
 
     const totalSteps = localWalkthrough?.steps.length ?? 0;
 
-    const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false);
-    const propertiesPanelRef = useRef<ImperativePanelHandle>(null);
+    const mediaLibraryPanelRef = useRef<ImperativePanelHandle>(null);
+
+    // Sync media library expansion state
+    useEffect(() => {
+        const panel = mediaLibraryPanelRef.current;
+        if (!panel) return;
+        if (mediaLibraryExpanded) {
+            panel.expand();
+        } else {
+            panel.collapse();
+        }
+    }, [mediaLibraryExpanded]);
 
     const { data: user } = useCurrentUser();
     const currentUserId = user?.id;
+
+    // ── Editor sidebar icon-tab state ──
+    const [activeSidebarTab, setActiveSidebarTab] = useState<EditorSidebarTab>('properties');
+
+    const handleSidebarTabClick = (tab: EditorSidebarTab) => {
+        if (mediaLibraryExpanded && activeSidebarTab === tab) {
+            // Same tab while open → collapse
+            toggleMediaLibrary();
+        } else {
+            setActiveSidebarTab(tab);
+            if (!mediaLibraryExpanded) toggleMediaLibrary();
+        }
+    };
+
+    // ── Auto-open Properties tab when a step is selected ──
+    useEffect(() => {
+        if (selectedStepIndex >= 0) {
+            setActiveSidebarTab('properties');
+            if (!mediaLibraryExpanded) toggleMediaLibrary();
+        }
+    }, [selectedStepIndex]);
 
     // ── Active tab from pathname ──
     const activePageTab: TabKey = useMemo(() => {
@@ -200,19 +230,6 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
         return 'general';
     }, [pathname]);
 
-    const [activePropertiesTab, setActivePropertiesTab] = useState('configuration');
-
-    // Auto-switch to "step" tab and expand panel when a step is selected
-    useEffect(() => {
-        if (selectedStepIndex >= 0) {
-            setActivePropertiesTab('step');
-            
-            // Expand panel if it's collapsed
-            if (propertiesPanelRef.current?.isCollapsed()) {
-                propertiesPanelRef.current.expand();
-            }
-        }
-    }, [selectedStepIndex]);
 
     // ── Tab definitions ──
     const tabs: TabDef[] = useMemo(() => [
@@ -297,148 +314,102 @@ function WalkthroughLayoutInner({ children }: { children: React.ReactNode }) {
                     />
 
                     <div className="flex-1 flex overflow-hidden">
-                        <ResizablePanelGroup direction="horizontal">
-                            {/* Center Content (Scrollable) */}
-                            <ResizablePanel defaultSize={75} minSize={40}>
+                        {/* Fixed icon strip — always visible, outside ResizablePanel */}
+                        <aside className="w-16 shrink-0 border-r border-border/40 bg-white/40 backdrop-blur-lg dark:bg-[#0f0f11]/30 flex flex-col overflow-hidden z-10">
+                            <div className="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-2">
+                                {(
+                                    [
+                                        { id: 'properties', icon: SlidersHorizontal, label: 'Properties' },
+                                        { id: 'lumens',     icon: Video,              label: 'Lumens'     },
+                                        { id: 'media',      icon: ImageIcon,          label: 'Media'      },
+                                    ] as { id: EditorSidebarTab; icon: React.ElementType; label: string }[]
+                                ).map(({ id: tabId, icon: Icon, label }) => {
+                                    const isActive = mediaLibraryExpanded && activeSidebarTab === tabId;
+                                    return (
+                                        <Tooltip key={tabId}>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={() => handleSidebarTabClick(tabId)}
+                                                    className={cn(
+                                                        'group flex items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-300 w-full',
+                                                        isActive
+                                                            ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] dark:bg-background-secondary'
+                                                            : 'hover:bg-background-secondary/40'
+                                                    )}
+                                                >
+                                                    <Icon
+                                                        className={cn(
+                                                            'h-5 w-5 transition-all duration-300 shrink-0',
+                                                            isActive
+                                                                ? 'text-accent-blue scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.2)]'
+                                                                : 'text-foreground-muted/60 group-hover:text-foreground/80 group-hover:scale-105'
+                                                        )}
+                                                        strokeWidth={isActive ? 2.5 : 2}
+                                                    />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" className="bg-foreground text-background border-none text-[12px] font-medium px-3 py-1.5 shadow-xl">
+                                                {label}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    );
+                                })}
+                            </div>
+                        </aside>
+
+                        <ResizablePanelGroup direction="horizontal" className="flex-1">
+                            {/* Collapsible content panel */}
+                            <ResizablePanel
+                                ref={mediaLibraryPanelRef}
+                                defaultSize={0}
+                                minSize={28}
+                                maxSize={42}
+                                collapsible={true}
+                                collapsedSize={0}
+                                onCollapse={() => { if (mediaLibraryExpanded) toggleMediaLibrary(); }}
+                                onExpand={() => { if (!mediaLibraryExpanded) toggleMediaLibrary(); }}
+                            >
+                                <EditorSidebar
+                                    activeTab={activeSidebarTab}
+                                    projectId={localWalkthrough.projectId}
+                                    walkthroughId={id}
+                                    id={id}
+                                    localWalkthrough={localWalkthrough}
+                                    canEdit={canEdit}
+                                    handleTagsChange={handleTagsChange}
+                                    handleParentChange={handleParentChange}
+                                    handlePreviousChange={handlePreviousChange}
+                                    handleNextChange={handleNextChange}
+                                    currentStep={currentStep}
+                                    selectedStepIndex={selectedStepIndex}
+                                    updateStep={updateStep}
+                                    linkedSessionId={localWalkthrough.observerSessionId}
+                                    onSelectSession={handleObserverSessionChange}
+                                    onGenerateGifs={async (sessionId) => {
+                                        await handleObserverSessionChange(sessionId);
+                                        await generateGifs();
+                                    }}
+                                />
+                            </ResizablePanel>
+
+                            <ResizableHandle withHandle={false} className="relative z-[100] w-px bg-border dark:bg-[#2d2d30] after:hidden">
+                                {mediaLibraryExpanded && (
+                                    <div
+                                        className="absolute top-1/2 -translate-y-1/2 left-0 flex h-12 w-4 cursor-pointer items-center justify-center rounded-r-full bg-background-secondary dark:bg-[#111114] border border-l-0 border-border dark:border-[#2d2d30] shadow-[2px_0_8px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_rgba(0,0,0,0.3)] text-foreground-muted hover:text-foreground dark:text-white/40 dark:hover:text-white hover:bg-background-secondary/80 dark:hover:bg-[#1a1a1e] transition-colors"
+                                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleMediaLibrary(); }}
+                                    >
+                                        <ChevronLeft className="h-3 w-3 opacity-80 -ml-0.5" />
+                                    </div>
+                                )}
+                            </ResizableHandle>
+
+                            {/* Main content */}
+                            <ResizablePanel defaultSize={100} minSize={40}>
                                 <div className="h-full overflow-y-auto overflow-x-hidden bg-background dark:bg-[#191919] no-scrollbar">
                                     {children}
                                 </div>
                             </ResizablePanel>
 
-                            <ResizableHandle className="w-[1.5px] bg-border/40 hover:bg-accent-blue/40 transition-colors relative">
-                                <div
-                                    className="absolute top-1/2 -translate-y-1/2 right-0 z-[100] flex h-12 w-3.5 cursor-pointer items-center justify-center rounded-l-full bg-background-secondary dark:bg-[#111114] border border-r-0 border-border dark:border-[#2d2d30] shadow-[-2px_0_8px_rgba(0,0,0,0.05)] dark:shadow-[-2px_0_8px_rgba(0,0,0,0.3)] text-foreground-muted hover:text-foreground dark:text-white/40 dark:hover:text-white hover:bg-background-secondary/80 dark:hover:bg-[#1a1a1e] transition-colors group"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        const panel = propertiesPanelRef.current;
-                                        if (panel) {
-                                            if (panel.isCollapsed()) {
-                                                panel.expand();
-                                            } else {
-                                                panel.collapse();
-                                            }
-                                        }
-                                    }}
-                                >
-                                    {isPropertiesCollapsed ? (
-                                        <ChevronLeft className="h-3 w-3 opacity-80 -mr-0.5" />
-                                    ) : (
-                                        <ChevronRight className="h-3 w-3 opacity-80 -mr-0.5" />
-                                    )}
-                                </div>
-                            </ResizableHandle>
-
-                            {/* Right Properties Panel */}
-                            <ResizablePanel 
-                                ref={propertiesPanelRef}
-                                defaultSize={25} 
-                                minSize={20} 
-                                maxSize={40}
-                                collapsible={true}
-                                collapsedSize={0}
-                                onCollapse={() => setIsPropertiesCollapsed(true)}
-                                onExpand={() => setIsPropertiesCollapsed(false)}
-                                className={cn(
-                                    "transition-all duration-300 ease-in-out border-l border-border/60",
-                                    isPropertiesCollapsed ? "min-w-[0px] border-l-0" : ""
-                                )}
-                            >
-                                <aside className="h-full bg-background flex flex-col overflow-hidden z-40">
-                                    <Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab} className="flex-1 flex flex-col overflow-hidden">
-                                        <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-background shrink-0">
-                                            <TabsList className="bg-muted/50 p-1 h-9 rounded-lg border border-border">
-                                                <TabsTrigger 
-                                                    value="configuration"
-                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
-                                                >
-                                                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                                                    {t('configuration') || 'Configuration'}
-                                                </TabsTrigger>
-                                                <TabsTrigger 
-                                                    value="step"
-                                                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-background-secondary data-[state=active]:text-accent-blue data-[state=active]:shadow-sm text-[12px] font-bold px-4 h-7 rounded-md transition-all gap-2"
-                                                >
-                                                    <MousePointer2 className="h-3.5 w-3.5" />
-                                                    {t('step') || 'Step'}
-                                                </TabsTrigger>
-                                            </TabsList>
-                                            
-                                        </div>
-                                        
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                            <TabsContent value="configuration" className="m-0 focus-visible:outline-none">
-                                                <div className="p-0 space-y-0 divide-y divide-border/40">
-                                                    {/* Page Info Section */}
-                                                    <section className="p-6 space-y-6">
-                                                        <div className="flex items-center gap-2 text-foreground/80">
-                                                            <Info className="h-3.5 w-3.5 text-accent-blue" />
-                                                            <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Document Settings</h3>
-                                                        </div>
-                                                        <div className="space-y-5 px-1">
-                                                            <WalkthroughProperties
-                                                                tags={localWalkthrough.tags ?? []}
-                                                                canEdit={canEdit}
-                                                                onTagsChange={handleTagsChange}
-                                                            />
-
-                                                            <ActorAssignment
-                                                                walkthroughId={id}
-                                                                projectId={localWalkthrough.projectId}
-                                                                canEdit={canEdit}
-                                                            />
-                                                        </div>
-                                                    </section>
-
-                                                    {/* Navigation Flow Section */}
-                                                    <section className="p-6 space-y-6">
-                                                        <div className="flex items-center gap-2 text-foreground/80">
-                                                            <Route className="h-3.5 w-3.5 text-foreground-muted" />
-                                                            <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]">Workflow & Logic</h3>
-                                                        </div>
-                                                        <div className="space-y-5 px-1">
-                                                            <WalkthroughFlowSection
-                                                                walkthroughId={id}
-                                                                projectId={localWalkthrough.projectId}
-                                                                parentId={localWalkthrough.parentId}
-                                                                previousWalkthroughId={localWalkthrough.previousWalkthroughId}
-                                                                nextWalkthroughId={localWalkthrough.nextWalkthroughId}
-                                                                onParentChange={handleParentChange}
-                                                                onPreviousChange={handlePreviousChange}
-                                                                onNextChange={handleNextChange}
-                                                            />
-                                                        </div>
-                                                    </section>
-
-                                                    {/* Contextual help or info */}
-                                                    <div className="p-6">
-                                                        <div className="p-5 rounded-2xl bg-accent-blue/5 border border-accent-blue/10 shadow-[0_4px_12px_rgba(var(--accent-blue-rgb),0.03)]">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center shrink-0">
-                                                                    <Info className="h-3.5 w-3.5 text-accent-blue" />
-                                                                </div>
-                                                                <p className="text-[12px] text-foreground-muted/80 leading-relaxed font-medium">
-                                                                    These properties define how this walkthrough is categorized and how it relates to other documentation in the project.
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </TabsContent>
-
-                                            <TabsContent value="step" className="m-0 focus-visible:outline-none">
-                                                <StepPropertiesSidebar 
-                                                    step={currentStep}
-                                                    stepIndex={selectedStepIndex}
-                                                    projectId={localWalkthrough.projectId}
-                                                    canEdit={canEdit}
-                                                    onUpdateStep={updateStep}
-                                                />
-                                            </TabsContent>
-                                        </div>
-                                    </Tabs>
-                                </aside>
-                            </ResizablePanel>
                         </ResizablePanelGroup>
                     </div>
                 </div>

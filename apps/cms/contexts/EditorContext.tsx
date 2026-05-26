@@ -12,9 +12,15 @@ type EditorContextValue = ReturnType<typeof useEditorState> & {
     handleDescriptionChange: (description: string) => void;
     handleIconChange: (icon: string | null) => void;
     handleCoverUrlChange: (coverUrl: string | null) => void;
+    handleObserverSessionChange: (id: string | null) => void;
+    mediaLibraryExpanded: boolean;
+    toggleMediaLibrary: () => void;
     handleTagsChange: (tags: string[]) => void;
     handleDuplicateCurrentStep: () => void;
     handleRemoveCurrentStep: () => void;
+    syncRecordingTimings: () => Promise<void>;
+    generateGifs: () => Promise<void>;
+    isGeneratingGifs: boolean;
     reviewerUserIds: string[];
     approvals: any[];
 };
@@ -40,6 +46,9 @@ export function EditorProvider({ id, children }: EditorProviderProps) {
         duplicateStep,
         removeStep,
         selectedStepIndex,
+        handleSave,
+        mediaLibraryExpanded,
+        toggleMediaLibrary,
     } = editorState;
 
     const handleParentChange = useCallback((value: string | null) => {
@@ -69,6 +78,13 @@ export function EditorProvider({ id, children }: EditorProviderProps) {
     const handleCoverUrlChange = useCallback((coverUrl: string | null) => {
         updateLocalWalkthrough({ coverUrl });
     }, [updateLocalWalkthrough]);
+    
+    const handleObserverSessionChange = useCallback(async (observerSessionId: string | null) => {
+        // updateLocalWalkthrough now syncs the ref immediately, so handleSave
+        // will read the correct observerSessionId without needing a setTimeout
+        updateLocalWalkthrough({ observerSessionId });
+        await handleSave();
+    }, [updateLocalWalkthrough, handleSave]);
 
     const handleTagsChange = useCallback((tags: string[]) => {
         updateLocalWalkthrough({ tags });
@@ -94,9 +110,15 @@ export function EditorProvider({ id, children }: EditorProviderProps) {
                 handleDescriptionChange,
                 handleIconChange,
                 handleCoverUrlChange,
+                handleObserverSessionChange,
                 handleTagsChange,
                 handleDuplicateCurrentStep,
                 handleRemoveCurrentStep,
+                syncRecordingTimings: editorState.syncRecordingTimings,
+                generateGifs: editorState.generateGifs,
+                isGeneratingGifs: editorState.isGeneratingGifs,
+                mediaLibraryExpanded,
+                toggleMediaLibrary,
             }}
         >
             {children}

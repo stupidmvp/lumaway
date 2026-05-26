@@ -9,13 +9,16 @@ import {
     useUpdateVersion,
     usePermissions,
     useProjectSettingsPermissions,
+    useGenerateWalkthroughGifs,
     Step,
     Walkthrough,
     useCurrentUser,
     DEFAULT_PREFERENCES,
+    LumensService,
 } from '@luma/infra';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     closestCenter,
     KeyboardSensor,
@@ -34,6 +37,7 @@ const ROLE_ICONS_KEYS = ['owner', 'admin', 'editor', 'viewer'] as const;
 export function useEditorState(id: string) {
     const t = useTranslations('Editor');
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     // TanStack Query Hooks
     const { data: walkthroughData, isLoading, isError } = useWalkthrough(id);
@@ -41,6 +45,7 @@ export function useEditorState(id: string) {
     const versions = versionsData?.pages.flatMap((page) => page.data) ?? [];
     const updateMutation = useUpdateWalkthrough();
     const updateVersionMutation = useUpdateVersion();
+    const generateGifsMutation = useGenerateWalkthroughGifs();
     const permissions = usePermissions();
 
     // Project settings permissions (publish, delete, comment, etc.)
@@ -94,9 +99,12 @@ export function useEditorState(id: string) {
     const [selectedStepIndex, setSelectedStepIndex] = useState<number>(-1);
     const [showVersionHistory, setShowVersionHistory] = useState(false);
     const [stepsExpanded, setStepsExpanded] = useState(true);
+    const [mediaLibraryExpanded, setMediaLibraryExpanded] = useState(false);
     const hasInitializedExpanded = useRef(false);
+    const hasInitializedMediaLibrary = useRef(false);
     const stepTitleRef = useRef<HTMLInputElement>(null);
     const shouldFocusTitleRef = useRef(false);
+    const localWalkthroughRef = useRef<Walkthrough | null>(null);
 
     // DND Sensors
     const sensors = useSensors(
@@ -109,12 +117,39 @@ export function useEditorState(id: string) {
     // Sync local state when data loads
     useEffect(() => {
         if (walkthroughData) {
-            setLocalWalkthrough(walkthroughData);
-            if (walkthroughData.steps.length > 0 && selectedStepIndex === -1) {
-                setSelectedStepIndex(0);
+            if (!localWalkthrough) {
+                setLocalWalkthrough(walkthroughData);
+                if (walkthroughData.steps.length > 0 && selectedStepIndex === -1) {
+                    setSelectedStepIndex(0);
+                }
+            } else {
+                // Background merge for media fields (GIFs/Covers) 
+                // that might have been updated by background processes
+                const hasMediaUpdates = walkthroughData.steps.some((s, i) => {
+                    const localStep = localWalkthrough.steps[i];
+                    return (s.gifUrl && !localStep?.gifUrl) || (s.coverUrl && !localStep?.coverUrl);
+                });
+
+                if (hasMediaUpdates) {
+                    const mergedSteps = localWalkthrough.steps.map((ls, i) => {
+                        const serverStep = walkthroughData.steps[i];
+                        if (!serverStep) return ls;
+                        return {
+                            ...ls,
+                            gifUrl: ls.gifUrl || serverStep.gifUrl,
+                            coverUrl: ls.coverUrl || serverStep.coverUrl
+                        };
+                    });
+                    setLocalWalkthrough(prev => prev ? { ...prev, steps: mergedSteps } : null);
+                }
             }
+            localWalkthroughRef.current = walkthroughData;
         }
     }, [walkthroughData]);
+
+    useEffect(() => {
+        localWalkthroughRef.current = localWalkthrough;
+    }, [localWalkthrough]);
 
     // Initialize sidebar state based on preferences
     useEffect(() => {
@@ -123,6 +158,17 @@ export function useEditorState(id: string) {
             hasInitializedExpanded.current = true;
         }
     }, [currentUser, prefs.editorSidebarOpen]);
+
+    // Initialize media library state based on whether a source is linked
+    useEffect(() => {
+        if (walkthroughData && !hasInitializedMediaLibrary.current) {
+            // If no source is linked, open the library by default
+            if (!walkthroughData.observerSessionId) {
+                setMediaLibraryExpanded(true);
+            }
+            hasInitializedMediaLibrary.current = true;
+        }
+    }, [walkthroughData]);
 
     // Auto-select step from URL param (e.g. navigating from a comment step badge)
     useEffect(() => {
@@ -153,11 +199,12 @@ export function useEditorState(id: string) {
     // --- Handlers ---
 
     const handleSave = useCallback(async () => {
-        if (!localWalkthrough) return;
+        const walkthrough = localWalkthroughRef.current;
+        if (!walkthrough) return;
 
-        const emptySteps = localWalkthrough.steps.filter(s => !s.title.trim());
+        const emptySteps = walkthrough.steps.filter(s => !s.title.trim());
         if (emptySteps.length > 0) {
-            const idx = localWalkthrough.steps.findIndex(s => !s.title.trim());
+            const idx = walkthrough.steps.findIndex(s => !s.title.trim());
             setSelectedStepIndex(idx);
             setTimeout(() => stepTitleRef.current?.focus(), 50);
             toast.error(t('stepTitleRequired'));
@@ -166,18 +213,19 @@ export function useEditorState(id: string) {
 
         try {
             await updateMutation.mutateAsync({
-                id: localWalkthrough.id,
+                id: walkthrough.id,
                 data: {
-                    title: localWalkthrough.title,
-                    icon: localWalkthrough.icon || null,
-                    coverUrl: localWalkthrough.coverUrl || null,
-                    description: localWalkthrough.description || null,
-                    steps: localWalkthrough.steps,
-                    tags: localWalkthrough.tags,
-                    isPublished: localWalkthrough.isPublished,
-                    parentId: localWalkthrough.parentId || null,
-                    previousWalkthroughId: localWalkthrough.previousWalkthroughId || null,
-                    nextWalkthroughId: localWalkthrough.nextWalkthroughId || null,
+                    title: walkthrough.title,
+                    icon: walkthrough.icon || null,
+                    coverUrl: walkthrough.coverUrl || null,
+                    observerSessionId: walkthrough.observerSessionId || null,
+                    description: walkthrough.description || null,
+                    steps: walkthrough.steps,
+                    tags: walkthrough.tags,
+                    isPublished: walkthrough.isPublished,
+                    parentId: walkthrough.parentId || null,
+                    previousWalkthroughId: walkthrough.previousWalkthroughId || null,
+                    nextWalkthroughId: walkthrough.nextWalkthroughId || null,
                 }
             });
             toast.success(t('walkthroughSaved'));
@@ -185,7 +233,7 @@ export function useEditorState(id: string) {
             console.error(e);
             toast.error(t('walkthroughSaveFailed'));
         }
-    }, [localWalkthrough, updateMutation, t]);
+    }, [updateMutation, t]);
 
     const addStep = useCallback((atIndex?: number) => {
         if (!localWalkthrough) return;
@@ -329,10 +377,97 @@ export function useEditorState(id: string) {
         }
     }, [localWalkthrough, updateMutation, t]);
 
+    const syncRecordingTimings = useCallback(async () => {
+        if (!id || !localWalkthrough?.observerSessionId) return;
+
+        try {
+            // Fetch session candidates (events) to get timing data
+            const review = await LumensService.getReview(localWalkthrough.observerSessionId);
+            const candidates = review.stepCandidates || [];
+
+            if (candidates.length === 0) {
+                toast.error('No events found in this recording to map.');
+                return;
+            }
+
+            // Map candidates to steps based on index
+            const newSteps = localWalkthrough.steps.map((step, i) => {
+                const candidate = candidates[i];
+                if (!candidate) return step;
+
+                // Use the same timing logic as the generation service
+                const transcriptWindowStartMs = candidate.metadata?.interactionMap?.transcriptWindowStartMs ?? candidate.timestampMs;
+                const transcriptWindowEndMs = candidate.metadata?.interactionMap?.transcriptWindowEndMs ?? (candidate.timestampMs + 4000);
+
+                return {
+                    ...step,
+                    startMs: transcriptWindowStartMs,
+                    endMs: transcriptWindowEndMs,
+                    target: step.target || candidate.targetSelector || undefined
+                };
+            });
+
+            // Update state AND ref immediately so the subsequent save reads fresh data
+            const updated = { ...localWalkthrough, steps: newSteps };
+            setLocalWalkthrough(updated);
+            localWalkthroughRef.current = updated;
+
+            toast.success('Steps synchronized with recording timeline.');
+
+            // Save immediately — ref is already up-to-date, no setTimeout needed
+            await handleSave();
+        } catch (e) {
+            console.error('Sync failed:', e);
+            toast.error('Failed to sync timings from recording.');
+        }
+    }, [id, localWalkthrough, handleSave]);
+
+    const generateGifs = useCallback(async () => {
+        if (!id) return;
+        const walkthrough = localWalkthroughRef.current;
+        if (!walkthrough?.observerSessionId) {
+            toast.error(t('noVideoSourceLinked') || 'No video source linked. Please link a recording first.');
+            return;
+        }
+        try {
+            const result = await generateGifsMutation.mutateAsync(id);
+
+            // Immediately update local state with the returned gifUrls —
+            // don't wait for the background query refetch, which might miss the merge.
+            if (result?.results?.length > 0) {
+                setLocalWalkthrough(prev => {
+                    if (!prev) return null;
+                    const updatedSteps = prev.steps.map((step: Step) => {
+                        const gifResult = result.results.find((r: any) => r.stepId === step.id);
+                        return gifResult ? { ...step, gifUrl: gifResult.gifUrl } : step;
+                    });
+                    const updated = { ...prev, steps: updatedSteps };
+                    localWalkthroughRef.current = updated;
+                    return updated;
+                });
+            }
+
+            // Also invalidate query so the server state is eventually synced
+            queryClient.invalidateQueries({ queryKey: ['walkthrough', id] });
+            toast.success(t('gifsGenerated') || `Generated ${result?.generatedCount ?? 0} step GIF(s) successfully`);
+        } catch (e) {
+            console.error('GIF generation failed:', e);
+            toast.error(t('gifsGenerationFailed') || 'Failed to generate step GIFs');
+        }
+    }, [id, generateGifsMutation, queryClient, t]);
+
     const updateLocalWalkthrough = useCallback((updates: Partial<Walkthrough>) => {
         if (!localWalkthrough) return;
-        setLocalWalkthrough({ ...localWalkthrough, ...updates });
+        const updated = { ...localWalkthrough, ...updates };
+        setLocalWalkthrough(updated);
+        // Sync the ref immediately so consumers like handleSave don't read stale values
+        // before the next React render cycle updates it via the useEffect below
+        localWalkthroughRef.current = updated;
     }, [localWalkthrough]);
+
+    const toggleMediaLibrary = useCallback(() => {
+        setMediaLibraryExpanded(prev => !prev);
+    }, []);
 
     const toggleStepsPanel = useCallback(() => {
         setStepsExpanded(prev => !prev);
@@ -361,6 +496,7 @@ export function useEditorState(id: string) {
         selectedStepIndex,
         showVersionHistory,
         stepsExpanded,
+        mediaLibraryExpanded,
         latestVersion,
         approvalRequired,
         versionStatus,
@@ -371,6 +507,7 @@ export function useEditorState(id: string) {
         canRequestApproval,
         canApprove,
         canReject,
+        isGeneratingGifs: generateGifsMutation.isPending,
         isPending: updateMutation.isPending,
         stepTitleRef,
         sensors,
@@ -387,9 +524,12 @@ export function useEditorState(id: string) {
         requestApproval,
         approveVersion,
         rejectVersion,
+        generateGifs,
         updateLocalWalkthrough,
         setSelectedStepIndex,
         toggleStepsPanel,
+        toggleMediaLibrary,
+        syncRecordingTimings,
         openVersionHistory,
         closeVersionHistory,
     };

@@ -34,7 +34,8 @@ import {
     Pause, 
     Captions, 
     Settings2, 
-    ChevronDown, 
+    ChevronDown,
+    ChevronUp,
     Check,
     Languages,
     Trash2,
@@ -94,6 +95,9 @@ interface CapcutTimelineProps {
     onSelectStep?: (id: string, multi?: boolean, fromTimeline?: boolean) => void;
     onMergeSteps?: () => void;
     selectedStepIds?: Set<string>;
+    initialPixelsPerSecond?: number;
+    onToggleTimeline?: () => void;
+    timelineVisible?: boolean;
     t?: (k: string) => string;
 }
 
@@ -245,6 +249,9 @@ export function CapcutTimeline({
     onSelectStep,
     onMergeSteps,
     selectedStepIds = new Set(),
+    initialPixelsPerSecond = 100,
+    onToggleTimeline,
+    timelineVisible = true,
     t = (k: string) => k,
 }: CapcutTimelineProps) {
     const sensors = useSensors(
@@ -277,7 +284,7 @@ export function CapcutTimeline({
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const playheadRef = useRef<HTMLDivElement>(null);
-    const [pixelsPerSecond, setPixelsPerSecond] = useState(100); 
+    const [pixelsPerSecond, setPixelsPerSecond] = useState(initialPixelsPerSecond);
     const [draggedItem, setDraggedItem] = useState<{ id: string; startMs: number; endMs: number } | null>(null);
     const isDraggingItemRef = useRef(false);
     const [localSelectedId, setLocalSelectedId] = useState<string | null>(selectedSegmentId);
@@ -859,6 +866,34 @@ export function CapcutTimeline({
             <div className="h-14 border-b border-border dark:border-[#2a2a2e] bg-background dark:bg-[#0f0f11] flex items-center px-4 shrink-0 gap-4">
                 <div className="flex-1 flex items-center gap-1.5 min-w-0">
                     <TooltipProvider>
+                        {/* Timeline visibility toggle — only shown when onToggleTimeline is provided */}
+                        {onToggleTimeline && (
+                            <>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn(
+                                                "h-8 w-8 hover:bg-secondary/50 transition-colors",
+                                                timelineVisible
+                                                    ? "text-accent-blue/70 hover:text-accent-blue"
+                                                    : "text-foreground/40 hover:text-foreground"
+                                            )}
+                                            onClick={onToggleTimeline}
+                                        >
+                                            {timelineVisible
+                                                ? <ChevronDown className="w-3.5 h-3.5" />
+                                                : <ChevronUp className="w-3.5 h-3.5" />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">
+                                        {timelineVisible ? 'Hide timeline' : 'Show timeline'}
+                                    </TooltipContent>
+                                </Tooltip>
+                                <div className="w-px h-4 bg-border/80 mx-1 shrink-0" />
+                            </>
+                        )}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground hover:bg-secondary/50 disabled:opacity-30" onClick={() => onSplitStep?.()} disabled={selectedStepIds.size !== 1}>

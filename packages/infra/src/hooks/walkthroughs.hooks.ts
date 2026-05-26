@@ -118,3 +118,32 @@ export const useDeleteWalkthrough = () => {
         },
     });
 };
+export const useGenerateWalkthroughGifs = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (walkthroughId: string) => WalkthroughsService.generateGifs(walkthroughId),
+        onSuccess: async (_, walkthroughId) => {
+            await queryClient.invalidateQueries({ queryKey: ['walkthroughs', walkthroughId] });
+        },
+    });
+};
+
+export const useGenerateStepGif = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            walkthroughId,
+            stepId,
+            startMs,
+            endMs,
+        }: {
+            walkthroughId: string;
+            stepId: string;
+            startMs: number;
+            endMs: number;
+        }) => WalkthroughsService.generateStepGif(walkthroughId, stepId, startMs, endMs),
+        onSuccess: async (_, { walkthroughId }) => {
+            await queryClient.invalidateQueries({ queryKey: ['walkthroughs', walkthroughId] });
+        },
+    });
+};
